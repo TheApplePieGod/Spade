@@ -36,5 +36,7 @@ code/[Bb]uild/*
 [Mm]isc/.vs
 code/src/asset_system/assets/*
 !code/src/asset_system/assets/*.keep
+code/src/asset_system/fonts/*
+!code/src/asset_system/fonts/*.keep
 
 
