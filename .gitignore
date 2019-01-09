@@ -26,3 +26,13 @@
 *.exe
 *.out
 *.app
+
+# Engine specific
+*.pac
+
+# Paths
+[Bb]uild/
+[Mm]isc/.vs
+code/src/asset_system/assets/
+
+
