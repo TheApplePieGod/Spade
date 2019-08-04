@@ -223,7 +223,8 @@ void DXCleanup()
     SAFE_RELEASE(DepthStencilTex);
     SAFE_RELEASE(DepthStencilView);
     SAFE_RELEASE(RenderTargetView);
-    SAFE_RELEASE(SamplerState1);
+    SAFE_RELEASE(AnisotropicSampler);
+    SAFE_RELEASE(PointSampler);
     SAFE_RELEASE(SamplerShadowClamp);
     SAFE_RELEASE(Chain);
     SAFE_RELEASE(DebugDevice);
@@ -263,6 +264,7 @@ HRESULT InitDX(HWND Window, int BufferResHeight, int BufferResWidth)
     sd.OutputWindow = Window;
     sd.SampleDesc.Count = MultiSamplingCount;
     sd.SampleDesc.Quality = 0;
+    sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
     sd.Windowed = TRUE;
     
     const D3D_FEATURE_LEVEL lvl[] = {
@@ -742,7 +744,7 @@ HRESULT InitDX(HWND Window, int BufferResHeight, int BufferResWidth)
     // NOTE: If you do not set a samplerstate, the default will be MIN_MAG_MIP_LINEAR
     //
     D3D11_SAMPLER_DESC SamplerDesc;
-    SamplerDesc.Filter = D3D11_FILTER_ANISOTROPIC; //D3D11_FILTER_ANISOTROPIC;
+    SamplerDesc.Filter = D3D11_FILTER_ANISOTROPIC; //D3D11_FILTER_MIN_MAG_MIP_POINT;
     SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP; // tile
     SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
     SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
@@ -755,8 +757,13 @@ HRESULT InitDX(HWND Window, int BufferResHeight, int BufferResWidth)
     SamplerDesc.BorderColor[3] = 1.0f;
     SamplerDesc.MinLOD = 0;
     SamplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
-    Device->CreateSamplerState(&SamplerDesc, &SamplerState1);
-    DeviceContext->PSSetSamplers( 0, 1, &SamplerState1);
+    Device->CreateSamplerState(&SamplerDesc, &AnisotropicSampler);
+    DeviceContext->PSSetSamplers( 0, 1, &AnisotropicSampler);
+
+    SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+
+    Device->CreateSamplerState(&SamplerDesc, &PointSampler);
+    DeviceContext->PSSetSamplers( 2, 1, &PointSampler);
 
     //
     // shadow clamp sampler
@@ -956,13 +963,17 @@ HRESULT InitDX(HWND Window, int BufferResHeight, int BufferResWidth)
     return hr;
 }
 
-void RenderTextAtPosition(const char* Text, v2 Position, v2 Scale, float Rotation, v4 Color, cFontAsset* Font)
+/*
+* Returns extent of text
+*/
+v2 RenderTextAtPosition(const char* Text, v2 Position, v2 Scale, float Rotation, v4 Color, cFontAsset* Font)
 {
     char String[256];
     _snprintf_s(String, sizeof(String), "%s", Text);
     cArray<vertex> Quad;
     v2 AddedPosition = V2(0, 0);
     u32 LastChar = '\0';
+    f32 TallestChar = 0.f;
 
     for (u32 x = 0; String[x] != '\0'; x++)
     {
@@ -970,6 +981,9 @@ void RenderTextAtPosition(const char* Text, v2 Position, v2 Scale, float Rotatio
         float lsb = 0;
         u32 AsciiVal = String[x];
         char_entry CharData = Font->FindCharEntryByAscii(AsciiVal);
+
+        if (CharData.Height > TallestChar)
+            TallestChar = (f32)CharData.Height;
 
         for (u32 i = 0; i < Font->KernValues.Num(); i++)
         {
@@ -1021,6 +1035,9 @@ void RenderTextAtPosition(const char* Text, v2 Position, v2 Scale, float Rotatio
 
     Draw(MainBuffer, Quad);
     Quad.ManualFree();
+
+    AddedPosition.y = TallestChar;
+    return AddedPosition;
 }
 
 //assumes shader resource for the texture is set prior to function call

@@ -31,8 +31,8 @@
 *.pac
 
 # Paths
-code/[Bb]uild/*
-!code/build/*.keep
+build/*
+!build/*.keep
 [Mm]isc/.vs
 code/src/asset_system/assets/*
 !code/src/asset_system/assets/*.keep

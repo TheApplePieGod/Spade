@@ -4,19 +4,20 @@
 #include <DirectXMath.h>   
 #include <D3Dcompiler.h>
 #include <Box2D.h>
+#include "../../lib/misc/fast_dynamic_cast.h"
 
 #include "../utils/main.h"
 #include "../utils/cmath.h"
 #include "../engine/memory.cpp"
 
-memory_manager* MainManager = new memory_manager(true);
+static memory_manager* MainManager = new memory_manager(true);
 
 #include "../utils/cArray.h"
 #include "../utils/dx.h"
 
-#include "../engine/material.cpp"
 #include "../asset_system/assetLoader.h" // dependency reasons
 #include "../asset_system/asset.cpp"
+#include "../engine/material.cpp"
 
 cArray<texture_entry> GlobalTextureRegistry = cArray<texture_entry>(MainManager, memory_lifetime::Permanent); // stores all loaded textures
 cArray<material> GlobalMaterialRegistry = cArray<material>(MainManager, memory_lifetime::Permanent); // stores all initialized materials
@@ -26,7 +27,6 @@ cArray<cAsset*> GlobalAssetRegistry = cArray<cAsset*>(MainManager, memory_lifeti
 #include "../engine/renderer.cpp"
 #include "../asset_system/assetLoader.cpp"
 #include "../engine/camera.cpp"
-
 #include "../classes/widget/widget.cpp"
 #include "../classes/components/renderingComponent.cpp"
 #include "../engine/actor.h"
@@ -36,6 +36,8 @@ cArray<cAsset*> GlobalAssetRegistry = cArray<cAsset*>(MainManager, memory_lifeti
 #include "../classes/tilemap.cpp"
 #include "../engine/actor.cpp"
 #include "../../game/globalInclude.h"
+
+#include "../engine/editor.cpp"
 
 // add all subcatagories into one .h
 
@@ -436,10 +438,11 @@ static void ActorIteration(bool ShadowPass = false, bool Paraboloid = false)
         if (MaterialIndexes[i].Num() == 0)
             continue;
         if (GlobalMaterialRegistry[i].bUsesTextureDiffuse) // increase shader resources for normal/diffuse/etc textures
-            DeviceContext->PSSetShaderResources(0, 1, &GlobalTextureRegistry[i].AssociatedShaderHandle);
+            DeviceContext->PSSetShaderResources(0, 1, &GlobalMaterialRegistry[i].DiffuseTexture->AssociatedShaderHandle);
 
         MaterialConstants.DiffuseColor = GlobalMaterialRegistry[i].DiffuseColor;
         MaterialConstants.SpecularPower = GlobalMaterialRegistry[i].SpecularPower;
+        MaterialConstants.SamplerID = GlobalMaterialRegistry[i].SampleType;
 
         D3D11_MAPPED_SUBRESOURCE Mapped;
         DeviceContext->Map(MaterialBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &Mapped);
@@ -698,86 +701,173 @@ static void LightIteration(bool UseDirectionalLight, int NumCascades = 3, float 
     DeviceContext->Unmap(LightingBuffer, NULL);
 }
 
-static void WidgetCollectionAndRender()
+void WidgetComponentArrayIteration(cArray<widget_component*> Array, u32 CurrentWidgetIndex, int* CurrentShader);
+void RenderWidgetComponent(widget_component* Component, v2 ParentPosition, u32 CurrentWidgetIndex, int* ShaderVar)
+{
+    if (Component->ParentComponent != nullptr)
+        ParentPosition += Component->ParentComponent->Position;
+    switch (Component->GetType())
+    {
+        case None:
+        case VerticalBox: // no support for nested boxes yet
+        case HorizontalBox:
+            break;
+        case Text: // text widget extent is updated every frame (in case font/text changes)
+        {
+            if (ShaderVar != 0)
+            {
+                DeviceContext->VSSetShader(TwoDFontVertShader, NULL, 0);
+                DeviceContext->PSSetShader(TwoDFontPixShader, NULL, 0);
+                *ShaderVar = 0;
+            }
+            u32 FontID = GetAssetIDFromName("Candara.ttf");
+            DeviceContext->PSSetShaderResources(0, 1, &((cFontAsset*)GlobalAssetRegistry[FontID])->AtlasShaderHandle);
+            //widget_component_text* Text = fast_dynamic_cast<widget_component_text*>(Component);
+            widget_component_text* Text = (widget_component_text*)(Component);
+            Component->Extent = RenderTextAtPosition(Text->Text.c_str(), ParentPosition, Text->Scale, Text->Rotation, Text->Color, (cFontAsset*)GlobalAssetRegistry[FontID]);
+            break;
+        }
+        case Border:
+        {
+            if (ShaderVar != 0)
+            {
+                DeviceContext->VSSetShader(TwoDFontVertShader, NULL, 0);
+                DeviceContext->PSSetShader(TwoDFontPixShader, NULL, 0);
+                *ShaderVar = 0;
+            }
+            widget_component_border Border = *(widget_component_border*)Component;
+            if (Border.UseImageBackground)
+            {
+                u32 ImageID = GetShaderIDFromName(Border.ImageName.c_str());
+                DeviceContext->PSSetShaderResources(0, 1, &GlobalTextureRegistry[ImageID].AssociatedShaderHandle);
+            }
+            RenderQuad(Border.UseImageBackground, ParentPosition, Border.Scale, Border.Extent, Border.Tint);
+            break;
+        }
+    }
+    if (Component->Children.Num() > 0)
+    {
+        WidgetComponentArrayIteration(Component->Children, CurrentWidgetIndex, ShaderVar);
+    }
+}
+
+void WidgetComponentArrayIteration(cArray<widget_component*> Array, u32 CurrentWidgetIndex, int* CurrentShader)
+{
+    for (u32 x = 0; x < Array.Num(); x++)
+    {
+        WidgetCount++;
+        switch (Array[x]->GetType())
+        {
+            case None:
+            {
+                WidgetCount++;
+                if (Array[x]->Children.Num() > 0)
+                {
+                    WidgetComponentArrayIteration(Array[x]->Children, CurrentWidgetIndex, CurrentShader);
+                }
+                break;
+            }
+            case Text:
+            case Border:
+            {
+                WidgetCount++;
+                RenderWidgetComponent(Array[x], WidgetRegistry[CurrentWidgetIndex]->Position + Array[x]->Position, CurrentWidgetIndex, CurrentShader);
+                break;
+            }
+            case HorizontalBox:
+            {
+                WidgetCount++;
+                widget_component_horizontalbox* Horiz = (widget_component_horizontalbox*)Array[x];
+                f32 Padding = Horiz->Padding;
+                bool FillRight = Horiz->FillRight;
+                f32 NextPosition = 0.0f;
+                for (u32 z = 0; z < Horiz->Children.Num(); z++)
+                {
+                    WidgetCount++;
+                    RenderWidgetComponent(Horiz->Children[z], WidgetRegistry[CurrentWidgetIndex]->Position + Horiz->Position + V2(NextPosition, 0.0f), CurrentWidgetIndex, CurrentShader);
+                    if (FillRight)
+                        NextPosition += Horiz->Children[z]->Extent.x + Padding;
+                    else
+                        NextPosition -= Horiz->Children[z]->Extent.x + Padding;
+                }
+                break;
+            }
+            case VerticalBox:
+            {
+                WidgetCount++;
+                widget_component_verticalbox* Vert = (widget_component_verticalbox*)Array[x];
+                f32 Padding = Vert->Padding;
+                bool FillDown = Vert->FillDownward;
+                f32 NextPosition = 0.0f;
+                for (u32 z = 0; z < Vert->Children.Num(); z++)
+                {
+                    WidgetCount++;
+                    RenderWidgetComponent(Vert->Children[z], WidgetRegistry[CurrentWidgetIndex]->Position + Vert->Position + V2(0.f, NextPosition), CurrentWidgetIndex, CurrentShader);
+                    if (FillDown)
+                        NextPosition -= Vert->Children[z]->Extent.y + Padding;
+                    else
+                        NextPosition += Vert->Children[z]->Extent.y + Padding;
+                }
+                break;
+            }
+            case WrapBox:
+            {
+
+                break;
+            }
+        }
+    }
+}
+
+void WidgetCollectionAndRender()
 {
     int CurrentShader = -1;
     WidgetCount = 0;
 
     for (u32 i = 0; i < WidgetRegistry.Num(); i++)
     {
-        for (u32 x = 0; x < WidgetRegistry[i]->RenderingComponents.Num(); x++)
-        {
-            WidgetCount++;
-            switch (WidgetRegistry[i]->RenderingComponents[x]->GetType())
-            {
-                case None:
-                    break;
-                case Text:
-                {
-                    if (CurrentShader != 0)
-                    {
-                        DeviceContext->VSSetShader(TwoDFontVertShader, NULL, 0);
-                        DeviceContext->PSSetShader(TwoDFontPixShader, NULL, 0);
-                    }
-                    u32 FontID = GetAssetIDFromName("Candara.ttf");
-                    DeviceContext->PSSetShaderResources(0, 1, &((cFontAsset*)GlobalAssetRegistry[FontID])->AtlasShaderHandle);
-                    widget_component_text Text = *(widget_component_text*)WidgetRegistry[i]->RenderingComponents[x];
-                    RenderTextAtPosition(Text.Text.c_str(), WidgetRegistry[i]->Position + Text.Position, Text.Scale, Text.Rotation, Text.Color, (cFontAsset*)GlobalAssetRegistry[FontID]);
-                    break;
-                }
-                case Border:
-                {
-                    if (CurrentShader != 0)
-                    {
-                        DeviceContext->VSSetShader(TwoDFontVertShader, NULL, 0);
-                        DeviceContext->PSSetShader(TwoDFontPixShader, NULL, 0);
-                    }
-                    widget_component_border Border = *(widget_component_border*)WidgetRegistry[i]->RenderingComponents[x];
-                    if (Border.UseImageBackground)
-                    {
-                        u32 ImageID = GetShaderIDFromName(Border.ImageName.c_str());
-                        DeviceContext->PSSetShaderResources(0, 1, &GlobalTextureRegistry[ImageID].AssociatedShaderHandle);
-                    }
-                    RenderQuad(Border.UseImageBackground, WidgetRegistry[i]->Position + Border.Position, Border.Scale, Border.Extent, Border.Tint);
-                    break;
-                }
-            }
-        }
+        WidgetComponentArrayIteration(WidgetRegistry[i]->RenderingComponents, i, &CurrentShader);
     }
 }
 
-void PickTrace();
-{ 
-    DirectX::XMMATRIX Inv = DirectX::XMMatrixInverse(NULL, M4ToDXM(MainCamera->ViewMatrix));
-    DirectX::XMVECTOR ViewSpaceMouse = XMVectorSet(UserInputs->MousePosX, UserInputs->MousePosY, 1.f, 0.f);
-    DirectX::XMVECTOR StartPos = XMVectorSet(0.f, 0.f, 0.f, 0.f);
+// void PickTrace()
+// { 
+//     DirectX::XMMATRIX Inv = DirectX::XMMatrixInverse(NULL, M4ToDXM(MainCamera->ViewMatrix));
+//     DirectX::XMVECTOR ViewSpaceMouse = DirectX::XMVectorSet(UserInputs->MousePosX, UserInputs->MousePosY, 1.f, 0.f);
+//     DirectX::XMVECTOR StartPos = DirectX::XMVectorSet(0.f, 0.f, 0.f, 0.f);
 
-    DirectX::XMVECTOR RayPos = DirectX::XMVector3TransformCoord(StartPos, Inv);
-    DirectX::XMVECTOR RayDir = DirectX::XMVector3TransformNormal(ViewSpaceMouse, Inv);
+//     DirectX::XMVECTOR RayPos = DirectX::XMVector3TransformCoord(StartPos, Inv);
+//     DirectX::XMVECTOR RayDir = DirectX::XMVector3TransformNormal(ViewSpaceMouse, Inv);
 
-    for (u32 i = 0; i < ActorRegistry.Num(); i++)
-    {
-        if (ActorRegistry[i].Visible && ActorRegistry[i].Flag != actor_flag::PendingDestroy)
-        {
-            for (u32 z = 0; z < ActorRegistry[i].RenderingComponents.Num(); z++)
-            {
-                if (ActorRegistry[i].RenderingComponents[z].Visible)
-                {
-                    
-                }
-            }
-        }
-    }
+//     for (u32 i = 0; i < MainLevel->ActorRegistry.Num(); i++)
+//     {
+//         if (MainLevel->ActorRegistry[i].Visible && MainLevel->ActorRegistry[i].Flag != actor_flag::PendingDestroy)
+//         {
+//             for (u32 z = 0; z < MainLevel->ActorRegistry[i].RenderingComponents.Num(); z++)
+//             {
+//                 if (MainLevel->ActorRegistry[i].RenderingComponents[z].Visible && MainLevel->ActorRegistry[i].RenderingComponents[z].RenderResources.VertexStep == 2)
+//                 {
+//                     for (u32 x = 0; x < MainLevel->ActorRegistry[i].RenderingComponents[z].RenderResources.Vertices.Num() - 2; i += MainLevel->ActorRegistry[i].RenderingComponents[z].RenderResources.VertexStep)
+//                     {
+//                         vertex V1 = MainLevel->ActorRegistry[i].RenderingComponents[z].RenderResources.Vertices[i];
+//                         vertex V2 = MainLevel->ActorRegistry[i].RenderingComponents[z].RenderResources.Vertices[i + 1];
+//                         DirectX::XMVECTOR P1 = DirectX::XMVectorSet(V1.x, V1.y, V1.z, 1);
+//                         DirectX::XMVECTOR P2 = DirectX::XMVectorSet(V2.x, V2.y, V2.z, 1);
+//                         if (RayIntersectsPlane(P1, P2, RayPos, RayDir))
+//                         {
+//                             int zz = 0;
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     }
 
-
-
-
-
-    // v3 FinalPos = V3(UserInputs->MousePosX * m._11 + UserInputs->MousePosY * m._21 + 1 * m._31,
-    //                     UserInputs->MousePosY * m._12 + UserInputs->MousePosY * m._22 + 1 * m._32,
-    //                     UserInputs->MousePosX * m._13 + UserInputs->MousePosY * m._23 + 1 * m._33);
-    // MainLevel->ActorRegistry[3].WorldLocation = FinalPos;
-}
+//     // v3 FinalPos = V3(UserInputs->MousePosX * m._11 + UserInputs->MousePosY * m._21 + 1 * m._31,
+//     //                  UserInputs->MousePosY * m._12 + UserInputs->MousePosY * m._22 + 1 * m._32,
+//     //                  UserInputs->MousePosX * m._13 + UserInputs->MousePosY * m._23 + 1 * m._33);
+//     // MainLevel->ActorRegistry[3].WorldLocation = FinalPos;
+// }
 
 LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM wParam, LPARAM lParam)
 {
@@ -894,43 +984,68 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLin
         {
             material Mat;
             Mat.bUsesTextureDiffuse = true;
-            Mat.DiffuseTexture = GlobalTextureRegistry[i].AssociatedShaderHandle;
+            Mat.DiffuseTexture = &GlobalTextureRegistry[i];
             GlobalMaterialRegistry.Add(Mat);
         }
 
         for (u32 i = 0; i < 1; i++)
         {
             WidgetRegistry.Add(new user_widget());
+            s32 Index = 0;
             //WidgetRegistry[0]->Position = V2(0, 0);
-            WidgetRegistry[0]->AddChildComponent(widget_type::Text);
-            ((widget_component_text*)WidgetRegistry[0]->CanvasWidgets[0])->Color = colors::Red;
-            WidgetRegistry[0]->CanvasWidgets[0]->Position = V2(20, -50);
-            WidgetRegistry[0]->AddChildComponent(widget_type::Text);
-            //((widget_component_text*)WidgetRegistry[0]->CanvasWidgets[0])->Color = colors::Red;
-            WidgetRegistry[0]->CanvasWidgets[1]->Position = V2(20, -100);
-            WidgetRegistry[0]->AddChildComponent(widget_type::Text);
-            //((widget_component_text*)WidgetRegistry[0]->CanvasWidgets[0])->Color = colors::Red;
-            WidgetRegistry[0]->CanvasWidgets[2]->Position = V2(20, -150);
-            WidgetRegistry[0]->AddChildComponent(widget_type::Text);
-            //((widget_component_text*)WidgetRegistry[0]->CanvasWidgets[0])->Color = colors::Red;
-            WidgetRegistry[0]->CanvasWidgets[3]->Position = V2(20, -200);
-            WidgetRegistry[0]->AddChildComponent(widget_type::Text);
-            WidgetRegistry[0]->CanvasWidgets[4]->Position = V2(20, -250);
+            Index = WidgetRegistry[0]->AddChildComponent(widget_type::Text);
+            ((widget_component_text*)WidgetRegistry[0]->RenderingComponents[Index])->Color = colors::Red;
+            WidgetRegistry[0]->RenderingComponents[Index]->Position = V2(20, -50);
+            WidgetRegistry[0]->RenderingComponents[Index]->Tag = "Text0";
 
-            WidgetRegistry[0]->AddChildComponent(widget_type::Text);
-            ((widget_component_text*)WidgetRegistry[0]->CanvasWidgets[5])->Color = colors::Blue;
-            WidgetRegistry[0]->CanvasWidgets[5]->Position = V2(20, -300);
-            WidgetRegistry[0]->AddChildComponent(widget_type::Text);
-            ((widget_component_text*)WidgetRegistry[0]->CanvasWidgets[6])->Color = colors::Blue;
-            WidgetRegistry[0]->CanvasWidgets[6]->Position = V2(20, -350);
-            WidgetRegistry[0]->AddChildComponent(widget_type::Border);
-            WidgetRegistry[0]->CanvasWidgets[7]->Position = V2(15, -360);
-            ((widget_component_border*)WidgetRegistry[0]->CanvasWidgets[7])->Extent = V2(500, 345);
-            //((widget_component_border*)WidgetRegistry[0]->CanvasWidgets[6])->Tint = colors::Green;
-            ((widget_component_border*)WidgetRegistry[0]->CanvasWidgets[7])->UpdateBorderImage("bkg.jpg");
-            ((widget_component_border*)WidgetRegistry[0]->CanvasWidgets[7])->UseImageBackground = true;
-            widget_component_border Border = *(widget_component_border*)WidgetRegistry[0]->CanvasWidgets[7];
-            WidgetRegistry[0]->CanvasWidgets[7]->UpdateZOrder(-10);
+            Index = WidgetRegistry[0]->AddChildComponent(widget_type::Text);
+            WidgetRegistry[0]->RenderingComponents[Index]->Position = V2(20, -100);
+            WidgetRegistry[0]->RenderingComponents[Index]->Tag = "Text1";
+            
+            Index = WidgetRegistry[0]->AddChildComponent(widget_type::Text);
+            WidgetRegistry[0]->RenderingComponents[Index]->Position = V2(20, -150);
+            WidgetRegistry[0]->RenderingComponents[Index]->Tag = "Text2";
+
+            Index = WidgetRegistry[0]->AddChildComponent(widget_type::Text);
+            WidgetRegistry[0]->RenderingComponents[Index]->Position = V2(20, -200);
+            WidgetRegistry[0]->RenderingComponents[Index]->Tag = "Text3";
+
+            Index = WidgetRegistry[0]->AddChildComponent(widget_type::Text);
+            WidgetRegistry[0]->RenderingComponents[Index]->Position = V2(20, -250);
+            WidgetRegistry[0]->RenderingComponents[Index]->Tag = "Text4";
+
+            Index = WidgetRegistry[0]->AddChildComponent(widget_type::Text);
+            ((widget_component_text*)WidgetRegistry[0]->RenderingComponents[Index])->Color = colors::Blue;
+            WidgetRegistry[0]->RenderingComponents[Index]->Position = V2(20, -300);
+            WidgetRegistry[0]->RenderingComponents[Index]->Tag = "Text5";
+
+            Index = WidgetRegistry[0]->AddChildComponent(widget_type::Text);
+            ((widget_component_text*)WidgetRegistry[0]->RenderingComponents[Index])->Color = colors::Blue;
+            WidgetRegistry[0]->RenderingComponents[Index]->Position = V2(20, -350);
+            WidgetRegistry[0]->RenderingComponents[Index]->Tag = "Text6";
+
+            Index = WidgetRegistry[0]->AddChildComponent(widget_type::Border);
+            WidgetRegistry[0]->RenderingComponents[Index]->Position = V2(15, -360);
+            WidgetRegistry[0]->RenderingComponents[Index]->Extent = V2(500, 345);
+            ((widget_component_border*)WidgetRegistry[0]->RenderingComponents[Index])->UpdateBorderImage("bkg.jpg");
+            ((widget_component_border*)WidgetRegistry[0]->RenderingComponents[Index])->UseImageBackground = true;
+            WidgetRegistry[0]->RenderingComponents[Index]->Tag = "Border0";
+            WidgetRegistry[0]->RenderingComponents[Index]->UpdateZOrder(-10);
+
+            //WidgetRegistry[0]->AddChildComponent(widget_type::HorizontalBox);
+            // Index = WidgetRegistry[0]->AddChildComponent(WidgetRegistry[0]);
+            // WidgetRegistry[0]->RenderingComponents[Index]->Position = V2(200, 0);
+            // WidgetRegistry[0]->AddChildComponent(WidgetRegistry[0]);
+            // WidgetRegistry[0]->AddChildComponent(WidgetRegistry[0]);
+            // WidgetRegistry[0]->AddChildComponent(WidgetRegistry[0]);
+            // WidgetRegistry[0]->AddChildComponent(WidgetRegistry[0]);
+            // WidgetRegistry[0]->AddChildComponent(WidgetRegistry[0]);
+            // for (u32 i = 0; i < 280; i++)
+            // {
+            //     WidgetRegistry[0]->CanvasWidgets[8]->AddChildComponent(WidgetRegistry[0]->CanvasWidgets[6]);
+            //     WidgetRegistry[0]->CanvasWidgets[8]->AddChildComponent(WidgetRegistry[0]->CanvasWidgets[6]);
+            //     WidgetRegistry[0]->CanvasWidgets[8]->AddChildComponent(WidgetRegistry[0]->CanvasWidgets[6]);
+            // }
             
         }
 
@@ -953,14 +1068,14 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLin
 
             MainCamera->SetViewMatrix(projection_type::PERSPECTIVE); // works in both types of viewing modes
 
-            PickTrace();
+            //PickTrace();
 
             QueryPerformanceCounter(&t3);
             MainLevel->TickPhysics(UserInputs->DeltaTime);
             QueryPerformanceCounter(&t2);
             char String7[50];
             _snprintf_s(String7, sizeof(String7), "Physics pass: %f ms", ((double)(t2.QuadPart-t3.QuadPart)/frequency.QuadPart) * 1000);
-            ((widget_component_text*)WidgetRegistry[0]->CanvasWidgets[4])->Text = String7;
+            ((widget_component_text*)WidgetRegistry[0]->GetComponentByTag("Text0"))->Text = String7;
 
             #if SPADE_3D
             LightAngle -= 0.01f * UserInputs->DeltaTime;
@@ -972,9 +1087,9 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLin
             QueryPerformanceCounter(&t2);
             char String[50];
             _snprintf_s(String, sizeof(String), "Lighting pass: %.3g ms", ((double)(t2.QuadPart-t3.QuadPart)/frequency.QuadPart) * 1000);
-            ((widget_component_text*)WidgetRegistry[0]->CanvasWidgets[1])->Text = String;
+            ((widget_component_text*)WidgetRegistry[0]->GetComponentByTag("Text1"))->Text = String;
             #else
-            ((widget_component_text*)WidgetRegistry[0]->CanvasWidgets[1])->Text = "Lighting pass: N/A";
+            ((widget_component_text*)WidgetRegistry[0]->GetComponentByTag("Text1"))->Text = "Lighting pass: N/A";
             #endif
 
             RECT rc;
@@ -999,7 +1114,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLin
             QueryPerformanceCounter(&t2);
             char String3[50];
             _snprintf_s(String3, sizeof(String3), "Main pass: %.3g ms", ((double)(t2.QuadPart-t3.QuadPart)/frequency.QuadPart) * 1000);
-            ((widget_component_text*)WidgetRegistry[0]->CanvasWidgets[2])->Text = String3;
+            ((widget_component_text*)WidgetRegistry[0]->GetComponentByTag("Text2"))->Text = String3;
 
             // set pipeline for orthographic widget rendering
             MainCamera->SetViewMatrix(projection_type::ORTHOGRAPHIC);
@@ -1008,22 +1123,26 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLin
 
             char String2[50];
             _snprintf_s(String2, sizeof(String2), "FPS: %.3f (%f ms)", (1/(UserInputs->DeltaTime / 1000)), UserInputs->DeltaTime);
-            ((widget_component_text*)WidgetRegistry[0]->CanvasWidgets[0])->Text = String2;
+            ((widget_component_text*)WidgetRegistry[0]->GetComponentByTag("Text3"))->Text = String2;
 
             char String5[50];
             _snprintf_s(String5, sizeof(String5), "Actor count: %d", MainLevel->ActorRegistry.Num());
-            ((widget_component_text*)WidgetRegistry[0]->CanvasWidgets[5])->Text = String5;
+            ((widget_component_text*)WidgetRegistry[0]->GetComponentByTag("Text4"))->Text = String5;
 
             char String6[50];
             _snprintf_s(String6, sizeof(String6), "Widget comp count: %d", WidgetCount);
-            ((widget_component_text*)WidgetRegistry[0]->CanvasWidgets[6])->Text = String6;
+            ((widget_component_text*)WidgetRegistry[0]->GetComponentByTag("Text5"))->Text = String6;
 
             QueryPerformanceCounter(&t3);
             WidgetCollectionAndRender();
             QueryPerformanceCounter(&t2);
             char String4[50];
             _snprintf_s(String4, sizeof(String4), "Widget pass: %.3g ms", ((double)(t2.QuadPart-t3.QuadPart)/frequency.QuadPart) * 1000);
-            ((widget_component_text*)WidgetRegistry[0]->CanvasWidgets[3])->Text = String4;
+            ((widget_component_text*)WidgetRegistry[0]->GetComponentByTag("Text6"))->Text = String4;
+
+            #if SPADE_DEBUG == 1
+            RenderEditor();
+            #endif
 
             Chain->Present(0, 0); // vsync = 0
 

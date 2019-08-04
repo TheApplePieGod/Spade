@@ -768,6 +768,83 @@ M4ToDXM(matrix4x4 A)
 //     return Result;
 // }
 
+// bool PointInTriangle(DirectX::XMVECTOR triV1, DirectX::XMVECTOR triV2, DirectX::XMVECTOR triV3, DirectX::XMVECTOR point )
+// {
+//     To find out if the point is inside the triangle, we will check to see if the point
+//     is on the correct side of each of the triangles edges.
+
+//     DirectX::XMVECTOR cp1 = DirectX::XMVector3Cross((triV3 - triV2), (point - triV2));
+//     DirectX::XMVECTOR cp2 = DirectX::XMVector3Cross((triV3 - triV2), (triV1 - triV2));
+//     if(DirectX::XMVectorGetX(DirectX::XMVector3Dot(cp1, cp2)) >= 0)
+//     {
+//         cp1 = DirectX::XMVector3Cross((triV3 - triV1), (point - triV1));
+//         cp2 = DirectX::XMVector3Cross((triV3 - triV1), (triV2 - triV1));
+//         if(DirectX::XMVectorGetX(DirectX::XMVector3Dot(cp1, cp2)) >= 0)
+//         {
+//             cp1 = DirectX::XMVector3Cross((triV2 - triV1), (point - triV1));
+//             cp2 = DirectX::XMVector3Cross((triV2 - triV1), (triV3 - triV1));
+//             if(DirectX::XMVectorGetX(DirectX::XMVector3Dot(cp1, cp2)) >= 0)
+//             {
+//                 return true;
+//             }
+//             else
+//                 return false;
+//         }
+//         else
+//             return false;
+//     }
+//     return false;
+// }
+
+bool RayIntersectsPlane(DirectX::XMVECTOR Plane1, DirectX::XMVECTOR Plane2, DirectX::XMVECTOR RayOrigin, DirectX::XMVECTOR RayDirection )
+{
+    using namespace DirectX;
+    //Find the normal using U, V coordinates (two edges)
+    XMVECTOR U = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+    XMVECTOR V = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+    XMVECTOR faceNormal = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+
+    U = Plane1;
+    V = Plane2;
+
+    //Compute face normal by crossing U, V
+    faceNormal = XMVector3Cross(U, V);
+    faceNormal = XMVector3Normalize(faceNormal);
+
+    //Get plane equation ("Ax + By + Cz + D = 0") Variables
+    float tri1A = XMVectorGetX(faceNormal);
+    float tri1B = XMVectorGetY(faceNormal);
+    float tri1C = XMVectorGetZ(faceNormal);
+    float tri1D = (-tri1A*XMVectorGetX(Plane1) - tri1B*XMVectorGetY(Plane1) - tri1C*XMVectorGetZ(Plane1));
+
+    //Now we find where (on the ray) the ray intersects with the triangles plane
+    float ep1, ep2, t = 0.0f;
+    //float planeIntersectX, planeIntersectY, planeIntersectZ = 0.0f;
+    XMVECTOR pointInPlane = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+
+    ep1 = (XMVectorGetX(RayOrigin) * tri1A) + (XMVectorGetY(RayOrigin) * tri1B) + (XMVectorGetZ(RayOrigin) * tri1C);
+    ep2 = (XMVectorGetX(RayDirection) * tri1A) + (XMVectorGetY(RayDirection) * tri1B) + (XMVectorGetZ(RayDirection) * tri1C);
+
+    //Make sure there are no divide-by-zeros
+    if(ep2 != 0.0f)
+        t = -(ep1 + tri1D)/(ep2);
+
+    if (t > 0.0f)
+    {
+        // float Dot = XMVectorGetX(XMVector3Dot(RayDirection, RayDirection));
+        // if (Dot <= 0.001f && Dot >= -0.001f)
+        // {
+        //     return true;
+        // }
+        // else
+        //     return false;
+        return true;
+    }
+    else
+        return false;
+
+}
+
 struct colors
 {
     static const v4 White;

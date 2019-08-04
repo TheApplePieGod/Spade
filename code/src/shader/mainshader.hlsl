@@ -58,6 +58,7 @@ cbuffer MaterialBuffer : register(b0)
     float4 DiffuseColor;
     uint UsesTextureDiffuse;
     float SpecularPower;
+    uint ShaderID;
 };
 
 cbuffer LightingBuffer : register(b1)

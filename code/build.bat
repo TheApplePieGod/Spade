@@ -7,7 +7,7 @@ set ConstantsAndMacros=-DSPADE_DEBUG=1 -DSPADE_WIN32=1 -DSPADE_3D=1
 set DisabledWarnings=-wd4201 -wd4100 -wd4189 -wd4505 -wd4127 -wd4996 -Wv:18
 set TempDisabledWarnings=-wd4244 -wd4267 -wd4701 -wd4702
 REM Include -WX to turn warnings back on.
-set CommonCompilerFlags=-Od -Oi -MTd -FC -Z7 -Zo -fp:fast -fp:except- -Gm- -GR- -EHa- -EHsc -W4 -nologo %DisabledWarnings% %ConstantsAndMacros%
+set CommonCompilerFlags=-Od -Oi -MTd -FC -Z7 -Zo -fp:fast -fp:except- -Gm- -GR -EHa- -EHsc -W4 -nologo %DisabledWarnings% %ConstantsAndMacros%
 set CommonLinkerFlags= -incremental:no -opt:ref 
 REM set LibsToLink=user32.lib gdi32.lib Advapi32.lib winmm.lib dsound.lib Ws2_32.lib dxgi.lib d3d11.lib D3dcompiler.lib  
 set LibsToLink=user32.lib gdi32.lib Advapi32.lib winmm.lib dsound.lib dxgi.lib d3d11.lib D3dcompiler.lib Xaudio2.lib Ole32.lib

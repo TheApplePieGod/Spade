@@ -1,6 +1,6 @@
 @echo off
 subst M: "E:\Spade"
-call "D:\Visual Studio\VC\Auxiliary\Build\vcvars64" x64
+call "E:\VS2019\VC\Auxiliary\Build\vcvars64" x64
 set path=M:\misc;M:\code\lib;M:\code\lib\fbxsdk\lib;%path%
 M:
 cd code

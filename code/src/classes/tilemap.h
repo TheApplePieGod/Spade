@@ -50,6 +50,7 @@ public:
     {
         v2 AddedPosition = V2(0.f, 0.f);
         RenderResources.Vertices.Clear();
+        RenderResources.VertexStep = 2;
 
         u32 TexWidth = TileSet.TextureData.Asset->Width;
         u32 TexHeight = TileSet.TextureData.Asset->Height;

@@ -44,7 +44,9 @@
 			"xutility": "cpp",
 			"vector": "cpp",
 			"xtree": "cpp",
-			"*.rh": "cpp"
+			"*.rh": "cpp",
+			"algorithm": "cpp",
+			"map": "cpp"
 		},
 		"C_Cpp.errorSquiggles": "Disabled"
 	}

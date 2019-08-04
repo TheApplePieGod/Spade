@@ -88,7 +88,6 @@ renderingComponent::renderingComponent()
     RenderResources.Vertices.Add(RightBottomRight);
     RenderResources.Vertices.Add(RightBottomLeft);
 
-
     UpdateBoundingBox(LocalScale);
 }
 

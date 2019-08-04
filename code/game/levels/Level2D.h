@@ -55,11 +55,11 @@ public:
         ActorRegistry[2].Scale = V3(1.f,1.f,1.f);
         ActorRegistry[2].RenderingComponents.Add(RenderMap);
 
-        pos = {0, 5, 0};
-        ActorRegistry.Add(actor(this), true);
-        ActorRegistry[3].WorldLocation += pos;
-        ActorRegistry[3].Scale = V3(1.f,1.f,1.f);
-        ActorRegistry[3].RenderingComponents.Add(TestComp);
+        // pos = {0, 5, 0};
+        // ActorRegistry.Add(actor(this), true);
+        // ActorRegistry[3].WorldLocation += pos;
+        // ActorRegistry[3].Scale = V3(1.f,1.f,1.f);
+        // ActorRegistry[3].RenderingComponents.Add(TestComp);
 
 
         // ActorRegistry[2].RenderingComponents.Add(renderingComponent());

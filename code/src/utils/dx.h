@@ -88,12 +88,15 @@ struct material_shader_constants
     v4 DiffuseColor;
     u32 UsesTextureDiffuse;
     f32 SpecularPower;
-    v2 padding;
+    u32 SamplerID;
+    f32 padding;
 };
 
 struct mesh_render_resources
 {
     cArray<vertex> Vertices;
+    // num of vertices in every section
+    u32 VertexStep = 3;
     u32 ShaderID;
     v3 BoundingBoxMin;
     v3 BoundingBoxMax;

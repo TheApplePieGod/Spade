@@ -15,6 +15,17 @@ cbuffer ModelViewProjectionConstantBuffer : register(b0)
     //float padding;
     //uint   IsInstanced;
 };
+
+cbuffer MaterialBuffer : register(b1)
+{
+    // material properties
+    //float3 Normal; // implement normals and texture normals
+    float4 DiffuseColor;
+    uint UsesTextureDiffuse;
+    float SpecularPower;
+    uint ShaderID;
+};
+
 struct VSIn
 {
     float3 Position : POSITION;

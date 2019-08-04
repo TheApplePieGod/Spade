@@ -74,13 +74,11 @@ static void OutputDebugDouble(double Data)
     OutputDebugStringA(Buffer);
 }
 
-struct world_position
+// function outputs
+struct int_bool
 {
-    f32 X;
-    f32 Y;
-    f32 Z;
-
-    //v3 Offset; // From center
+    int Int = -1;
+    bool Bool = false;
 };
 
 struct keyboard_button
