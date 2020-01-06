@@ -3,6 +3,9 @@
 *.lo
 *.o
 *.obj
+*.map
+*.pdb
+*.pac
 
 # Precompiled Headers
 *.gch
@@ -29,14 +32,27 @@
 
 # Engine specific
 *.pac
+*.eaf
+*.sav
+
+# Assets
+*.jpg
+*.png
+*.ttf
+*.bmp
+*.mp3
+*.wav
+*.fbx
+
+*.vcxproj*
 
 # Paths
-build/*
-!build/*.keep
-[Mm]isc/.vs
-code/src/asset_system/assets/*
-!code/src/asset_system/assets/*.keep
-code/src/asset_system/fonts/*
-!code/src/asset_system/fonts/*.keep
-
+local/*
+*.vs
+*.sln
+build/assets/*
+!build/assets/*.keep
+build/fonts/*
+!build/fonts/*.keep
+SpadeV2/Spade/x64
 

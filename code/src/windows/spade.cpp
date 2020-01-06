@@ -1161,7 +1161,6 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLin
     //ShowWindow(hwnd, nCmdShow); // call after stuff is ready
 
     DXCleanup();
-    delete MainCamera;
 
     OutputDebugMessage("Program end");
     return 0;
