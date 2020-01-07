@@ -23,4 +23,4 @@ enum class draw_topology_types
 	PointList,
 };
 
-float VoidColor[4] = { 0.3f, 0.7f, 0.9f, 1.f };
+const float VoidColor[4] = { 0.3f, 0.7f, 0.9f, 1.f };

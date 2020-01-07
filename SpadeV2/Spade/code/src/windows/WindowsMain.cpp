@@ -1,3 +1,6 @@
+#include "../engine/Engine.h"
+
+engine* Engine;
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND Window, UINT Message, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM wParam, LPARAM lParam)
@@ -15,11 +18,11 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM wParam, LPARAM lPa
 	{
 	case WM_DESTROY:
 	{
-		engine::IsRunning = false;
+		Engine->IsRunning = false;
 	}
 	case WM_CLOSE:
 	{
-		engine::IsRunning = false;
+		Engine->IsRunning = false;
 	}
 	case WM_SETCURSOR:
 	{
@@ -32,7 +35,7 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM wParam, LPARAM lPa
 	{
 		u32 KeyCode = (u32)wParam;
 		if (KeyCode < 256)
-			UserInputs->KeysDown[KeyCode].Pressed = false;
+			Engine->UserInputs.KeysDown[KeyCode].Pressed = false;
 		break;
 	}
 	case WM_KEYDOWN:
@@ -42,12 +45,12 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM wParam, LPARAM lPa
 
 		// temp
 		if (KeyCode == VK_ESCAPE)
-			engine::IsRunning = false;
+			Engine->IsRunning = false;
 
 		if (KeyCode < 256)
 		{
-			if (PlayerState->EnableInput && !io.WantCaptureKeyboard)
-				UserInputs->KeysDown[KeyCode].Pressed = true;
+			//if (PlayerState->EnableInput && !io.WantCaptureKeyboard)
+			//	UserInputs->KeysDown[KeyCode].Pressed = true;
 		}
 		break;
 	}
@@ -66,13 +69,11 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLin
 	// TODO: Need to allow the user to choose their resolution.
 	u32 InitialResX = 1920;
 	u32 InitialResY = 1080;
-	UserScreenSizeX = InitialResX;
-	UserScreenSizeY = InitialResY;
-	GlobalScale = { 18.f * ((f32)UserScreenSizeX / 1920), 18.f * ((f32)UserScreenSizeY / 1080) };
-	GlobalScale.z = sqrt(pow(GlobalScale.x, 2) + pow(GlobalScale.y, 2));
+	//UserScreenSizeX = InitialResX;
+	//UserScreenSizeY = InitialResY;
 
 	// Calculate the required size of the window rectangle based on the desired client-rectangle size
-	RECT rc = { 0, 0, InitialResX, InitialResY };
+	RECT rc = { 0, 0, (LONG)InitialResX, (LONG)InitialResY };
 	AdjustWindowRect(&rc, (WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME) | WS_VISIBLE, FALSE);
 	u32 WindowHeight = rc.bottom - rc.top;
 	u32 WindowWidth = rc.right - rc.left;
@@ -85,19 +86,15 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLin
 	WindowClass.lpszClassName = "EngineWindowClass";
 	//WindowClass.hbrBackground = CreateSolidBrush(RGB(30, 30, 30)); // a red window class background
 
-#if SPADE_DEBUG
-	assetLoader::ScanAssets(false);
-#endif
-
 	OleInitialize(NULL);
 
 	if (RegisterClassA(&WindowClass))
 	{
-		Window =
+		HWND Window =
 			CreateWindowExA(
 				0,
 				WindowClass.lpszClassName,
-				"Engine2D",
+				"Spade",
 				(WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME) | WS_VISIBLE,
 				CW_USEDEFAULT,
 				CW_USEDEFAULT,
@@ -113,30 +110,10 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLin
 			return 1;
 		}
 
-		//
-		// Initialization
-		//
+		Engine = new engine();
+		Engine->Initialize(Window, InitialResX, InitialResY);
 
-#if SPADE_DEBUG
-		assetLoader::InitializeAssetsInDirectory("assets\\", &AssetLoadCallbacks);
-#else
-		assetLoader::InitializeAssetsFromPac(&AssetLoadCallbacks);
-#endif
-
-		// Setup Dear ImGui context
-		IMGUI_CHECKVERSION();
-		ImGui::CreateContext();
-		ImGuiIO& io = ImGui::GetIO(); (void)io;
-		//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-		//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
-		// Setup ImGui style
-		ImGui::StyleColorsDark();
-		//ImGui::StyleColorsClassic();
-
-		// Setup Platform/Renderer bindings
 		ImGui_ImplWin32_Init(Window);
-		//ImGui_ImplDX11_Init(renderer::Device, renderer::DeviceContext);
 
 		//
 		// Enable High-Definition Mouse Movement
@@ -159,12 +136,14 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLin
 		//DropManager dm;
 		//RegisterDragDrop(Window, &dm);
 
-		QueryPerformanceFrequency(&DebugData.frequency);
-		while (engine::IsRunning) // game loop
+		//QueryPerformanceFrequency(&DebugData.frequency);
+		while (Engine->IsRunning) // game loop
 		{
-			QueryPerformanceCounter(&DebugData.t1);
+			Engine->Tick();
+			//QueryPerformanceCounter(&DebugData.t1);
 		}
 
+		Engine->Cleanup();
 		//RevokeDragDrop(Window);
 	}
 

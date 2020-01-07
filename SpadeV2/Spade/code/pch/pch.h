@@ -13,6 +13,15 @@
 #include <array>
 #include <vector>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "../3rdparty/stb/stb_image.h"
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "../3rdparty/stb/stb_image_write.h"
+
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "../3rdparty/stb/stb_truetype.h"
+
 #include "../3rdparty/imgui/imgui.h"
 #include "../3rdparty/imgui/imgui_internal.h"
 
@@ -24,6 +33,7 @@
 #endif
 
 #if SDK_DIRECTX11
+#pragma comment(lib, "d3d11.lib") 
 #include <DXGI1_6.h>
 #include <D3DCommon.h>
 #include <d3d11.h>

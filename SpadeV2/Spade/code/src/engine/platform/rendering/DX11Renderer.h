@@ -1,18 +1,19 @@
 #pragma once
-#include "RendererShared.h"
 
 class dx11_renderer
 {
 public:
 
 	// Shared
-	void Initialize(HWND Window, int WindowWidth, int WindowHeight);
+	void Initialize(void* Window, int WindowWidth, int WindowHeight);
 	void Cleanup();
 	void Draw(std::vector<vertex>& VertexArray, draw_topology_types TopologyType);
 	void Draw(std::vector<v3>& PositionArray, draw_topology_types TopologyType);
 	void SetViewport(float Width, float Height);
 	void SetDrawTopology(draw_topology_types TopologyType);
-	void CompileShaderFromFile(LPCWSTR Filename, LPCSTR EntryPoint, shader_type ShaderType, void* ShaderRef);
+	void CompileShaderFromFile(std::string Filename, std::string EntryPoint, shader_type ShaderType, void* ShaderRef);
+
+	HWND Window;
 
 	// Specific
 	ID3D11Device* Device = NULL;
@@ -43,4 +44,4 @@ private:
 
 };
 
-typedef dx11_renderer renderer;
+typedef dx11_renderer platform_renderer;

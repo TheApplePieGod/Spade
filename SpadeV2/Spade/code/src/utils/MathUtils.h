@@ -82,16 +82,16 @@ union v4
 
 struct colors
 {
-	static const v4 White;
-	static const v4 Gray;
-	static const v4 Black;
-	static const v4 Translucent;
-	static const v4 Red;
-	static const v4 Green;
-	static const v4 Blue;
-	static const v4 Yellow;
-	static const v4 Purple;
-	static const v4 Orange;
+	static inline v4 White = v4{ 1.f, 1.f, 1.f, 1.f };
+	static inline v4 Gray = v4{ 0.5f, 0.5f, 0.5f, 1.f };
+	static inline v4 Black = v4{ 0.f, 0.f, 0.f, 1.f };
+	static inline v4 Translucent = v4{ 1.f, 1.f, 1.f, 0.4f };
+	static inline v4 Red = v4{ 1.f, 0.f, 0.f, 1.f };
+	static inline v4 Green = v4{ 0.f, 1.f, 0.f, 1.f };
+	static inline v4 Blue = v4{ 0.f, 0.f, 1.f, 1.f };
+	static inline v4 Yellow = v4{ 1.f, 1.f, 0.f, 1.f };
+	static inline v4 Purple = v4{ 1.f, 0.f, 1.f, 1.f };
+	static inline v4 Orange = v4{ 1.f, 0.4f, 0.f, 1.f };
 };
 
 // Standard struct used in rendering
@@ -110,13 +110,13 @@ struct vertex
 	f32 nx, ny, nz;
 };
 
-const v4 colors::White = v4{1.f, 1.f, 1.f, 1.f};
-const v4 colors::Gray = v4{0.5f, 0.5f, 0.5f, 1.f};
-const v4 colors::Black = v4{0.f, 0.f, 0.f, 1.f};
-const v4 colors::Translucent = v4{1.f, 1.f, 1.f, 0.4f};
-const v4 colors::Red = v4{1.f, 0.f, 0.f, 1.f};
-const v4 colors::Green = v4{0.f, 1.f, 0.f, 1.f};
-const v4 colors::Blue = v4{0.f, 0.f, 1.f, 1.f};
-const v4 colors::Yellow = v4{1.f, 1.f, 0.f, 1.f};
-const v4 colors::Purple = v4{1.f, 0.f, 1.f, 1.f};
-const v4 colors::Orange = v4{1.f, 0.4f, 0.f, 1.f};
+//const v4 colors::White = v4{1.f, 1.f, 1.f, 1.f};
+//const v4 colors::Gray = v4{0.5f, 0.5f, 0.5f, 1.f};
+//const v4 colors::Black = v4{0.f, 0.f, 0.f, 1.f};
+//const v4 colors::Translucent = v4{1.f, 1.f, 1.f, 0.4f};
+//const v4 colors::Red = v4{1.f, 0.f, 0.f, 1.f};
+//const v4 colors::Green = v4{0.f, 1.f, 0.f, 1.f};
+//const v4 colors::Blue = v4{0.f, 0.f, 1.f, 1.f};
+//const v4 colors::Yellow = v4{1.f, 1.f, 0.f, 1.f};
+//const v4 colors::Purple = v4{1.f, 0.f, 1.f, 1.f};
+//const v4 colors::Orange = v4{1.f, 0.4f, 0.f, 1.f};

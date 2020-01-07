@@ -1,7 +1,9 @@
 #include "DX11Renderer.h"
 
-void dx11_renderer::Initialize(HWND Window, int WindowWidth, int WindowHeight)
+void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 {
+	Window = (HWND)_Window;
+
 	//
 	// Device and swap chain
 	//
@@ -196,7 +198,7 @@ void dx11_renderer::Initialize(HWND Window, int WindowWidth, int WindowHeight)
 	}
 
 	// PIXEL SHADER
-	CompileShaderFromFile(L"shader/DefaultShader.hlsl", "mainps", shader_type::PixelShader, &MainPixelShader);
+	CompileShaderFromFile("shader/DefaultShader.hlsl", "mainps", shader_type::PixelShader, &MainPixelShader);
 	DeviceContext->PSSetShader(MainPixelShader, NULL, 0);
 
 	// GEO SHADER
@@ -374,6 +376,9 @@ void dx11_renderer::Initialize(HWND Window, int WindowWidth, int WindowHeight)
 	// TODO replace with engine::UpdateResolution()
 	GetClientRect(Window, &rc);
 	SetViewport((FLOAT)(rc.right - rc.left), (FLOAT)(rc.bottom - rc.top));
+
+	// init imgui
+	ImGui_ImplDX11_Init(Device, DeviceContext);
 }
 
 void dx11_renderer::Cleanup()
@@ -499,7 +504,7 @@ void dx11_renderer::SetDrawTopology(draw_topology_types TopologyType)
 	}
 }
 
-void dx11_renderer::CompileShaderFromFile(LPCWSTR Filename, LPCSTR EntryPoint, shader_type ShaderType, void* ShaderRef)
+void dx11_renderer::CompileShaderFromFile(std::string Filename, std::string EntryPoint, shader_type ShaderType, void* ShaderRef)
 {
 	HRESULT hr;
 	DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
@@ -524,7 +529,9 @@ void dx11_renderer::CompileShaderFromFile(LPCWSTR Filename, LPCSTR EntryPoint, s
 		} break;
 	}
 
-	hr = D3DCompileFromFile(Filename, NULL, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint, Target.c_str(), dwShaderFlags, 0, &vsBlob, &pBlobError);
+	// not compatible w unicode
+	std::wstring fn(Filename.begin(), Filename.end());
+	hr = D3DCompileFromFile(fn.c_str(), NULL, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint.c_str(), Target.c_str(), dwShaderFlags, 0, &vsBlob, &pBlobError);
 	if (FAILED(hr))
 	{
 		if (pBlobError != NULL)
