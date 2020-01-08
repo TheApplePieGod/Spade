@@ -566,3 +566,129 @@ void dx11_renderer::CompileShaderFromFile(std::string Filename, std::string Entr
 
 	vsBlob->Release();
 }
+
+void dx11_renderer::RegisterTexture(cAsset* Asset, bool GenerateMIPs)
+{
+	assetLoader::RegisterDXTexture(Asset, GenerateMIPs, Device, DeviceContext);
+}
+
+matrix4x4 dx11_renderer::GetPerspectiveProjectionLH(bool Transpose, camera_info& CameraInfo)
+{
+	matrix4x4 Result;
+
+	DirectX::XMMATRIX Projection = DirectX::XMMatrixPerspectiveFovLH(CameraInfo.FOV * (Pi32 / 180.0f), CameraInfo.Width / CameraInfo.Height, CameraInfo.NearPlane, CameraInfo.FarPlane);
+	if (Transpose)
+	{
+		Projection = DirectX::XMMatrixTranspose(Projection);
+	}
+
+	DirectX::XMFLOAT4X4 Temp;
+	DirectX::XMStoreFloat4x4(&Temp, Projection);
+
+	Result.row1 = v4{ Temp._11, Temp._12, Temp._13, Temp._14 };
+	Result.row2 = v4{ Temp._21, Temp._22, Temp._23, Temp._24 };
+	Result.row3 = v4{ Temp._31, Temp._32, Temp._33, Temp._34 };
+	Result.row4 = v4{ Temp._41, Temp._42, Temp._43, Temp._44 };
+
+	return Result;
+}
+
+matrix4x4 dx11_renderer::GetOrthographicProjectionLH(bool Transpose, camera_info& CameraInfo)
+{
+	matrix4x4 Result;
+
+	DirectX::XMMATRIX Projection = DirectX::XMMatrixOrthographicLH(CameraInfo.Width, CameraInfo.Height, CameraInfo.NearPlane, CameraInfo.FarPlane);
+	if (Transpose)
+	{
+		Projection = DirectX::XMMatrixTranspose(Projection);
+	}
+
+	DirectX::XMFLOAT4X4 Temp;
+	DirectX::XMStoreFloat4x4(&Temp, Projection);
+
+	Result.row1 = v4{ Temp._11, Temp._12, Temp._13, Temp._14 };
+	Result.row2 = v4{ Temp._21, Temp._22, Temp._23, Temp._24 };
+	Result.row3 = v4{ Temp._31, Temp._32, Temp._33, Temp._34 };
+	Result.row4 = v4{ Temp._41, Temp._42, Temp._43, Temp._44 };
+
+	return Result;
+}
+
+matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info& CameraInfo, v3& OutLookAtMatrix, bool OrthoUseMovement)
+{
+	DirectX::XMVECTOR defaultForward;
+	DirectX::XMVECTOR camUp;
+	DirectX::XMVECTOR camPosition;
+	DirectX::XMVECTOR camTarget;
+	DirectX::XMMATRIX CameraView;
+
+	if (CameraInfo.ProjectionType == projection_type::Perspective)
+	{
+		f32 DebugCameraOffset = -0.0f;
+
+		defaultForward = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+		camUp = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+		camPosition = DirectX::XMVectorSet(CameraInfo.Position.x, CameraInfo.Position.y, CameraInfo.Position.z, 0.0f);
+
+		// Rotation Matrix
+		DirectX::XMMATRIX RotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(DirectX::XMConvertToRadians(CameraInfo.Rotation.x), DirectX::XMConvertToRadians(CameraInfo.Rotation.y), 0.0f);
+		DirectX::XMVECTOR camTarget = DirectX::XMVector3TransformCoord(defaultForward, RotationMatrix);
+		camTarget = DirectX::XMVector3Normalize(camTarget);
+
+		DirectX::XMFLOAT4 temp;    //the float where we copy the v2 vector members
+		DirectX::XMStoreFloat4(&temp, camTarget);   //the function used to copy
+		OutLookAtMatrix.x = temp.x;
+		OutLookAtMatrix.y = temp.y;
+		OutLookAtMatrix.z = temp.z;
+
+		DirectX::XMMATRIX RotateYTempMatrix;
+		RotateYTempMatrix = DirectX::XMMatrixRotationY(DirectX::XMConvertToRadians(CameraInfo.Rotation.x));
+
+		DirectX::XMMATRIX RotateXTempMatrix;
+		RotateXTempMatrix = DirectX::XMMatrixRotationY(DirectX::XMConvertToRadians(CameraInfo.Rotation.y));
+
+		camUp = XMVector3TransformCoord(XMVector3TransformCoord(camUp, RotateYTempMatrix), RotateXTempMatrix);
+
+		camTarget = DirectX::XMVectorAdd(camTarget, camPosition);
+
+		if (Transpose)
+			CameraView = DirectX::XMMatrixTranspose(DirectX::XMMatrixLookAtLH(camPosition, camTarget, camUp));
+		else
+			CameraView = DirectX::XMMatrixLookAtLH(camPosition, camTarget, camUp);
+
+	}
+	else
+	{
+		camUp = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+		if (OrthoUseMovement)
+			camPosition = DirectX::XMVectorSet(CameraInfo.Position.x, CameraInfo.Position.y, CameraInfo.Position.z, 0.0f);
+		else
+			camPosition = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+		camTarget = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+		CameraView = DirectX::XMMatrixTranspose(DirectX::XMMatrixLookAtLH(camPosition, camTarget, camUp));
+	}
+
+	DirectX::XMFLOAT4X4 View;
+	DirectX::XMStoreFloat4x4(&View, CameraView);
+
+	matrix4x4 Result;
+	Result.m11 = View._11;
+	Result.m12 = View._12;
+	Result.m13 = View._13;
+	Result.m14 = View._14;
+	Result.m21 = View._21;
+	Result.m22 = View._22;
+	Result.m23 = View._23;
+	Result.m24 = View._24;
+	Result.m31 = View._31;
+	Result.m32 = View._32;
+	Result.m33 = View._33;
+	Result.m34 = View._34;
+	Result.m41 = View._41;
+	Result.m42 = View._42;
+	Result.m43 = View._43;
+	Result.m44 = View._44;
+
+	return Result;
+}

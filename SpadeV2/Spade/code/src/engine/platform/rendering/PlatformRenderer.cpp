@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "MathUtils.h"
+#include "MathTypes.h"
 #include "PlatformRenderer.h"
 
 #if SDK_DIRECTX11
@@ -43,4 +43,24 @@ void renderer::SetDrawTopology(draw_topology_types TopologyType)
 void renderer::CompileShaderFromFile(std::string Filename, std::string EntryPoint, shader_type ShaderType, void* ShaderRef)
 {
 	PlatformRenderer->CompileShaderFromFile(Filename, EntryPoint, ShaderType, ShaderRef);
+}
+
+void renderer::RegisterTexture(cAsset* Asset, bool GenerateMIPs)
+{
+	PlatformRenderer->RegisterTexture(Asset, GenerateMIPs);
+}
+
+matrix4x4 renderer::GetPerspectiveProjectionLH(bool Transpose, camera_info& CameraInfo)
+{
+	return PlatformRenderer->GetPerspectiveProjectionLH(Transpose, CameraInfo);
+}
+
+matrix4x4 renderer::GetOrthographicProjectionLH(bool Transpose, camera_info& CameraInfo)
+{
+	return PlatformRenderer->GetOrthographicProjectionLH(Transpose, CameraInfo);
+}
+
+matrix4x4 renderer::GenerateViewMatrix(bool Transpose, camera_info& CameraInfo, v3& OutLookAtMatrix, bool OrthoUseMovement)
+{
+	return PlatformRenderer->GenerateViewMatrix(Transpose, CameraInfo, OutLookAtMatrix, OrthoUseMovement);
 }

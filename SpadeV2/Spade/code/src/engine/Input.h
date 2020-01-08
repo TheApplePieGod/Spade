@@ -1,5 +1,5 @@
 #pragma once
-#include "MathUtils.h"
+#include "MathTypes.h"
 
 struct input_button
 {
@@ -20,7 +20,9 @@ struct user_inputs // controller support later?
 
 	// view space
 	f32 MousePosX;
+	f32 MouseDeltaX;
 	f32 MousePosY;
+	f32 MouseDeltaY;
 	v2 MousePosWorldSpace;
 
 	float DeltaTime = 0;

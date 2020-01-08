@@ -7,9 +7,7 @@
 #include "WindowsMemory.cpp"
 #endif
 
-platform_memory* PlatformMemory;
-
 u8* memory::Allocate(u64 Size)
 {
-	return PlatformMemory->Allocate(Size);
+	return platform_memory::Allocate(Size);
 }

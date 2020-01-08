@@ -1,5 +1,4 @@
 #include "../engine/Engine.h"
-
 engine* Engine;
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND Window, UINT Message, WPARAM wParam, LPARAM lParam);
@@ -62,6 +61,103 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM wParam, LPARAM lPa
 	}
 
 	return Result;
+}
+
+void ProcessPendingMessages()
+{
+	int MouseDeltaBufferX = 0;
+	int MouseDeltaBufferY = 0;
+	MSG Message;
+	ImGuiIO& io = ImGui::GetIO();
+
+	while (PeekMessage(&Message, NULL, 0, 0, PM_REMOVE))
+	{
+		switch (Message.message)
+		{
+		case WM_INPUT:
+		{
+			if (true)//(PlayerState->EnableInput && !io.WantCaptureMouse && !DebugData.Editor_ContentBrowser_DraggingFiles)
+			{
+				UINT dwSize;
+
+				GetRawInputData((HRAWINPUT)Message.lParam, RID_INPUT, NULL, &dwSize,
+					sizeof(RAWINPUTHEADER));
+				LPBYTE lpb = new BYTE[dwSize];
+				if (lpb == NULL)
+				{
+					break;
+				}
+
+				if (GetRawInputData((HRAWINPUT)Message.lParam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER)) != dwSize)
+					Assert(1 == 2);//OutputDebugMessage("GetRawInputData does not return correct size !");
+
+				RAWINPUT* raw = (RAWINPUT*)lpb;
+
+				if (raw->header.dwType == RIM_TYPEMOUSE)
+				{
+					int xPosRelative = raw->data.mouse.lLastX;
+					int yPosRelative = raw->data.mouse.lLastY;
+
+					MouseDeltaBufferX += xPosRelative;
+					MouseDeltaBufferY += yPosRelative;
+
+					//OutputDebugFloat((f32)xPosRelative);
+
+					// Need to re-generalize this so that we do not need to repeat this
+					// for each button type. See Win32ProcessKeyboardMessage above.
+
+					int LButton = raw->data.mouse.usButtonFlags;
+
+					// left mouse
+					if (LButton == RI_MOUSE_LEFT_BUTTON_DOWN)
+					{
+						Engine->UserInputs.LMB.Pressed = true;
+					}
+					if (LButton == RI_MOUSE_LEFT_BUTTON_UP)
+					{
+						if (GetFocus() != (HWND)Engine->Renderer.Window) // reset window focus if clicked & out of focus
+						{
+							SetFocus((HWND)Engine->Renderer.Window);
+						}
+						Engine->UserInputs.LMB.Pressed = false;
+					}
+
+					// right mouse
+					if (LButton == RI_MOUSE_RIGHT_BUTTON_DOWN)
+					{
+						Engine->UserInputs.RMB.Pressed = true;
+					}
+					if (LButton == RI_MOUSE_RIGHT_BUTTON_UP)
+					{
+						if (GetFocus() != (HWND)Engine->Renderer.Window) // reset window focus if clicked & out of focus
+						{
+							SetFocus((HWND)Engine->Renderer.Window);
+						}
+						Engine->UserInputs.RMB.Pressed = false;
+					}
+					Engine->UserInputs.MouseMovement = true;
+				}
+			}
+			else
+			{
+				Engine->UserInputs.LMB.Pressed = false;
+				Engine->UserInputs.RMB.Pressed = false;
+			}
+			break;
+		}
+		default:
+		{
+			TranslateMessage(&Message);
+			DispatchMessage(&Message);
+			break;
+		}
+		}
+	}
+	Engine->UserInputs.MousePosX += MouseDeltaBufferX;
+	Engine->UserInputs.MouseDeltaX = (f32)MouseDeltaBufferX;
+	Engine->UserInputs.MousePosY += MouseDeltaBufferY;
+	Engine->UserInputs.MouseDeltaY = (f32)MouseDeltaBufferY;
+	Engine->UserInputs.MouseMovement = false;
 }
 
 int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLine, int ShowFlag) // entrypoint
@@ -139,6 +235,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLin
 		//QueryPerformanceFrequency(&DebugData.frequency);
 		while (Engine->IsRunning) // game loop
 		{
+			ProcessPendingMessages();
 			Engine->Tick();
 			//QueryPerformanceCounter(&DebugData.t1);
 		}
