@@ -45,14 +45,18 @@
 *.fbx
 
 *.vcxproj*
+*.ilk
+*.ini
+*.log
+*.idb
+*.tlog
 
 # Paths
 local/*
 *.vs
 *.sln
-build/assets/*
-!build/assets/*.keep
-build/fonts/*
-!build/fonts/*.keep
-SpadeV2/Spade/x64
 
+# Legacy
+spade_legacy/code/lib/fbxsdk/samples
+spade_legacy/build
+!x64/Debug/assets/
