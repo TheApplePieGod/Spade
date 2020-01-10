@@ -3,7 +3,7 @@
 #include "platform/rendering/PlatformRenderer.h"
 
 class camera;
-
+class level;
 class engine
 {
 public:
@@ -14,6 +14,7 @@ public:
 	bool IsRunning = true;
 
 	camera* MainCamera;
+	level* MainLevel;
 	user_inputs UserInputs;
 
 	// Called from platform

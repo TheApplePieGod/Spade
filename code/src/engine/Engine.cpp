@@ -1,10 +1,11 @@
 #include "pch.h"
 #include "Engine.h"
-#include "../utils/AssetUtils.h"
+#include "../classes/Level.h"
 #include "../classes/Camera.h"
+#include "../utils/AssetUtils.h"
 
 #if PLATFORM_WINDOWS
-#include "../windows/WindowsMain.cpp"
+#include "../startup/WindowsMain.cpp"
 #endif
 
 void engine::Tick()
@@ -21,9 +22,11 @@ void engine::Tick()
 
 void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 {
-	Renderer.Initialize(Window, WindowWidth, WindowHeight);
-
+	MainLevel = new level();
 	MainCamera = new camera();
+
+	Renderer.Initialize(Window, WindowWidth, WindowHeight);
+	MainLevel->Initialize();
 
 #if SPADE_DEBUG
 	assetLoader::ScanAssets("assets\\", false);
@@ -31,7 +34,6 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 #else
 	assetLoader::InitializeAssetsFromPac(&AssetLoadCallbacks);
 #endif
-
 }
 
 void engine::Cleanup()
