@@ -41,5 +41,21 @@ struct camera_info
 	f32 FarPlane;
 };
 
+struct shader_constants_material
+{
+	bool TextureDiffuse = false;
+	v3 padding;
+
+	v4 DiffuseColor = colors::White;
+
+	bool TextureNormal = false;
+	v3 padding2;
+};
+
+struct shader_constants_actor
+{
+	matrix4x4 WorldMatrix;
+	matrix4x4 ViewProjectionMatrix;
+};
 
 const float VoidColor[4] = { 0.3f, 0.7f, 0.9f, 1.f };

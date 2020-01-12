@@ -1,7 +1,11 @@
 #include "DX11Renderer.h"
 #include "../../Engine.h"
+#include "MathUtils.h"
+#include "AssetUtils.h"
 
 extern engine* Engine;
+extern shader_constants_actor ActorConstants;
+extern shader_constants_material MaterialConstants;
 
 void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 {
@@ -236,37 +240,36 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 		Assert(1 == 2);;
 
 
-	//
-	// Create main constant buffer
-	//
-	//ZeroMemory(&bufferDesc, sizeof(bufferDesc));
-	//bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	//bufferDesc.ByteWidth = sizeof(shader_constants); // CONST BUFFER SIZE
-	//bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	//bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	
+	// Create actor constant buffer
+	
+	ZeroMemory(&bufferDesc, sizeof(bufferDesc));
+	bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	bufferDesc.ByteWidth = sizeof(shader_constants_actor); // CONST BUFFER SIZE
+	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-	//hr = Device->CreateBuffer(&bufferDesc, NULL, &ConstantBuffer);
-	//if (FAILED(hr))
-	//	Assert(1 == 2);
+	hr = Device->CreateBuffer(&bufferDesc, NULL, &ActorConstantBuffer);
+	if (FAILED(hr))
+		Assert(1 == 2);
 
-	//DeviceContext->VSSetConstantBuffers(0, 1, &ConstantBuffer);
-	//DeviceContext->PSSetConstantBuffers(0, 1, &ConstantBuffer);
-	//DeviceContext->GSSetConstantBuffers(0, 1, &ConstantBuffer);
+	DeviceContext->VSSetConstantBuffers(0, 1, &ActorConstantBuffer);
+	//DeviceContext->PSSetConstantBuffers(0, 1, &ActorConstantBuffer);
+	//DeviceContext->GSSetConstantBuffers(0, 1, &ActorConstantBuffer);
 
-	//
-	// Create lighting constant buffer
-	//
-	//ZeroMemory(&bufferDesc, sizeof(bufferDesc));
-	//bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	//bufferDesc.ByteWidth = sizeof(light_shader_constants); // CONST BUFFER SIZE
-	//bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	//bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	// Create material constant buffer
+	
+	ZeroMemory(&bufferDesc, sizeof(bufferDesc));
+	bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	bufferDesc.ByteWidth = sizeof(shader_constants_material); // CONST BUFFER SIZE
+	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-	//hr = Device->CreateBuffer(&bufferDesc, NULL, &LightingBuffer);
-	//if (FAILED(hr))
-	//	Assert(1 == 2);
+	hr = Device->CreateBuffer(&bufferDesc, NULL, &MaterialConstantBuffer);
+	if (FAILED(hr))
+		Assert(1 == 2);
 
-	//DeviceContext->PSSetConstantBuffers(1, 1, &LightingBuffer);
+	DeviceContext->PSSetConstantBuffers(0, 1, &MaterialConstantBuffer);
 
 	//
 	// create texture sampler
@@ -415,8 +418,8 @@ void dx11_renderer::Cleanup()
 
 	//remove
 	SAFE_RELEASE(MainVertexBuffer);
-	SAFE_RELEASE(ConstantBuffer);
-	//SAFE_RELEASE(LightingBuffer);
+	SAFE_RELEASE(ActorConstantBuffer);
+	SAFE_RELEASE(MaterialConstantBuffer);
 
 	//layouts
 	SAFE_RELEASE(DefaultVertexLayout);
@@ -472,11 +475,11 @@ void dx11_renderer::FinishFrame()
 /*
 * Sets topology type
 */
-void dx11_renderer::Draw(std::vector<vertex>& VertexArray, draw_topology_types TopologyType)
+void dx11_renderer::Draw(const std::vector<vertex>& InVertexArray, draw_topology_types TopologyType)
 {
 	D3D11_MAPPED_SUBRESOURCE Mapped;
 	DeviceContext->Map(MainVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &Mapped);
-	memcpy(Mapped.pData, VertexArray.data(), sizeof(vertex) * VertexArray.size());
+	memcpy(Mapped.pData, InVertexArray.data(), sizeof(vertex) * InVertexArray.size());
 	DeviceContext->Unmap(MainVertexBuffer, NULL);
 
 	UINT stride = sizeof(vertex);
@@ -485,14 +488,14 @@ void dx11_renderer::Draw(std::vector<vertex>& VertexArray, draw_topology_types T
 	SetDrawTopology(TopologyType);
 
 	DeviceContext->IASetVertexBuffers(0, 1, &MainVertexBuffer, &stride, &offset);
-	DeviceContext->Draw((u32)VertexArray.size(), 0);
+	DeviceContext->Draw((u32)InVertexArray.size(), 0);
 }
 
-void dx11_renderer::Draw(std::vector<v3>& PositionArray, draw_topology_types TopologyType)
+void dx11_renderer::Draw(const std::vector<v3>& InPositionArray, draw_topology_types TopologyType)
 {
 	D3D11_MAPPED_SUBRESOURCE Mapped;
 	DeviceContext->Map(PositionVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &Mapped);
-	memcpy(Mapped.pData, PositionArray.data(), sizeof(v3) * PositionArray.size());
+	memcpy(Mapped.pData, InPositionArray.data(), sizeof(v3) * InPositionArray.size());
 	DeviceContext->Unmap(PositionVertexBuffer, NULL);
 
 	UINT stride = sizeof(v3);
@@ -501,7 +504,7 @@ void dx11_renderer::Draw(std::vector<v3>& PositionArray, draw_topology_types Top
 	SetDrawTopology(TopologyType);
 
 	DeviceContext->IASetVertexBuffers(0, 1, &PositionVertexBuffer, &stride, &offset);
-	DeviceContext->Draw((u32)PositionArray.size(), 0);
+	DeviceContext->Draw((u32)InPositionArray.size(), 0);
 }
 
 void dx11_renderer::SetViewport(float Width, float Height)
@@ -601,7 +604,37 @@ void dx11_renderer::RegisterTexture(cAsset* Asset, bool GenerateMIPs)
 	assetLoader::RegisterDXTexture(Asset, GenerateMIPs, Device, DeviceContext);
 }
 
-matrix4x4 dx11_renderer::GetPerspectiveProjectionLH(bool Transpose, camera_info& CameraInfo)
+void dx11_renderer::BindMaterial(const material& InMaterial)
+{
+	//MaterialConstants.TextureDiffuse = InMaterial.DiffuseTextureName == "" ? false : true;
+	MaterialConstants.DiffuseColor = InMaterial.DiffuseColor;
+	//MaterialConstants.TextureNormal = InMaterial.NormalTextureName == "" ? false : true;
+
+	MapBuffer(MaterialConstantBuffer, MaterialConstants);
+
+	//ID3D11ShaderResourceView* const Views[2] = { MaterialConstants.TextureDiffuse ? Engine->TextureRegistry[GetShaderIDFromName(InMaterial.DiffuseTextureName)]->ShaderHandle : NULL,
+	//										     MaterialConstants.TextureDiffuse ? Engine->TextureRegistry[GetShaderIDFromName(InMaterial.NormalTextureName)]->ShaderHandle : NULL   };
+
+	//DeviceContext->PSSetShaderResources(0, 2, Views);
+}
+
+void dx11_renderer::MapActorConstants(actor* Actor, const rendering_component& InComponent)
+{
+	transform FinalRenderTransform = Actor->GetTransform() + Actor->ComponentTransform + InComponent.RenderResources.LocalTransform;
+	DirectX::XMMATRIX translation, rotationx, rotationy, rotationz, scale;
+	translation = DirectX::XMMatrixTranslation(FinalRenderTransform.Location.x, FinalRenderTransform.Location.y, FinalRenderTransform.Location.z);
+	rotationx = DirectX::XMMatrixRotationX(FinalRenderTransform.Rotation.x * (Pi32 / 180.0f)); // convert degrees to radians
+	rotationy = DirectX::XMMatrixRotationY(FinalRenderTransform.Rotation.y * (Pi32 / 180.0f));
+	rotationz = DirectX::XMMatrixRotationZ(FinalRenderTransform.Rotation.z * (Pi32 / 180.0f));
+	scale = DirectX::XMMatrixScaling(FinalRenderTransform.Scale.x, FinalRenderTransform.Scale.y, FinalRenderTransform.Scale.z);
+
+	// transform order: scale, rotate (degrees), translate
+	ActorConstants.WorldMatrix = ToMatrix4x4(scale * rotationx * rotationy * rotationz * translation);
+
+	MapBuffer(ActorConstantBuffer, ActorConstants);
+}
+
+matrix4x4 dx11_renderer::GetPerspectiveProjectionLH(bool Transpose, camera_info CameraInfo)
 {
 	matrix4x4 Result;
 
@@ -622,7 +655,7 @@ matrix4x4 dx11_renderer::GetPerspectiveProjectionLH(bool Transpose, camera_info&
 	return Result;
 }
 
-matrix4x4 dx11_renderer::GetOrthographicProjectionLH(bool Transpose, camera_info& CameraInfo)
+matrix4x4 dx11_renderer::GetOrthographicProjectionLH(bool Transpose, camera_info CameraInfo)
 {
 	matrix4x4 Result;
 
@@ -643,7 +676,7 @@ matrix4x4 dx11_renderer::GetOrthographicProjectionLH(bool Transpose, camera_info
 	return Result;
 }
 
-matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info& CameraInfo, v3& OutLookAtMatrix, bool OrthoUseMovement)
+matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtMatrix, bool OrthoUseMovement)
 {
 	DirectX::XMVECTOR defaultForward;
 	DirectX::XMVECTOR camUp;
@@ -720,4 +753,14 @@ matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info& CameraI
 	Result.m44 = View._44;
 
 	return Result;
+}
+
+template<typename AssociatedStruct>
+void dx11_renderer::MapBuffer(void* BufferRef, AssociatedStruct Data)
+{
+	D3D11_MAPPED_SUBRESOURCE Mapped;
+	DeviceContext->Map((ID3D11Buffer*)BufferRef, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &Mapped);
+	AssociatedStruct* dataPtr = (AssociatedStruct*)Mapped.pData;
+	*dataPtr = Data;
+	DeviceContext->Unmap((ID3D11Buffer*)BufferRef, NULL);
 }

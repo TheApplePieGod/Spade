@@ -1,9 +1,12 @@
 #pragma once
 #include "Input.h"
 #include "platform/rendering/PlatformRenderer.h"
+#include "../classes/Camera.h"
+#include "../classes/Level.h"
+#include "../classes/RenderingComponent.h"
+#include "../classes/Actor.h"
+#include "MemoryManager.h"
 
-class camera;
-class level;
 class engine
 {
 public:
@@ -13,8 +16,9 @@ public:
 
 	bool IsRunning = true;
 
-	camera* MainCamera;
-	level* MainLevel;
+	memory_manager MemoryManager;
+	camera MainCamera;
+	level MainLevel;
 	user_inputs UserInputs;
 
 	// Called from platform
@@ -23,9 +27,21 @@ public:
 	void Cleanup();
 
 	void ProcessUserInput();
+	void RenderScene();
+
+	s32 CreateMaterial();
+	material& GetMaterial(s32 ID);
 
 	// Engine classes
 	renderer Renderer;
 
 private:
+
+	// component registries
+	component_registry<rendering_component> RenderingComponents;
+	component_registry<actor_component> ActorComponents;
+
+	std::vector<material> MaterialRegistry;
+	s32 MaterialsAdded = 0;
+
 };

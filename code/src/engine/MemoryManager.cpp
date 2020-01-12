@@ -4,19 +4,15 @@
 
 void memory_manager::Initialize()
 {
-    // Permanent memory : 500 MB
-    // void* AllocatedMemory = (void*)VirtualAlloc(NULL, Megabytes(500), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-    // PermanentMemoryBlock.BlockData.AllocatedSize = Megabytes(500);
-    // PermanentMemoryBlock.BaseNodeAddress = (u8*)AllocatedMemory;
-    PermanentMemoryBlock.Initialize(false, Megabytes(500));
+    PermanentMemoryBlock.Initialize(false, Megabytes(250));
 
-    // Frame memory : 250 MB
-    // AllocatedMemory = (void*)VirtualAlloc(NULL, Megabytes(500), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-    // FrameMemoryBlock.BlockData.AllocatedSize = Megabytes(500);
-    // FrameMemoryBlock.BaseNodeAddress = (u8*)AllocatedMemory;
     FrameMemoryBlock.Initialize(false, Megabytes(250));
 
-    //DynamicMemoryBlock.Initialize(true, Megabytes(64), Kilobytes(16));
+	//ActorMemoryBlock.Initialize(true, Megabytes(250));
+
+	//ComponentMemoryBlock.Initialize(true, Megabytes(250));
+
+    //DynamicMemoryBlock.Initialize(true, Megabytes(128), Kilobytes(16));
 }
 
 memory_manager::memory_manager(bool AutoInitialize)
@@ -27,18 +23,26 @@ memory_manager::memory_manager(bool AutoInitialize)
     }
 }
 
-memory_block_data memory_manager::GetBlockData(memory_lifetime Lifetime)
+memory_block_data memory_manager::GetBlockData(memory_block_type Type)
 {
-    switch(Lifetime)
+    switch(Type)
     {
-        case 0: // frame
+        case memory_block_type::Frame: // frame
         {
             return FrameMemoryBlock.BlockData;
         }
-        case 1: // permanent
+        case memory_block_type::Permanent: // permanent
         {
             return PermanentMemoryBlock.BlockData;
         }
+		case memory_block_type::Actors: // permanent
+		{
+			return ActorMemoryBlock.BlockData;
+		}
+		case memory_block_type::Components: // permanent
+		{
+			return ComponentMemoryBlock.BlockData;
+		}
     }
     return memory_block_data(); // unreachable
 }
@@ -80,62 +84,118 @@ void* memory_block::Allocate(size_t Amount)
     size_t AlignmentOffset = GetAlignmentOffset(this, MemoryAlignment);
 
     SizeToAlloc += AlignmentOffset;
-    void* AllocatedLocation = BaseNodeAddress + BlockData.AmountUsed + AlignmentOffset;
+
+	void* AllocatedLocation = nullptr;
+
+	if (UseList)
+	{
+		memory_node* NodeLocation = (memory_node*)BaseNodeAddress;
+		memory_node* PrevNode = NodeLocation;
+
+		bool Found = false;
+		while (NodeLocation->NextFreeNode != nullptr)
+		{
+			PrevNode = NodeLocation;
+			NodeLocation = (memory_node*)NodeLocation->NextFreeNode;
+			if (NodeLocation->DataSize >= Amount)
+			{
+				Found = true;
+				break;
+			}
+		}
+			
+		if (Found)
+		{
+			((memory_node*)(NodeLocation->NextFreeNode))->PrevFreeNode = (u8*)NodeLocation;
+			((memory_node*)(NodeLocation->PrevFreeNode))->NextFreeNode = (u8*)NodeLocation;
+			AllocatedLocation = NodeLocation->NodeData;
+		}
+		else
+		{
+			memory_node* NewNode = (memory_node*)(NodeLocation + BlockData.AmountUsed + AlignmentOffset);
+			*NewNode = memory_node();
+			NewNode->DataSize = (u32)Amount;
+
+			AllocatedLocation = &NewNode->NodeData;
+			BlockData.AmountUsed += sizeof(memory_node);
+		}
+	}
+	else
+		AllocatedLocation = BaseNodeAddress + BlockData.AmountUsed + AlignmentOffset;
 
     BlockData.AmountUsed += SizeToAlloc;
-
     return AllocatedLocation;
 }
 
-void memory_block::Initialize(bool UseListMethod, size_t BlockSize, size_t NodeSize)
+void memory_block::Initialize(bool DynamicList, size_t BlockSize)
 {
 	BaseNodeAddress = memory::Allocate(BlockSize);
     BlockData.AllocatedSize = BlockSize;
-    UseList = UseListMethod;
+    UseList = DynamicList;
 
     if (UseList)
     {
+		memory_node* NodeLocation = (memory_node*)(BaseNodeAddress);
+		*NodeLocation = memory_node();
         // init list
-        for (u32 i = 0; i < (u32)(BlockSize / NodeSize); i++)
-        {
-            memory_node* NodeLocation = (memory_node*)(BaseNodeAddress + (i * NodeSize));
-            NodeLocation->NextFreeNode = (u8*)(NodeLocation + BlockSize);
+        //for (u32 i = 0; i < (u32)(BlockSize / NodeSize); i++)
+        //{
+        //    memory_node* NodeLocation = (memory_node*)(BaseNodeAddress + (i * NodeSize));
+        //    NodeLocation->NextFreeNode = (u8*)(NodeLocation + BlockSize);
 
-            if (i != 0)
-                NodeLocation->PrevFreeNode = (u8*)(NodeLocation - BlockSize);
-        }
+        //    if (i != 0)
+        //        NodeLocation->PrevFreeNode = (u8*)(NodeLocation - BlockSize);
+        //}
     }
 }
 
-void* memory_manager::Allocate(size_t Amount, memory_lifetime Lifetime)
+void* memory_manager::Allocate(size_t Amount, memory_block_type Type)
 {
-    switch(Lifetime)
+    switch(Type)
     {
-        case 0: // frame
+		case memory_block_type::Frame: // frame
         {
             return FrameMemoryBlock.Allocate(Amount);
         }
-        case 1: // permanent
+		case memory_block_type::Permanent: // permanent
         {
             return PermanentMemoryBlock.Allocate(Amount);
         }
+		case memory_block_type::Actors: // permanent
+		{
+			return ActorMemoryBlock.Allocate(Amount);
+		}
+		case memory_block_type::Components: // permanent
+		{
+			return ComponentMemoryBlock.Allocate(Amount);
+		}
     }
     return 0; // unreachable
 }
 
-void memory_manager::ResetBlock(memory_lifetime Lifetime)
+void memory_manager::ResetBlock(memory_block_type Type)
 {
-    switch(Lifetime)
+    switch(Type)
     {
-        case 0: // frame
+        case memory_block_type::Frame: // frame
         {
             FrameMemoryBlock.BlockData.AmountUsed = 0;
             return;
         }
-        case 1: // permanent
+        case memory_block_type::Permanent: // permanent
         {
             PermanentMemoryBlock.BlockData.AmountUsed = 0;
             return;
         }
+		case memory_block_type::Actors: // permanent
+		{
+			ActorMemoryBlock.BlockData.AmountUsed = 0;
+			return;
+		}
+		case memory_block_type::Components: // permanent
+		{
+			ComponentMemoryBlock.BlockData.AmountUsed = 0;
+			return;
+		}
     }
 }

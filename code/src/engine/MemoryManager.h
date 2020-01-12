@@ -11,7 +11,8 @@ struct memory_node
 {
     u8* PrevFreeNode = nullptr;
     u8* NextFreeNode = nullptr;
-    void* NodeData; // allocated size - 2 byte
+	u32 DataSize = 0;
+    void* NodeData = nullptr; // allocated size - 6 byte
 };
 
 struct memory_block
@@ -22,13 +23,19 @@ struct memory_block
     size_t MemoryAlignment = 4;
 
     void* Allocate(size_t Amount);
-    void Initialize(bool UseListMethod, size_t BlockSize, size_t NodeSize = 0);
+    void Initialize(bool DynamicList, size_t BlockSize);
+
+	//template <typename T>
+	//std::shared_ptr<T> AllocateInPool(size_t Amount);
 };
 
-enum memory_lifetime
+enum class memory_block_type
 {
     Frame,
-    Permanent
+    Permanent,
+	Actors,
+	Components,
+	// Dynamic
 };
 
 class memory_manager
@@ -40,16 +47,18 @@ public:
 
     void Initialize();
 
-    memory_block_data GetBlockData(memory_lifetime Lifetime);
+    memory_block_data GetBlockData(memory_block_type Lifetime);
 
-    void* Allocate(size_t Amount, memory_lifetime Lifetime);
+    void* Allocate(size_t Amount, memory_block_type Lifetime);
 
-    void ResetBlock(memory_lifetime Lifetime);
+    void ResetBlock(memory_block_type Lifetime);
 
 private:
 
     memory_block PermanentMemoryBlock;
     memory_block FrameMemoryBlock;
-    memory_block DynamicMemoryBlock;
+	memory_block ActorMemoryBlock;
+	memory_block ComponentMemoryBlock;
+    //memory_block DynamicMemoryBlock;
 
 };

@@ -34,6 +34,14 @@ union v3
 
 typedef v3 rotator;
 
+// transform order: scale, rotate (degrees), translate
+struct transform
+{
+	v3 Location = { 0.f, 0.f, 0.f };
+	rotator Rotation = { 0.f, 0.f, 0.f };
+	v3 Scale = { 1.f, 1.f, 1.f };
+};
+
 union v4
 {
 	struct
@@ -168,14 +176,3 @@ struct vertex
 	// Normals
 	f32 nx, ny, nz;
 };
-
-//const v4 colors::White = v4{1.f, 1.f, 1.f, 1.f};
-//const v4 colors::Gray = v4{0.5f, 0.5f, 0.5f, 1.f};
-//const v4 colors::Black = v4{0.f, 0.f, 0.f, 1.f};
-//const v4 colors::Translucent = v4{1.f, 1.f, 1.f, 0.4f};
-//const v4 colors::Red = v4{1.f, 0.f, 0.f, 1.f};
-//const v4 colors::Green = v4{0.f, 1.f, 0.f, 1.f};
-//const v4 colors::Blue = v4{0.f, 0.f, 1.f, 1.f};
-//const v4 colors::Yellow = v4{1.f, 1.f, 0.f, 1.f};
-//const v4 colors::Purple = v4{1.f, 0.f, 1.f, 1.f};
-//const v4 colors::Orange = v4{1.f, 0.4f, 0.f, 1.f};
