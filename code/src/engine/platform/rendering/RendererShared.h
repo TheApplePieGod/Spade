@@ -1,6 +1,8 @@
 #pragma once
 #include "MathTypes.h"
 
+#define MAX_INSTANCES (u64)(65536.f / sizeof(shader_constants_actor));
+
 enum class shader_type
 {
 	VertexShader,
@@ -29,16 +31,33 @@ enum class projection_type
 	Orthographic,
 };
 
+enum class constants_type
+{
+	Actor,
+	Material,
+	Frame
+};
+
 struct camera_info
 {
 	projection_type ProjectionType;
-	v3 Position;
-	rotator Rotation;
-	f32 FOV; // field of view (degrees)
-	f32 Width;
-	f32 Height;
-	f32 NearPlane;
-	f32 FarPlane;
+	v3 Position = { 0.f, 0.f, -1.f };
+	rotator Rotation = rotator();
+	f32 FOV = 70.f; // field of view (degrees)
+	f32 Width = 0.f;
+	f32 Height = 0.f;
+	f32 NearPlane = 0.01f;
+	f32 FarPlane = 50000.f;
+};
+
+struct shader_constants_actor
+{
+	matrix4x4 WorldMatrix;
+};
+
+struct shader_constants_frame
+{
+	matrix4x4 ViewProjectionMatrix;
 };
 
 struct shader_constants_material
@@ -50,12 +69,6 @@ struct shader_constants_material
 
 	bool TextureNormal = false;
 	v3 padding2;
-};
-
-struct shader_constants_actor
-{
-	matrix4x4 WorldMatrix;
-	matrix4x4 ViewProjectionMatrix;
 };
 
 const float VoidColor[4] = { 0.3f, 0.7f, 0.9f, 1.f };

@@ -30,12 +30,12 @@ void camera::UpdateProjectionType(projection_type NewType)
 
 			case projection_type::Orthographic:
 			{
-				Engine->Renderer.GetOrthographicProjectionLH(true, CameraInfo);
+				ProjectionMatrix = Engine->Renderer.GetOrthographicProjectionLH(true, CameraInfo);
 			} break;
 
 			case projection_type::Perspective:
 			{
-				Engine->Renderer.GetPerspectiveProjectionLH(true, CameraInfo);
+				ProjectionMatrix = Engine->Renderer.GetPerspectiveProjectionLH(true, CameraInfo);
 			} break;
 		}
 	}

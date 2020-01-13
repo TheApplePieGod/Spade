@@ -1,5 +1,6 @@
 #include "../engine/Engine.h"
 engine* Engine;
+#include <chrono>
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND Window, UINT Message, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM wParam, LPARAM lParam)
@@ -25,8 +26,8 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM wParam, LPARAM lPa
 	}
 	case WM_SETCURSOR:
 	{
-		HCURSOR hCursor = LoadCursor(NULL, IDC_ARROW);
-		SetCursor(hCursor);
+		//HCURSOR hCursor = LoadCursor(NULL, IDC_ARROW);
+		//SetCursor(hCursor);
 		break;
 	}
 	case WM_KEYUP:
@@ -34,7 +35,10 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM wParam, LPARAM lPa
 	{
 		u32 KeyCode = (u32)wParam;
 		if (KeyCode < 256)
+		{
+			Engine->UserInputs.KeysDown[KeyCode].JustPressed = false;
 			Engine->UserInputs.KeysDown[KeyCode].Pressed = false;
+		}
 		break;
 	}
 	case WM_KEYDOWN:
@@ -48,8 +52,11 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM wParam, LPARAM lPa
 
 		if (KeyCode < 256)
 		{
-			//if (PlayerState->EnableInput && !io.WantCaptureKeyboard)
-			//	UserInputs->KeysDown[KeyCode].Pressed = true;
+			if (Engine->UserInputs.KeysDown[KeyCode].Pressed)
+				Engine->UserInputs.KeysDown[KeyCode].JustPressed = false;
+			else
+				Engine->UserInputs.KeysDown[KeyCode].JustPressed = true;
+			Engine->UserInputs.KeysDown[KeyCode].Pressed = true;
 		}
 		break;
 	}
@@ -65,6 +72,7 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM wParam, LPARAM lPa
 
 void ProcessPendingMessages()
 {
+	Engine->UserInputs.MouseMovement = false;
 	int MouseDeltaBufferX = 0;
 	int MouseDeltaBufferY = 0;
 	MSG Message;
@@ -157,7 +165,6 @@ void ProcessPendingMessages()
 	Engine->UserInputs.MouseDeltaX = (f32)MouseDeltaBufferX;
 	Engine->UserInputs.MousePosY += MouseDeltaBufferY;
 	Engine->UserInputs.MouseDeltaY = (f32)MouseDeltaBufferY;
-	Engine->UserInputs.MouseMovement = false;
 }
 
 int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLine, int ShowFlag) // entrypoint
@@ -233,9 +240,11 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLin
 		//QueryPerformanceFrequency(&DebugData.frequency);
 		while (Engine->IsRunning) // game loop
 		{
+			auto start = std::chrono::high_resolution_clock::now();
 			ProcessPendingMessages();
 			Engine->Tick();
-			//QueryPerformanceCounter(&DebugData.t1);
+			auto stop = std::chrono::high_resolution_clock::now();
+			Engine->UserInputs.DeltaTime = (f32)(std::chrono::duration_cast<std::chrono::milliseconds>(stop - start)).count();
 		}
 
 		Engine->Cleanup();

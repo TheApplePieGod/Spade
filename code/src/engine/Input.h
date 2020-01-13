@@ -4,6 +4,7 @@
 struct input_button
 {
 	bool Pressed = false;
+	bool JustPressed = false;
 };
 
 struct user_inputs // controller support later?

@@ -6,11 +6,10 @@ public:
 
 	s32 ComponentID = -1;
 	bool Active = true;
-	const char* TypeIdentifier = "";
 
 };
 
-template <class T>
+template <class T, typename... Args>
 class component_registry
 {
 	// Compile-time check
@@ -20,7 +19,15 @@ public:
 
 	inline s32 CreateComponent(T Template = T())
 	{
-		T Comp;
+		Template.ComponentID = ComponentsAdded;
+		Registry.push_back(Template);
+		return ComponentsAdded++;
+	}
+
+	// pass args for component constructor
+	inline s32 CreateComponent(Args... args)
+	{
+		T Comp = T(args);
 		Comp.ComponentID = ComponentsAdded;
 		Registry.push_back(Comp);
 		return ComponentsAdded++;
@@ -54,6 +61,11 @@ public:
 				}
 			}
 		}
+	}
+
+	inline std::vector<T>& GetRegistry()
+	{
+		return Registry;
 	}
 
 private:

@@ -31,7 +31,7 @@ s32 GetAssetIDFromName(const char* Name)
 			return i;
 		}
 	}
-	Assert(1 == 2);
+	//Assert(1 == 2);
 	return -1;
 }
 
@@ -51,6 +51,6 @@ s32 GetShaderIDFromName(const char* Name)
 			return i;
 		}
 	}
-	Assert(1 == 2);
+	//Assert(1 == 2);
 	return 0;
 }

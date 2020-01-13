@@ -9,6 +9,7 @@
 platform_renderer* PlatformRenderer;
 
 shader_constants_actor ActorConstants;
+shader_constants_frame FrameConstants;
 shader_constants_material MaterialConstants;
 
 void renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
@@ -37,14 +38,14 @@ void renderer::FinishFrame()
 	ImGui::NewFrame();
 }
 
-void renderer::Draw(const std::vector<vertex>& InVertexArray, draw_topology_types TopologyType)
+void renderer::Draw(vertex* InVertexArray, u32 NumVertices, draw_topology_types TopologyType)
 {
-	PlatformRenderer->Draw(InVertexArray, TopologyType);
+	PlatformRenderer->Draw(InVertexArray, NumVertices, TopologyType);
 }
 
-void renderer::Draw(const std::vector<v3>& InPositionArray, draw_topology_types TopologyType)
+void renderer::Draw(v3* InPositionArray, u32 NumVertices, draw_topology_types TopologyType)
 {
-	PlatformRenderer->Draw(InPositionArray, TopologyType);
+	PlatformRenderer->Draw(InPositionArray, NumVertices, TopologyType);
 }
 
 void renderer::SetViewport(float Width, float Height)
@@ -72,9 +73,14 @@ void renderer::BindMaterial(const material& InMaterial)
 	PlatformRenderer->BindMaterial(InMaterial);
 }
 
-void renderer::MapActorConstants(actor* Actor, const rendering_component& InComponent)
+void renderer::MapActorConstants(actor_component& InActor, const rendering_component& InComponent)
 {
-	PlatformRenderer->MapActorConstants(Actor, InComponent);
+	PlatformRenderer->MapActorConstants(InActor, InComponent);
+}
+
+void renderer::MapConstants(constants_type Type)
+{
+	PlatformRenderer->MapConstants(Type);
 }
 
 matrix4x4 renderer::GetPerspectiveProjectionLH(bool Transpose, camera_info CameraInfo)

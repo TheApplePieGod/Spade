@@ -164,11 +164,27 @@ struct colors
 // Standard struct used in rendering
 struct vertex
 {
+	vertex(f32 X, f32 Y, f32 Z)
+	{
+		x = X;
+		y = Y;
+		z = Z;
+	}
+
+	vertex(f32 X, f32 Y, f32 Z, f32 U, f32 V)
+	{
+		x = X;
+		y = Y;
+		z = Z;
+		u = U;
+		v = V;
+	}
+
+	vertex()
+	{}
+
 	// Position in x/y plane
 	f32 x, y, z;
-
-	// Color
-	f32 r, g, b, a;
 
 	// UV coordinates
 	f32 u, v;

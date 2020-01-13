@@ -5,6 +5,7 @@
 
 extern engine* Engine;
 extern shader_constants_actor ActorConstants;
+extern shader_constants_frame FrameConstants;
 extern shader_constants_material MaterialConstants;
 
 void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
@@ -125,6 +126,7 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	rasterDesc.DepthBias = 0;
 	rasterDesc.DepthBiasClamp = 0.0f;
 	rasterDesc.DepthClipEnable = true;
+	//rasterDesc.FillMode = D3D11_FILL_WIREFRAME;
 	rasterDesc.FillMode = D3D11_FILL_SOLID;
 	rasterDesc.FrontCounterClockwise = false;
 	rasterDesc.MultisampleEnable = false;
@@ -174,9 +176,6 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
 				D3D11_APPEND_ALIGNED_ELEMENT,
 				D3D11_INPUT_PER_VERTEX_DATA, 0 },
-			{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
-				D3D11_APPEND_ALIGNED_ELEMENT,
-				D3D11_INPUT_PER_VERTEX_DATA, 0 },
 			{ "TEXCOORD",
 				0, DXGI_FORMAT_R32G32_FLOAT, 0,
 				D3D11_APPEND_ALIGNED_ELEMENT,
@@ -185,6 +184,8 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 				0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
 				D3D11_APPEND_ALIGNED_ELEMENT,
 				D3D11_INPUT_PER_VERTEX_DATA, 0 },
+
+			{ "SV_InstanceID", 0, DXGI_FORMAT_R32_UINT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1},
 		};
 
 		hr = Device->CreateInputLayout(layout,
@@ -239,23 +240,38 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	if (FAILED(hr))
 		Assert(1 == 2);;
 
-
 	
-	// Create actor constant buffer
+	// Create frame constant buffer
 	
 	ZeroMemory(&bufferDesc, sizeof(bufferDesc));
 	bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	bufferDesc.ByteWidth = sizeof(shader_constants_actor); // CONST BUFFER SIZE
+	bufferDesc.ByteWidth = sizeof(shader_constants_frame); // CONST BUFFER SIZE
 	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+	hr = Device->CreateBuffer(&bufferDesc, NULL, &FrameConstantBuffer);
+	if (FAILED(hr))
+		Assert(1 == 2);
+
+	DeviceContext->VSSetConstantBuffers(0, 1, &FrameConstantBuffer);
+	//DeviceContext->PSSetConstantBuffers(0, 1, &ActorConstantBuffer);
+	//DeviceContext->GSSetConstantBuffers(0, 1, &ActorConstantBuffer);
+
+
+	// Create actor constant buffer
+
+	ZeroMemory(&bufferDesc, sizeof(bufferDesc));
+	bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	bufferDesc.ByteWidth = sizeof(shader_constants_actor) * MAX_INSTANCES; // MAX instances
+	bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
 	hr = Device->CreateBuffer(&bufferDesc, NULL, &ActorConstantBuffer);
 	if (FAILED(hr))
-		Assert(1 == 2);
+		Assert(1 == 2);;
 
-	DeviceContext->VSSetConstantBuffers(0, 1, &ActorConstantBuffer);
-	//DeviceContext->PSSetConstantBuffers(0, 1, &ActorConstantBuffer);
-	//DeviceContext->GSSetConstantBuffers(0, 1, &ActorConstantBuffer);
+	DeviceContext->VSSetConstantBuffers(1, 1, &ActorConstantBuffer);
+
 
 	// Create material constant buffer
 	
@@ -383,6 +399,26 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	GetClientRect(Window, &rc);
 	SetViewport((FLOAT)(rc.right - rc.left), (FLOAT)(rc.bottom - rc.top));
 
+	// lock cursor to window
+	POINT ul;
+	ul.x = rc.left;
+	ul.y = rc.top;
+
+	POINT lr;
+	lr.x = rc.right;
+	lr.y = rc.bottom;
+
+	MapWindowPoints(Window, nullptr, &ul, 1);
+	MapWindowPoints(Window, nullptr, &lr, 1);
+
+	rc.left = ul.x;
+	rc.top = ul.y;
+
+	rc.right = lr.x;
+	rc.bottom = lr.y;
+
+	ClipCursor(&rc);
+
 	// init imgui
 	ImGui_ImplWin32_Init(Window);
 	ImGui_ImplDX11_Init(Device, DeviceContext);
@@ -416,10 +452,10 @@ void dx11_renderer::Cleanup()
 		}
 	}
 
-	//remove
 	SAFE_RELEASE(MainVertexBuffer);
 	SAFE_RELEASE(ActorConstantBuffer);
 	SAFE_RELEASE(MaterialConstantBuffer);
+	SAFE_RELEASE(FrameConstantBuffer)
 
 	//layouts
 	SAFE_RELEASE(DefaultVertexLayout);
@@ -475,11 +511,11 @@ void dx11_renderer::FinishFrame()
 /*
 * Sets topology type
 */
-void dx11_renderer::Draw(const std::vector<vertex>& InVertexArray, draw_topology_types TopologyType)
+void dx11_renderer::Draw(vertex* InVertexArray, u32 NumVertices, draw_topology_types TopologyType)
 {
 	D3D11_MAPPED_SUBRESOURCE Mapped;
 	DeviceContext->Map(MainVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &Mapped);
-	memcpy(Mapped.pData, InVertexArray.data(), sizeof(vertex) * InVertexArray.size());
+	memcpy(Mapped.pData, InVertexArray, sizeof(vertex) * NumVertices);
 	DeviceContext->Unmap(MainVertexBuffer, NULL);
 
 	UINT stride = sizeof(vertex);
@@ -488,14 +524,16 @@ void dx11_renderer::Draw(const std::vector<vertex>& InVertexArray, draw_topology
 	SetDrawTopology(TopologyType);
 
 	DeviceContext->IASetVertexBuffers(0, 1, &MainVertexBuffer, &stride, &offset);
-	DeviceContext->Draw((u32)InVertexArray.size(), 0);
+	DeviceContext->Draw(NumVertices, 0);
 }
 
-void dx11_renderer::Draw(const std::vector<v3>& InPositionArray, draw_topology_types TopologyType)
+//void dx11_renderer::Draw
+
+void dx11_renderer::Draw(v3* InPositionArray, u32 NumVertices, draw_topology_types TopologyType)
 {
 	D3D11_MAPPED_SUBRESOURCE Mapped;
 	DeviceContext->Map(PositionVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &Mapped);
-	memcpy(Mapped.pData, InPositionArray.data(), sizeof(v3) * InPositionArray.size());
+	memcpy(Mapped.pData, InPositionArray, sizeof(v3) * NumVertices);
 	DeviceContext->Unmap(PositionVertexBuffer, NULL);
 
 	UINT stride = sizeof(v3);
@@ -504,7 +542,7 @@ void dx11_renderer::Draw(const std::vector<v3>& InPositionArray, draw_topology_t
 	SetDrawTopology(TopologyType);
 
 	DeviceContext->IASetVertexBuffers(0, 1, &PositionVertexBuffer, &stride, &offset);
-	DeviceContext->Draw((u32)InPositionArray.size(), 0);
+	DeviceContext->Draw(NumVertices, 0);
 }
 
 void dx11_renderer::SetViewport(float Width, float Height)
@@ -606,21 +644,37 @@ void dx11_renderer::RegisterTexture(cAsset* Asset, bool GenerateMIPs)
 
 void dx11_renderer::BindMaterial(const material& InMaterial)
 {
-	//MaterialConstants.TextureDiffuse = InMaterial.DiffuseTextureName == "" ? false : true;
+	MaterialConstants.TextureDiffuse = InMaterial.DiffuseShaderID == -1 ? false : true;
 	MaterialConstants.DiffuseColor = InMaterial.DiffuseColor;
-	//MaterialConstants.TextureNormal = InMaterial.NormalTextureName == "" ? false : true;
+	MaterialConstants.TextureNormal = InMaterial.NormalShaderID == -1 ? false : true;
 
 	MapBuffer(MaterialConstantBuffer, MaterialConstants);
 
-	//ID3D11ShaderResourceView* const Views[2] = { MaterialConstants.TextureDiffuse ? Engine->TextureRegistry[GetShaderIDFromName(InMaterial.DiffuseTextureName)]->ShaderHandle : NULL,
-	//										     MaterialConstants.TextureDiffuse ? Engine->TextureRegistry[GetShaderIDFromName(InMaterial.NormalTextureName)]->ShaderHandle : NULL   };
+	ID3D11ShaderResourceView* const Views[2] = { MaterialConstants.TextureDiffuse ? Engine->TextureRegistry[InMaterial.DiffuseShaderID]->ShaderHandle : NULL,
+											     MaterialConstants.TextureNormal ? Engine->TextureRegistry[InMaterial.NormalShaderID]->ShaderHandle : NULL   };
 
-	//DeviceContext->PSSetShaderResources(0, 2, Views);
+	DeviceContext->PSSetShaderResources(0, 2, Views);
 }
 
-void dx11_renderer::MapActorConstants(actor* Actor, const rendering_component& InComponent)
+void dx11_renderer::MapConstants(constants_type Type)
 {
-	transform FinalRenderTransform = Actor->GetTransform() + Actor->ComponentTransform + InComponent.RenderResources.LocalTransform;
+	switch (Type)
+	{
+		case constants_type::Actor:
+		{ MapBuffer(ActorConstantBuffer, ActorConstants); } break;
+
+		case constants_type::Frame:
+		{ MapBuffer(FrameConstantBuffer, FrameConstants); } break;
+
+		case constants_type::Material:
+		{ MapBuffer(MaterialConstantBuffer, MaterialConstants); } break;
+	}
+}
+
+void dx11_renderer::MapActorConstants(actor_component& InActor, const rendering_component& InComponent)
+{
+	transform FinalRenderTransform = InActor.GetTransform() + InComponent.RenderResources.LocalTransform;
+	FinalRenderTransform.Scale = InActor.GetScale() * InComponent.RenderResources.LocalTransform.Scale;
 	DirectX::XMMATRIX translation, rotationx, rotationy, rotationz, scale;
 	translation = DirectX::XMMatrixTranslation(FinalRenderTransform.Location.x, FinalRenderTransform.Location.y, FinalRenderTransform.Location.z);
 	rotationx = DirectX::XMMatrixRotationX(FinalRenderTransform.Rotation.x * (Pi32 / 180.0f)); // convert degrees to radians
@@ -693,7 +747,7 @@ matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraIn
 		camPosition = DirectX::XMVectorSet(CameraInfo.Position.x, CameraInfo.Position.y, CameraInfo.Position.z, 0.0f);
 
 		// Rotation Matrix
-		DirectX::XMMATRIX RotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(DirectX::XMConvertToRadians(CameraInfo.Rotation.x), DirectX::XMConvertToRadians(CameraInfo.Rotation.y), 0.0f);
+		DirectX::XMMATRIX RotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(DirectX::XMConvertToRadians(CameraInfo.Rotation.y), DirectX::XMConvertToRadians(CameraInfo.Rotation.x), 0.0f);
 		DirectX::XMVECTOR camTarget = DirectX::XMVector3TransformCoord(defaultForward, RotationMatrix);
 		camTarget = DirectX::XMVector3Normalize(camTarget);
 
@@ -703,13 +757,13 @@ matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraIn
 		OutLookAtMatrix.y = temp.y;
 		OutLookAtMatrix.z = temp.z;
 
-		DirectX::XMMATRIX RotateYTempMatrix;
-		RotateYTempMatrix = DirectX::XMMatrixRotationY(DirectX::XMConvertToRadians(CameraInfo.Rotation.x));
+		//DirectX::XMMATRIX RotateYTempMatrix;
+		//RotateYTempMatrix = DirectX::XMMatrixRotationY(DirectX::XMConvertToRadians(CameraInfo.Rotation.y));
 
-		DirectX::XMMATRIX RotateXTempMatrix;
-		RotateXTempMatrix = DirectX::XMMatrixRotationY(DirectX::XMConvertToRadians(CameraInfo.Rotation.y));
+		//DirectX::XMMATRIX RotateXTempMatrix;
+		//RotateXTempMatrix = DirectX::XMMatrixRotationY(DirectX::XMConvertToRadians(CameraInfo.Rotation.y));
 
-		camUp = XMVector3TransformCoord(XMVector3TransformCoord(camUp, RotateYTempMatrix), RotateXTempMatrix);
+		//camUp = XMVector3TransformCoord(XMVector3TransformCoord(camUp, RotateYTempMatrix), RotateXTempMatrix);
 
 		camTarget = DirectX::XMVectorAdd(camTarget, camPosition);
 

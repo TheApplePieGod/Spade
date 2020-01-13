@@ -25,7 +25,7 @@ public:
 		return Level;
 	}
 
-	inline transform GetTransform()
+	inline const transform GetTransform()
 	{
 		return Transform;
 	}
@@ -76,6 +76,9 @@ class actor
 {
 public:
 
+	// used to identify subclasses of actor
+	const char* TypeIdentifier = "Default";
+
 	s32 ActorComponentID = -1;
 
 	// used for internally removing actors
@@ -86,7 +89,10 @@ class renderer_actor : public actor
 {
 public:
 
-	transform ComponentTransform;
+	renderer_actor()
+	{
+		TypeIdentifier = "Renderer";
+	}
 
 	/* used to access global array of rendering components
 	 * call the engine function CreateRenderingComponent() to create component

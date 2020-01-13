@@ -35,6 +35,8 @@ public:
 	// Engine classes
 	renderer Renderer;
 
+	v2 ScreenSize = { 0.f, 0.f };
+
 private:
 
 	// component registries

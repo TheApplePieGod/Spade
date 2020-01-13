@@ -4,6 +4,15 @@
 class camera
 {
 public:
+
+	camera(f32 Width, f32 Height)
+	{
+		CameraInfo.Width = Width;
+		CameraInfo.Height = Height;
+	}
+
+	camera() = default;
+
 	camera_info CameraInfo;
 
 	v3 ForwardVector = { 0.f, 0.f, 1.f };
