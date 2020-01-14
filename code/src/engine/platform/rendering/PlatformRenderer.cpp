@@ -48,6 +48,11 @@ void renderer::Draw(v3* InPositionArray, u32 NumVertices, draw_topology_types To
 	PlatformRenderer->Draw(InPositionArray, NumVertices, TopologyType);
 }
 
+void renderer::DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 NumInstances, draw_topology_types TopologyType)
+{
+	PlatformRenderer->DrawInstanced(InVertexArray, NumVertices, NumInstances, TopologyType);
+}
+
 void renderer::SetViewport(float Width, float Height)
 {
 	PlatformRenderer->SetViewport(Width, Height);
@@ -78,7 +83,7 @@ void renderer::MapActorConstants(actor_component& InActor, const rendering_compo
 	PlatformRenderer->MapActorConstants(InActor, InComponent);
 }
 
-void renderer::MapConstants(constants_type Type)
+void renderer::MapConstants(map_operation Type)
 {
 	PlatformRenderer->MapConstants(Type);
 }
@@ -96,4 +101,9 @@ matrix4x4 renderer::GetOrthographicProjectionLH(bool Transpose, camera_info Came
 matrix4x4 renderer::GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtMatrix, bool OrthoUseMovement)
 {
 	return PlatformRenderer->GenerateViewMatrix(Transpose, CameraInfo, OutLookAtMatrix, OrthoUseMovement);
+}
+
+matrix4x4 renderer::GenerateWorldMatrix(transform Transform)
+{
+	return PlatformRenderer->GenerateWorldMatrix(Transform);
 }

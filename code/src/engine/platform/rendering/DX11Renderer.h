@@ -10,12 +10,13 @@ public:
 	void FinishFrame();
 	void Draw(vertex* InVertexArray, u32 NumVertices, draw_topology_types TopologyType);
 	void Draw(v3* InPositionArray, u32 NumVertices, draw_topology_types TopologyType);
+	void DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 NumInstances, draw_topology_types TopologyType);
 	void SetViewport(float Width, float Height);
 	void SetDrawTopology(draw_topology_types TopologyType);
 	void CompileShaderFromFile(std::string Filename, std::string EntryPoint, shader_type ShaderType, void* ShaderRef);
 	void RegisterTexture(cAsset* Asset, bool GenerateMIPs);
 	void BindMaterial(const material& InMaterial);
-	void MapConstants(constants_type Type);
+	void MapConstants(map_operation Type);
 
 	/* Generates world matrix & maps the constants
 	 * Call after other fields are set
@@ -25,6 +26,7 @@ public:
 	static matrix4x4 GetPerspectiveProjectionLH(bool Transpose, camera_info CameraInfo);
 	static matrix4x4 GetOrthographicProjectionLH(bool Transpose, camera_info CameraInfo);
 	static matrix4x4 GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtMatrix, bool OrthoUseMovement = true);
+	static matrix4x4 GenerateWorldMatrix(transform Transform);
 
 	HWND Window;
 
@@ -59,7 +61,7 @@ public:
 
 private:
 
-	inline matrix4x4
+	inline static matrix4x4
 	ToMatrix4x4(const DirectX::XMMATRIX& A) // assumes transposition
 	{
 		matrix4x4 out;

@@ -4,12 +4,17 @@ class component
 {
 public:
 
-	s32 ComponentID = -1;
+	s32 RegistryID = -1;
 	bool Active = true;
+
+	inline bool IsActive()
+	{
+		return RegistryID != -1 && Active;
+	}
 
 };
 
-template <class T, typename... Args>
+template <class T> //, typename... Args>
 class component_registry
 {
 	// Compile-time check
@@ -17,60 +22,64 @@ class component_registry
 
 public:
 
-	inline s32 CreateComponent(T Template = T())
+	/* ForceNew is useful when adding many components b/c it skips checking for empty spaces */
+	inline s32 CreateComponent(T Template, bool ForceNew = false)
 	{
-		Template.ComponentID = ComponentsAdded;
+		u32 Size = (u32)Registry.size();
+		if (!ForceNew)
+		{
+			// check for open slot
+			for (u32 i = 0; i < Size; i++)
+			{
+				if (Registry[i].RegistryID == -1)
+				{
+					Registry[i] = Template;
+					Registry[i].RegistryID = i;
+					return i;
+				}
+			}
+		}
+
+		Template.RegistryID = Size;
 		Registry.push_back(Template);
-		return ComponentsAdded++;
+		return Size;
 	}
 
-	// pass args for component constructor
-	inline s32 CreateComponent(Args... args)
-	{
-		T Comp = T(args);
-		Comp.ComponentID = ComponentsAdded;
-		Registry.push_back(Comp);
-		return ComponentsAdded++;
-	}
+	/* Pass args for component constructor
+	* ForceNew is useful when adding many components b/c it skips checking for empty spaces
+	*/
+	//inline s32 CreateComponent(Args... args, bool ForceNew = false)
+	//{
+	//	T Comp = T(args);
+	//	return CreateComponent(Comp, ForceNew);
+	//}
 
 	inline T& GetComponent(s32 ID)
 	{
-		if (ID != -1)
-		{
-			for (u32 i = 0; i < Registry.size(); i++)
-			{
-				if (Registry[i].ComponentID == ID)
-					return Registry[i];
-			}
-			Assert(1 == 2); // not found
-		}
-		Assert(1 == 2); // cant get id of -1
-		return Registry[0];
+		Assert(ID != -1 && ID < Registry.size());
+		return Registry[ID];
 	}
 
 	inline void DeleteComponent(s32 ID)
 	{
-		if (ID != -1)
-		{
-			for (u32 i = 0; i < Registry.size(); i++)
-			{
-				if (Registry[i].ComponentID == ID)
-				{
-					Registry.erase(Registry.begin() + i);
-					return;
-				}
-			}
-		}
+		Assert(ID != -1 && ID < Registry.size());
+		Registry[ID].RegistryID = -1;
 	}
 
+	// use for iteration only
 	inline std::vector<T>& GetRegistry()
 	{
 		return Registry;
 	}
 
+	inline void ClearRegistry()
+	{
+
+	}
+
 private:
 
 	std::vector<T> Registry;
-	s32 ComponentsAdded;
+	//s32 ComponentsAdded;
 
 };

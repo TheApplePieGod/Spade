@@ -15,23 +15,8 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	//
 	// Device and swap chain
 	//
-	UINT MultiSamplingCount = 4;
-	DXGI_SWAP_CHAIN_DESC sd;
-	ZeroMemory(&sd, sizeof(sd));
-	sd.BufferCount = 1;
-	sd.BufferDesc.Width = WindowWidth;
-	sd.BufferDesc.Height = WindowHeight;
-	sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	sd.BufferDesc.RefreshRate.Numerator = 60;
-	sd.BufferDesc.RefreshRate.Denominator = 1;
-	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	sd.OutputWindow = Window;
-	sd.SampleDesc.Count = MultiSamplingCount;
-	sd.SampleDesc.Quality = 0;
-	sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-	sd.Windowed = TRUE;
 
-	const D3D_FEATURE_LEVEL lvl[] = {
+	D3D_FEATURE_LEVEL FeatureLevelsSupported[] = {
 		//D3D_FEATURE_LEVEL_12_0,
 		D3D_FEATURE_LEVEL_11_1,
 		D3D_FEATURE_LEVEL_11_0,
@@ -42,19 +27,61 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 		D3D_FEATURE_LEVEL_9_1
 	};
 
-	D3D_FEATURE_LEVEL FeatureLevelsSupported;
 	UINT createDeviceFlags = 0;
 #if SPADE_DEBUG
 	createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
-	HRESULT hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags, lvl, _countof(lvl), D3D11_SDK_VERSION, &sd, &Chain, &Device, &FeatureLevelsSupported, &DeviceContext);
-	if (hr == E_INVALIDARG)
-	{
-		hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags, &lvl[1], _countof(lvl) - 1, D3D11_SDK_VERSION, &sd, &Chain, &Device, &FeatureLevelsSupported, &DeviceContext);
-	}
+	HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags, FeatureLevelsSupported, _countof(FeatureLevelsSupported), D3D11_SDK_VERSION, &Device, NULL, &DeviceContext);
 	if (FAILED(hr))
 		Assert(1 == 2);
+
+	IDXGIDevice* pDXGIDevice = nullptr;
+	hr = Device->QueryInterface(__uuidof(IDXGIDevice), (void**)&pDXGIDevice);
+
+	IDXGIAdapter* pDXGIAdapter = nullptr;
+	hr = pDXGIDevice->GetAdapter(&pDXGIAdapter);
+
+	IDXGIFactory* pIDXGIFactory = nullptr;
+	hr = pDXGIAdapter->GetParent(__uuidof(IDXGIFactory), (void**)&pIDXGIFactory);
+	if (FAILED(hr))
+		Assert(1 == 2);
+
+	UINT MultiSamplingCount = 4;
+	UINT MaxMultisamplingQuality = 0;
+	DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	Device->CheckMultisampleQualityLevels(Format, MultiSamplingCount, &MaxMultisamplingQuality);
+
+	DXGI_SWAP_CHAIN_DESC sd;
+	ZeroMemory(&sd, sizeof(sd));
+	sd.BufferCount = 1;
+	sd.BufferDesc.Width = WindowWidth;
+	sd.BufferDesc.Height = WindowHeight;
+	sd.BufferDesc.Format = Format;
+	sd.BufferDesc.RefreshRate.Numerator = 60;
+	sd.BufferDesc.RefreshRate.Denominator = 1;
+	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	sd.OutputWindow = Window;
+	sd.SampleDesc.Count = MultiSamplingCount;
+	sd.SampleDesc.Quality = 0;
+	sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+	sd.Windowed = TRUE;
+
+	hr = pIDXGIFactory->CreateSwapChain(Device, &sd, &Chain);
+	if (FAILED(hr))
+		Assert(1 == 2);
+	
+	SAFE_RELEASE(pIDXGIFactory);
+	SAFE_RELEASE(pDXGIAdapter);
+	SAFE_RELEASE(pDXGIDevice);
+
+	//hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags, FeatureLevelsSupported, _countof(FeatureLevelsSupported), D3D11_SDK_VERSION, &sd, &Chain, &Device, NULL, &DeviceContext);
+	//if (hr == E_INVALIDARG)
+	//{
+	//	hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags, &FeatureLevelsSupported[1], _countof(FeatureLevelsSupported) - 1, D3D11_SDK_VERSION, &sd, &Chain, &Device, NULL, &DeviceContext);
+	//}
+	//if (FAILED(hr))
+	//	Assert(1 == 2);
 
 #if SPADE_DEBUG
 
@@ -263,7 +290,7 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	ZeroMemory(&bufferDesc, sizeof(bufferDesc));
 	bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 	bufferDesc.ByteWidth = sizeof(shader_constants_actor) * MAX_INSTANCES; // MAX instances
-	bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
 	hr = Device->CreateBuffer(&bufferDesc, NULL, &ActorConstantBuffer);
@@ -271,7 +298,6 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 		Assert(1 == 2);;
 
 	DeviceContext->VSSetConstantBuffers(1, 1, &ActorConstantBuffer);
-
 
 	// Create material constant buffer
 	
@@ -527,8 +553,6 @@ void dx11_renderer::Draw(vertex* InVertexArray, u32 NumVertices, draw_topology_t
 	DeviceContext->Draw(NumVertices, 0);
 }
 
-//void dx11_renderer::Draw
-
 void dx11_renderer::Draw(v3* InPositionArray, u32 NumVertices, draw_topology_types TopologyType)
 {
 	D3D11_MAPPED_SUBRESOURCE Mapped;
@@ -543,6 +567,22 @@ void dx11_renderer::Draw(v3* InPositionArray, u32 NumVertices, draw_topology_typ
 
 	DeviceContext->IASetVertexBuffers(0, 1, &PositionVertexBuffer, &stride, &offset);
 	DeviceContext->Draw(NumVertices, 0);
+}
+
+void dx11_renderer::DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 NumInstances, draw_topology_types TopologyType)
+{
+	D3D11_MAPPED_SUBRESOURCE Mapped;
+	DeviceContext->Map(MainVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &Mapped);
+	memcpy(Mapped.pData, InVertexArray, sizeof(vertex) * NumVertices);
+	DeviceContext->Unmap(MainVertexBuffer, NULL);
+
+	UINT stride = sizeof(vertex);
+	UINT offset = 0;
+
+	SetDrawTopology(TopologyType);
+
+	DeviceContext->IASetVertexBuffers(0, 1, &MainVertexBuffer, &stride, &offset);
+	DeviceContext->DrawInstanced(NumVertices, NumInstances, 0, 0);
 }
 
 void dx11_renderer::SetViewport(float Width, float Height)
@@ -656,17 +696,17 @@ void dx11_renderer::BindMaterial(const material& InMaterial)
 	DeviceContext->PSSetShaderResources(0, 2, Views);
 }
 
-void dx11_renderer::MapConstants(constants_type Type)
+void dx11_renderer::MapConstants(map_operation Type)
 {
 	switch (Type)
 	{
-		case constants_type::Actor:
+		case map_operation::Actor:
 		{ MapBuffer(ActorConstantBuffer, ActorConstants); } break;
 
-		case constants_type::Frame:
+		case map_operation::Frame:
 		{ MapBuffer(FrameConstantBuffer, FrameConstants); } break;
 
-		case constants_type::Material:
+		case map_operation::Material:
 		{ MapBuffer(MaterialConstantBuffer, MaterialConstants); } break;
 	}
 }
@@ -675,15 +715,9 @@ void dx11_renderer::MapActorConstants(actor_component& InActor, const rendering_
 {
 	transform FinalRenderTransform = InActor.GetTransform() + InComponent.RenderResources.LocalTransform;
 	FinalRenderTransform.Scale = InActor.GetScale() * InComponent.RenderResources.LocalTransform.Scale;
-	DirectX::XMMATRIX translation, rotationx, rotationy, rotationz, scale;
-	translation = DirectX::XMMatrixTranslation(FinalRenderTransform.Location.x, FinalRenderTransform.Location.y, FinalRenderTransform.Location.z);
-	rotationx = DirectX::XMMatrixRotationX(FinalRenderTransform.Rotation.x * (Pi32 / 180.0f)); // convert degrees to radians
-	rotationy = DirectX::XMMatrixRotationY(FinalRenderTransform.Rotation.y * (Pi32 / 180.0f));
-	rotationz = DirectX::XMMatrixRotationZ(FinalRenderTransform.Rotation.z * (Pi32 / 180.0f));
-	scale = DirectX::XMMatrixScaling(FinalRenderTransform.Scale.x, FinalRenderTransform.Scale.y, FinalRenderTransform.Scale.z);
 
 	// transform order: scale, rotate (degrees), translate
-	ActorConstants.WorldMatrix = ToMatrix4x4(scale * rotationx * rotationy * rotationz * translation);
+	//ActorConstants.WorldMatrix = GenerateWorldMatrix(FinalRenderTransform);
 
 	MapBuffer(ActorConstantBuffer, ActorConstants);
 }
@@ -807,6 +841,19 @@ matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraIn
 	Result.m44 = View._44;
 
 	return Result;
+}
+
+matrix4x4 dx11_renderer::GenerateWorldMatrix(transform Transform)
+{
+	DirectX::XMMATRIX translation, rotationx, rotationy, rotationz, scale;
+	translation = DirectX::XMMatrixTranslation(Transform.Location.x, Transform.Location.y, Transform.Location.z);
+	rotationx = DirectX::XMMatrixRotationX(Transform.Rotation.x * (Pi32 / 180.0f)); // convert degrees to radians
+	rotationy = DirectX::XMMatrixRotationY(Transform.Rotation.y * (Pi32 / 180.0f));
+	rotationz = DirectX::XMMatrixRotationZ(Transform.Rotation.z * (Pi32 / 180.0f));
+	scale = DirectX::XMMatrixScaling(Transform.Scale.x, Transform.Scale.y, Transform.Scale.z);
+
+	// transform order: scale, rotate (degrees), translate
+	return ToMatrix4x4(scale * rotationx * rotationy * rotationz * translation);
 }
 
 template<typename AssociatedStruct>

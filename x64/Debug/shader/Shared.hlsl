@@ -1,5 +1,5 @@
 #define MAX_LIGHTS 10
-#define MAX_INSTANCES 100
+#define MAX_INSTANCES 1024
 
 struct PerInstanceData
 {
@@ -9,7 +9,7 @@ struct PerInstanceData
 // per instance
 cbuffer ActorInstanceConstantBuffer : register(b1)
 {
-	PerInstanceData Instances[MAX_INSTANCES];
+	PerInstanceData Instances[2]; // ?
 };
 
 cbuffer FrameConstantBuffer : register(b0)

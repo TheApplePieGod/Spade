@@ -13,6 +13,7 @@
 #include <array>
 #include <vector>
 #include <utility>
+#include <thread>
 
 //#include "../3rdparty/stb/stb_image.h"
 //#include "../3rdparty/stb/stb_image_write.h"

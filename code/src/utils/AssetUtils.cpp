@@ -8,7 +8,7 @@ void assetCallbacks::ImageLoadCallback(cTextureAsset* Asset)
 {
 	Engine->AssetRegistry.push_back(Asset);
 	Engine->TextureRegistry.push_back(Asset);
-	Engine->Renderer.RegisterTexture(Asset, false);
+	Engine->Renderer.RegisterTexture(Asset, true);
 }
 
 void assetCallbacks::FontLoadCallback(cFontAsset* Asset)
@@ -46,11 +46,11 @@ s32 GetShaderIDFromName(const char* Name)
 	for (u32 i = 0; i < Engine->TextureRegistry.size(); i++)
 	{
 		// assumes filename is already formatted
-		if (strcmp(Buffer, Engine->AssetRegistry[i]->Filename) == 0)
+		if (strcmp(Buffer, Engine->TextureRegistry[i]->Filename) == 0)
 		{
 			return i;
 		}
 	}
-	//Assert(1 == 2);
-	return 0;
+	Assert(1 == 2);
+	return -1;
 }

@@ -1,8 +1,6 @@
 #pragma once
 #include "MathTypes.h"
 
-#define MAX_INSTANCES (u64)(65536.f / sizeof(shader_constants_actor));
-
 enum class shader_type
 {
 	VertexShader,
@@ -31,7 +29,7 @@ enum class projection_type
 	Orthographic,
 };
 
-enum class constants_type
+enum class map_operation
 {
 	Actor,
 	Material,
@@ -50,9 +48,16 @@ struct camera_info
 	f32 FarPlane = 50000.f;
 };
 
-struct shader_constants_actor
+struct actor_instance
 {
 	matrix4x4 WorldMatrix;
+};
+
+#define MAX_INSTANCES (u64)(65536.f / sizeof(actor_instance))
+
+struct shader_constants_actor
+{
+	actor_instance Instances[MAX_INSTANCES];
 };
 
 struct shader_constants_frame

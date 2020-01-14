@@ -96,31 +96,7 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 	mesh->VertexCount = 36;
 	mesh->Data = verts;
 	mesh->Loaded = true;
-
-	s32 matid = CreateMaterial();
-	material& Mat = GetMaterial(matid);
-	Mat.DiffuseColor = colors::Green;
-	Mat.DiffuseShaderID = GetShaderIDFromName("Canned-Eggplant.jpg");
 	AssetRegistry.push_back(mesh);
-
-	for (u32 i = 0; i < 25; i++)
-	{
-		s32 actorid = ActorComponents.CreateComponent(&MainLevel);
-		s32 compid = RenderingComponents.CreateComponent(actorid);
-		rendering_component& rcomp = RenderingComponents.GetComponent(compid);
-		actor_component& acomp = ActorComponents.GetComponent(actorid);
-		acomp.SetScale(v3{ 50.f, 50.f, 50.f });
-		acomp.SetLocation(v3{ (rand() % 10000) - 5000.f, (rand() % 10000) - 5000.f, (rand() % 10000) - 5000.f });
-
-		rcomp.ActorComponentID = actorid;
-		rcomp.RenderResources.MaterialID = matid;
-		rcomp.RenderResources.MeshAssetID = 0;
-
-		renderer_actor* Actor = new renderer_actor();
-		Actor->ActorComponentID = actorid;
-		Actor->RenderingComponentID = compid;
-		MainLevel.AddActorToRegistry(Actor);
-	}
 
 	MemoryManager.Initialize();
 	Renderer.Initialize(Window, WindowWidth, WindowHeight);
@@ -132,6 +108,55 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 #else
 	assetLoader::InitializeAssetsFromPac(&AssetLoadCallbacks);
 #endif
+
+	for (u32 i = 0; i < 5; i++)
+	{
+		s32 matid = CreateMaterial();
+		material& Mat = GetMaterial(matid);
+
+		switch (i)
+		{
+			default:
+			{ Mat.DiffuseShaderID = GetShaderIDFromName("Canned-Eggplant.jpg");
+			  Mat.DiffuseColor = colors::Blue; } break;
+
+			case 1:
+			{ Mat.DiffuseShaderID = GetShaderIDFromName("chev.jpg");
+			  Mat.DiffuseColor = colors::Red; } break;
+
+			case 2:
+			{ Mat.DiffuseShaderID = GetShaderIDFromName("eyes.jpg");
+			  Mat.DiffuseColor = colors::Green; } break;
+
+			case 3:
+			{ Mat.DiffuseShaderID = GetShaderIDFromName("lmao.jpg");
+			  Mat.DiffuseColor = colors::Orange; } break;
+
+			case 4:
+			{ Mat.DiffuseShaderID = GetShaderIDFromName("what.jpg");
+			  Mat.DiffuseColor = colors::White; } break;
+		}
+	}
+
+	for (u32 i = 0; i < 5000; i++)
+	{
+		s32 actorid = ActorComponents.CreateComponent(actor_component(&MainLevel), true);
+		s32 compid = RenderingComponents.CreateComponent(rendering_component(actorid), true);
+		rendering_component& rcomp = RenderingComponents.GetComponent(compid);
+		actor_component& acomp = ActorComponents.GetComponent(actorid);
+		acomp.SetScale(v3{ 50.f, 50.f, 50.f });
+		acomp.SetLocation(v3{ (rand() % 5000) - 2500.f, (rand() % 5000) - 2500.f, (rand() % 5000) - 2500.f });
+
+		rcomp.ActorComponentID = actorid;
+		rcomp.RenderResources.MaterialID = rand() % 5;
+		rcomp.RenderResources.MeshAssetID = 0;
+
+		renderer_actor* Actor = new renderer_actor();
+		Actor->ActorComponentID = actorid;
+		Actor->RenderingComponentID = compid;
+		MainLevel.AddActorToRegistry(Actor);
+	}
+
 }
 
 void engine::Cleanup()
@@ -141,14 +166,7 @@ void engine::Cleanup()
 
 void engine::ProcessUserInput()
 {
-	// todo move to platform layer
-	//POINT MousePos;
-	//GetCursorPos(&MousePos);
-	//ScreenToClient((HWND)Renderer.Window, &MousePos);
-	//UserInputs.MousePosX = (((2 * MousePos.x) / ScreenSize.x) - 1) / MainCamera.ProjectionMatrix.m11;
-	//UserInputs.MousePosY = -(((2 * MousePos.y) / ScreenSize.y) - 1) / MainCamera.ProjectionMatrix.m22;
-
-	f32 speed = 0.05f * UserInputs.DeltaTime;
+	f32 speed = 0.5f * UserInputs.DeltaTime;
 	if (UserInputs.KeysDown['A'].Pressed)
 	{
 		MainCamera.CameraInfo.Position += -speed * MainCamera.RightVector;
@@ -183,9 +201,11 @@ bool CompareRenderComponents(rendering_component& Comp1, rendering_component& Co
 	return ((Comp1.RenderResources.MaterialID == Comp2.RenderResources.MaterialID) && (Comp1.RenderResources.MeshAssetID < Comp2.RenderResources.MeshAssetID)) || (Comp1.RenderResources.MaterialID < Comp2.RenderResources.MaterialID);
 }
 
+// todo: multithreading
 void engine::RenderScene()
 {
 	std::vector<rendering_component>& RCRegistry = RenderingComponents.GetRegistry();
+
 	// Sort by material ID then by meshid (optimize?)
 	std::sort(RCRegistry.begin(), RCRegistry.end(), CompareRenderComponents);
 	s32 MaterialID = -1;
@@ -193,38 +213,44 @@ void engine::RenderScene()
 	cMeshAsset* Asset = nullptr;
 
 	FrameConstants.ViewProjectionMatrix = MainCamera.ProjectionMatrix * MainCamera.ViewMatrix;
-	Renderer.MapConstants(constants_type::Frame);
+	Renderer.MapConstants(map_operation::Frame);
 
 	u32 InstanceCount = 0;
 	for (u32 i = 0; i < RCRegistry.size(); i++)
 	{
 		if (RCRegistry[i].Active && RCRegistry[i].RenderResources.MaterialID != -1 && RCRegistry[i].ActorComponentID != -1 && RCRegistry[i].RenderResources.MeshAssetID != -1)
 		{
-			if (RCRegistry[i].RenderResources.MeshAssetID != AssetID)
+			if (RCRegistry[i].RenderResources.MeshAssetID != AssetID || i == RCRegistry.size() - 1 || InstanceCount >= MAX_INSTANCES) // mesh changed, draw previous instances if there are any
 			{
 				if (InstanceCount > 0)
 				{
-
+					Renderer.MapConstants(map_operation::Actor);
+					Renderer.DrawInstanced((vertex*)Asset->Data, Asset->VertexCount, InstanceCount, draw_topology_types::TriangleList);
+					InstanceCount = 0;
 				}
-				Asset = (cMeshAsset*)AssetRegistry[RCRegistry[i].RenderResources.MeshAssetID];
+			 
+				AssetID = RCRegistry[i].RenderResources.MeshAssetID;
+				Asset = (cMeshAsset*)AssetRegistry[AssetID];
 			}
-			if (RCRegistry[i].RenderResources.MaterialID != MaterialID)
+			if (RCRegistry[i].RenderResources.MaterialID != MaterialID) // material changed, draw previous instances if there are any
 			{
+				if (InstanceCount > 0)
+				{
+					Renderer.MapConstants(map_operation::Actor);
+					Renderer.DrawInstanced((vertex*)Asset->Data, Asset->VertexCount, InstanceCount, draw_topology_types::TriangleList);
+					InstanceCount = 0;
+				}
 				MaterialID = RCRegistry[i].RenderResources.MaterialID;
 				Renderer.BindMaterial(GetMaterial(MaterialID));
 			}
 
-
-
-
-
 			actor_component& ActorComp = ActorComponents.GetComponent(RCRegistry[i].ActorComponentID);
-			if (ActorComp.Active && Asset->Loaded)
+			if (ActorComp.Active)
 			{
-				Renderer.MapActorConstants(ActorComp, RCRegistry[i]);
-
-				// todo: draw instanced
-				Renderer.Draw((vertex*)Asset->Data, Asset->VertexCount, RCRegistry[i].RenderResources.TopologyType);
+				transform FinalRenderTransform = ActorComp.GetTransform() + RCRegistry[i].RenderResources.LocalTransform;
+				FinalRenderTransform.Scale = ActorComp.GetScale() * RCRegistry[i].RenderResources.LocalTransform.Scale;
+				ActorConstants.Instances[InstanceCount].WorldMatrix = renderer::GenerateWorldMatrix(FinalRenderTransform); // todo: cached world matrix?
+				InstanceCount++;
 			}
 		}
 	}

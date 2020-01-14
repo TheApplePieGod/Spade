@@ -41,9 +41,8 @@ float4 mainps(PSIn input) : SV_TARGET
 	{
 		FinalColor = DiffuseTex.Sample(Samp, input.TexCoord);  // Sample the color from the texture
 		if (FinalColor.w <= 0.01) // dont draw the pixel if the transparency is low enough
-		{
 			discard;
-		}
+		FinalColor *= DiffuseColor;
 	}
 	else
 		FinalColor = DiffuseColor;
