@@ -138,24 +138,26 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 		}
 	}
 
-	for (u32 i = 0; i < 5000; i++)
+	actor_component acomp = actor_component(&MainLevel);
+	s32 actorid = ActorComponents.CreateComponent(acomp, true);
+	u32 ScaleMod = 1;
+	u32 RotationMod = 360;
+	u32 LocationMod = 5000;
+	for (u32 i = 0; i < 10000; i++)
 	{
-		s32 actorid = ActorComponents.CreateComponent(actor_component(&MainLevel), true);
-		s32 compid = RenderingComponents.CreateComponent(rendering_component(actorid), true);
-		rendering_component& rcomp = RenderingComponents.GetComponent(compid);
-		actor_component& acomp = ActorComponents.GetComponent(actorid);
-		acomp.SetScale(v3{ 50.f, 50.f, 50.f });
-		acomp.SetLocation(v3{ (rand() % 5000) - 2500.f, (rand() % 5000) - 2500.f, (rand() % 5000) - 2500.f });
-
+		rendering_component rcomp = rendering_component(actorid);
+		rcomp.SetScale(v3{ 50.f + (rand() % ScaleMod - (ScaleMod *0.5f)), 50.f + (rand() % ScaleMod - (ScaleMod * 0.5f)), 50.f + (rand() % ScaleMod - (ScaleMod * 0.5f)) });
+		rcomp.SetLocation(v3{ (rand() % LocationMod) - (LocationMod * 0.5f), (rand() % LocationMod) - (LocationMod * 0.5f), (rand() % LocationMod) - (LocationMod * 0.5f) });
+		rcomp.SetRotation(v3{ (f32)(rand() % RotationMod), (f32)(rand() % RotationMod), (f32)(rand() % RotationMod) });
 		rcomp.ActorComponentID = actorid;
 		rcomp.RenderResources.MaterialID = rand() % 5;
 		rcomp.RenderResources.MeshAssetID = 0;
-
-		renderer_actor* Actor = new renderer_actor();
-		Actor->ActorComponentID = actorid;
-		Actor->RenderingComponentID = compid;
-		MainLevel.AddActorToRegistry(Actor);
+		RenderingComponents.CreateComponent(rcomp, true);
 	}
+	renderer_actor* Actor = new renderer_actor();
+	Actor->ActorComponentID = actorid;
+	Actor->RenderingComponentID = 0;
+	MainLevel.AddActorToRegistry(Actor);
 
 }
 
@@ -166,7 +168,7 @@ void engine::Cleanup()
 
 void engine::ProcessUserInput()
 {
-	f32 speed = 0.5f * UserInputs.DeltaTime;
+	f32 speed = 2.5f * UserInputs.DeltaTime;
 	if (UserInputs.KeysDown['A'].Pressed)
 	{
 		MainCamera.CameraInfo.Position += -speed * MainCamera.RightVector;
@@ -205,9 +207,10 @@ bool CompareRenderComponents(rendering_component& Comp1, rendering_component& Co
 void engine::RenderScene()
 {
 	std::vector<rendering_component>& RCRegistry = RenderingComponents.GetRegistry();
+	std::vector<actor_component>& ARegistry = ActorComponents.GetRegistry();
 
 	// Sort by material ID then by meshid (optimize?)
-	std::sort(RCRegistry.begin(), RCRegistry.end(), CompareRenderComponents);
+	std::sort(RCRegistry.begin(), RCRegistry.end(), CompareRenderComponents); //todo: dont sort every time
 	s32 MaterialID = -1;
 	s32 AssetID = -1;
 	cMeshAsset* Asset = nullptr;
@@ -215,10 +218,12 @@ void engine::RenderScene()
 	FrameConstants.ViewProjectionMatrix = MainCamera.ProjectionMatrix * MainCamera.ViewMatrix;
 	Renderer.MapConstants(map_operation::Frame);
 
+	// Render loop
 	u32 InstanceCount = 0;
-	for (u32 i = 0; i < RCRegistry.size(); i++)
+	u32 NumRenderComponents = (u32)RCRegistry.size();
+	for (u32 i = 0; i < NumRenderComponents; i++)
 	{
-		if (RCRegistry[i].Active && RCRegistry[i].RenderResources.MaterialID != -1 && RCRegistry[i].ActorComponentID != -1 && RCRegistry[i].RenderResources.MeshAssetID != -1)
+		if (RCRegistry[i].IsActive() && RCRegistry[i].RenderResources.MaterialID != -1 && RCRegistry[i].ActorComponentID != -1 && RCRegistry[i].RenderResources.MeshAssetID != -1)
 		{
 			if (RCRegistry[i].RenderResources.MeshAssetID != AssetID || i == RCRegistry.size() - 1 || InstanceCount >= MAX_INSTANCES) // mesh changed, draw previous instances if there are any
 			{
@@ -247,12 +252,25 @@ void engine::RenderScene()
 			actor_component& ActorComp = ActorComponents.GetComponent(RCRegistry[i].ActorComponentID);
 			if (ActorComp.Active)
 			{
-				transform FinalRenderTransform = ActorComp.GetTransform() + RCRegistry[i].RenderResources.LocalTransform;
-				FinalRenderTransform.Scale = ActorComp.GetScale() * RCRegistry[i].RenderResources.LocalTransform.Scale;
-				ActorConstants.Instances[InstanceCount].WorldMatrix = renderer::GenerateWorldMatrix(FinalRenderTransform); // todo: cached world matrix?
+				if (ActorComp.Flag == actor_flag::PositionUpdated)
+				{
+					transform FinalRenderTransform = ActorComp.GetTransform() + RCRegistry[i].GetTransform();
+					FinalRenderTransform.Scale = ActorComp.GetScale() * RCRegistry[i].GetScale();
+					ActorConstants.Instances[InstanceCount].WorldMatrix = renderer::GenerateWorldMatrix(FinalRenderTransform);
+					RCRegistry[i].SetWorldMatrix(ActorConstants.Instances[InstanceCount].WorldMatrix);
+				}
+				else
+					ActorConstants.Instances[InstanceCount].WorldMatrix = RCRegistry[i].GetWorldMatrix();
 				InstanceCount++;
 			}
 		}
+	}
+
+	// Actor update ?
+	u32 NumActorComponents = (u32)ARegistry.size();
+	for (u32 i = 0; i < NumActorComponents; i++)
+	{
+		ARegistry[i].Flag = actor_flag::Idle;
 	}
 
 }

@@ -78,11 +78,6 @@ void renderer::BindMaterial(const material& InMaterial)
 	PlatformRenderer->BindMaterial(InMaterial);
 }
 
-void renderer::MapActorConstants(actor_component& InActor, const rendering_component& InComponent)
-{
-	PlatformRenderer->MapActorConstants(InActor, InComponent);
-}
-
 void renderer::MapConstants(map_operation Type)
 {
 	PlatformRenderer->MapConstants(Type);

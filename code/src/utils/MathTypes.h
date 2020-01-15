@@ -146,7 +146,6 @@ union matrix4x4
 	};
 };
 
-
 struct colors
 {
 	static inline v4 White = v4{ 1.f, 1.f, 1.f, 1.f };

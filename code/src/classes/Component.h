@@ -1,4 +1,5 @@
 #pragma once
+#include "MathTypes.h"
 
 class component
 {
@@ -40,8 +41,9 @@ public:
 			}
 		}
 
-		Template.RegistryID = Size;
 		Registry.push_back(Template);
+		Registry[Size].RegistryID = Size;
+
 		return Size;
 	}
 

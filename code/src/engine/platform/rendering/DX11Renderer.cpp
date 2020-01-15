@@ -711,17 +711,6 @@ void dx11_renderer::MapConstants(map_operation Type)
 	}
 }
 
-void dx11_renderer::MapActorConstants(actor_component& InActor, const rendering_component& InComponent)
-{
-	transform FinalRenderTransform = InActor.GetTransform() + InComponent.RenderResources.LocalTransform;
-	FinalRenderTransform.Scale = InActor.GetScale() * InComponent.RenderResources.LocalTransform.Scale;
-
-	// transform order: scale, rotate (degrees), translate
-	//ActorConstants.WorldMatrix = GenerateWorldMatrix(FinalRenderTransform);
-
-	MapBuffer(ActorConstantBuffer, ActorConstants);
-}
-
 matrix4x4 dx11_renderer::GetPerspectiveProjectionLH(bool Transpose, camera_info CameraInfo)
 {
 	matrix4x4 Result;

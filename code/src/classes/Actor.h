@@ -5,8 +5,8 @@ class level;
 
 enum class actor_flag
 {
-	Ready,
-	PendingDestroy,
+	Idle,
+	PositionUpdated,
 };
 
 class actor_component : public component
@@ -18,7 +18,7 @@ public:
 
 	// saved actors are capped at 50 char tag
 	std::string ActorTag = "";
-	actor_flag Flag = actor_flag::Ready;
+	actor_flag Flag = actor_flag::Idle;
 
 	inline level* GetLevel()
 	{
@@ -34,7 +34,7 @@ public:
 	{
 		return Transform.Location;
 	}
-	
+
 	inline rotator GetRotation()
 	{
 		return Transform.Rotation;
@@ -48,21 +48,25 @@ public:
 	inline void SetTransform(transform _Transform)
 	{
 		Transform = _Transform;
+		Flag = actor_flag::PositionUpdated;
 	}
 
 	inline void SetLocation(v3 Location) // set physics body location as well
 	{
 		Transform.Location = Location;
+		Flag = actor_flag::PositionUpdated;
 	}
 
 	inline void SetRotation(rotator Rotation)
 	{
 		Transform.Rotation = Rotation;
+		Flag = actor_flag::PositionUpdated;
 	}
 
 	inline void SetScale(v3 Scale)
 	{
 		Transform.Scale = Scale;
+		Flag = actor_flag::PositionUpdated;
 	}
 
 private:

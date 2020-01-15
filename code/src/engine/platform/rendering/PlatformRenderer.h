@@ -20,11 +20,6 @@ public:
 	void BindMaterial(const material& InMaterial);
 	void MapConstants(map_operation Type);
 
-	/* Generates world matrix & maps the constants
-	 * Call after other fields are set
-	*/
-	void MapActorConstants(actor_component& InActor, const rendering_component& InComponent);
-
 	static matrix4x4 GetPerspectiveProjectionLH(bool Transpose, camera_info CameraInfo);
 	static matrix4x4 GetOrthographicProjectionLH(bool Transpose, camera_info CameraInfo);
 	static matrix4x4 GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtMatrix, bool OrthoUseMovement = true);
