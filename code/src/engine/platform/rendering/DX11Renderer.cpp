@@ -1,12 +1,14 @@
 #include "DX11Renderer.h"
 #include "../../Engine.h"
-#include "MathUtils.h"
 #include "AssetUtils.h"
 
 extern engine* Engine;
 extern shader_constants_actor ActorConstants;
 extern shader_constants_frame FrameConstants;
 extern shader_constants_material MaterialConstants;
+extern shader_constants_lighting LightingConstants;
+
+pipeline_state CurrentState = pipeline_state();
 
 void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 {
@@ -144,16 +146,13 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	//
 	// Rasterizer state
 	//
-	ID3D11RasterizerState* m_rasterState;
 	D3D11_RASTERIZER_DESC rasterDesc;
 	// Setup a raster description which turns off back face culling.
 	rasterDesc.AntialiasedLineEnable = true;
-	//rasterDesc.CullMode = D3D11_CULL_NONE;
 	rasterDesc.CullMode = D3D11_CULL_BACK;
 	rasterDesc.DepthBias = 0;
 	rasterDesc.DepthBiasClamp = 0.0f;
 	rasterDesc.DepthClipEnable = true;
-	//rasterDesc.FillMode = D3D11_FILL_WIREFRAME;
 	rasterDesc.FillMode = D3D11_FILL_SOLID;
 	rasterDesc.FrontCounterClockwise = false;
 	rasterDesc.MultisampleEnable = false;
@@ -161,18 +160,15 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	rasterDesc.SlopeScaledDepthBias = 0.0f;
 
 	// Create the no culling rasterizer state.
-	hr = Device->CreateRasterizerState(&rasterDesc, &m_rasterState);
+	hr = Device->CreateRasterizerState(&rasterDesc, &DefaultCullBackface);
+	rasterDesc.CullMode = D3D11_CULL_NONE;
+	hr = Device->CreateRasterizerState(&rasterDesc, &DefaultCullNone);
+	rasterDesc.FillMode = D3D11_FILL_WIREFRAME;
+	hr = Device->CreateRasterizerState(&rasterDesc, &Wireframe);
 	if (FAILED(hr))
 		Assert(1 == 2);
 
-	// Now set the rasterizer state.
-	DeviceContext->RSSetState(m_rasterState);
-	m_rasterState->Release();
-
-
-	//
-	// Compile default vs, gs, and ps shaders
-	//
+	// compile & register default vertex shader / layout
 	{
 		DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
 
@@ -227,31 +223,15 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 		}
 
 		DeviceContext->IASetInputLayout(DefaultVertexLayout);
-		DeviceContext->VSSetShader(MainVertexShader, NULL, 0);
 
 		vsBlob->Release();
+
+		shader Shader = shader();
+		Shader.Name = "mainvs";
+		Shader.ShaderType = shader_type::VertexShader;
+		Shader.ShaderRef = MainVertexShader;
+		Engine->ShaderRegistry.push_back(Shader);
 	}
-
-	// PIXEL SHADER
-	CompileShaderFromFile("shader/DefaultShader.hlsl", "mainps", shader_type::PixelShader, &MainPixelShader);
-	DeviceContext->PSSetShader(MainPixelShader, NULL, 0);
-
-	// GEO SHADER
-	//CompileShaderFromFile(L"shader/DefaultShader.hlsl", "maings", shader_type::GeometryShader, &MainGeoShader);
-	//CompileShaderFromFile(L"shader/DefaultShader.hlsl", "geovs", shader_type::VertexShader, &MainGeoVertexShader);
-
-	//// circle pixel shader
-	//CompileShaderFromFile(L"shader/DefaultShader.hlsl", "circleps", shader_type::PixelShader, &CirclePixelShader);
-
-	//// compile tile shaders
-	//CompileShaderFromFile(L"shader/TileShader.hlsl", "quadvs", shader_type::VertexShader, &TileVertexShader);
-	//CompileShaderFromFile(L"shader/TileShader.hlsl", "quadps", shader_type::PixelShader, &TilePixelShader);
-	//CompileShaderFromFile(L"shader/TileShader.hlsl", "quadgs", shader_type::GeometryShader, &TileGeoShader);
-
-	//// compile 2D font rendering shaders
-	//CompileShaderFromFile(L"shader/2dfontshader.hlsl", "mainvs", shader_type::VertexShader, &TwoDFontVertShader);
-	//CompileShaderFromFile(L"shader/2dfontshader.hlsl", "mainps", shader_type::PixelShader, &TwoDFontPixShader);
-
 
 	//
 	// Create main vertex buffer
@@ -267,64 +247,49 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	if (FAILED(hr))
 		Assert(1 == 2);;
 
-	
 	// Create frame constant buffer
-	
-	ZeroMemory(&bufferDesc, sizeof(bufferDesc));
-	bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	bufferDesc.ByteWidth = sizeof(shader_constants_frame); // CONST BUFFER SIZE
 	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
+	bufferDesc.ByteWidth = sizeof(shader_constants_frame); // CONST BUFFER SIZE
 	hr = Device->CreateBuffer(&bufferDesc, NULL, &FrameConstantBuffer);
 	if (FAILED(hr))
 		Assert(1 == 2);
-
 	DeviceContext->VSSetConstantBuffers(0, 1, &FrameConstantBuffer);
 	//DeviceContext->PSSetConstantBuffers(0, 1, &ActorConstantBuffer);
 	//DeviceContext->GSSetConstantBuffers(0, 1, &ActorConstantBuffer);
 
-
 	// Create actor constant buffer
-
-	ZeroMemory(&bufferDesc, sizeof(bufferDesc));
-	bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 	bufferDesc.ByteWidth = sizeof(shader_constants_actor) * MAX_INSTANCES; // MAX instances
-	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
 	hr = Device->CreateBuffer(&bufferDesc, NULL, &ActorConstantBuffer);
 	if (FAILED(hr))
 		Assert(1 == 2);;
-
 	DeviceContext->VSSetConstantBuffers(1, 1, &ActorConstantBuffer);
 
 	// Create material constant buffer
-	
-	ZeroMemory(&bufferDesc, sizeof(bufferDesc));
-	bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 	bufferDesc.ByteWidth = sizeof(shader_constants_material); // CONST BUFFER SIZE
-	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
 	hr = Device->CreateBuffer(&bufferDesc, NULL, &MaterialConstantBuffer);
 	if (FAILED(hr))
 		Assert(1 == 2);
-
 	DeviceContext->PSSetConstantBuffers(0, 1, &MaterialConstantBuffer);
+
+	// Create lighting constant buffer
+	bufferDesc.ByteWidth = sizeof(shader_constants_lighting); // CONST BUFFER SIZE
+	hr = Device->CreateBuffer(&bufferDesc, NULL, &LightingConstantBuffer);
+	if (FAILED(hr))
+		Assert(1 == 2);
+	DeviceContext->PSSetConstantBuffers(1, 1, &LightingConstantBuffer);
 
 	//
 	// create texture sampler
 	// NOTE: If you do not set a samplerstate, the default will be MIN_MAG_MIP_LINEAR
 	//
 	D3D11_SAMPLER_DESC SamplerDesc;
-	//SamplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
-	SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+	SamplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
+	//SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
 	SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 	SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
 	SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
 	SamplerDesc.MipLODBias = 0;
-	SamplerDesc.MaxAnisotropy = 2;
+	SamplerDesc.MaxAnisotropy = 4;
 	SamplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 	SamplerDesc.BorderColor[0] = 1.0f;
 	SamplerDesc.BorderColor[1] = 1.0f;
@@ -478,31 +443,36 @@ void dx11_renderer::Cleanup()
 		}
 	}
 
+	for (u32 i = 0; i < Engine->ShaderRegistry.size(); i++)
+	{
+		switch (Engine->ShaderRegistry[i].ShaderType)
+		{
+			case shader_type::VertexShader:
+			{ SAFE_RELEASE(((ID3D11VertexShader*)Engine->ShaderRegistry[i].ShaderRef)); } break;
+
+			case shader_type::PixelShader:
+			{ SAFE_RELEASE(((ID3D11PixelShader*)Engine->ShaderRegistry[i].ShaderRef)); } break;
+
+			case shader_type::GeometryShader:
+			{ SAFE_RELEASE(((ID3D11GeometryShader*)Engine->ShaderRegistry[i].ShaderRef)); } break;
+		}
+	}
+
 	SAFE_RELEASE(MainVertexBuffer);
 	SAFE_RELEASE(ActorConstantBuffer);
 	SAFE_RELEASE(MaterialConstantBuffer);
-	SAFE_RELEASE(FrameConstantBuffer)
+	SAFE_RELEASE(FrameConstantBuffer);
+	SAFE_RELEASE(LightingConstantBuffer);
+
+	SAFE_RELEASE(SkyboxCube);
 
 	//layouts
 	SAFE_RELEASE(DefaultVertexLayout);
 
-	//vertex shaders
-	SAFE_RELEASE(MainVertexShader);
-	//SAFE_RELEASE(TileVertexShader);
-	//SAFE_RELEASE(MainGeoVertexShader);
-	//SAFE_RELEASE(TwoDFontVertShader);
-
-	////pixel shaders
-	//SAFE_RELEASE(TilePixelShader);
-	SAFE_RELEASE(MainPixelShader);
-	//SAFE_RELEASE(CirclePixelShader);
-	//SAFE_RELEASE(TwoDFontPixShader);
-
-	////geo shaders
-	//SAFE_RELEASE(MainGeoShader);
-	//SAFE_RELEASE(TileGeoShader);
-
 	SAFE_RELEASE(BlendState);
+	SAFE_RELEASE(DefaultCullBackface);
+	SAFE_RELEASE(DefaultCullNone);
+	SAFE_RELEASE(Wireframe);
 	SAFE_RELEASE(DepthStencilEnabled);
 	SAFE_RELEASE(DepthStencilDisabled);
 	SAFE_RELEASE(DepthStencilTex);
@@ -684,16 +654,24 @@ void dx11_renderer::RegisterTexture(cAsset* Asset, bool GenerateMIPs)
 
 void dx11_renderer::BindMaterial(const material& InMaterial)
 {
-	MaterialConstants.TextureDiffuse = InMaterial.DiffuseShaderID == -1 ? false : true;
-	MaterialConstants.DiffuseColor = InMaterial.DiffuseColor;
-	MaterialConstants.TextureNormal = InMaterial.NormalShaderID == -1 ? false : true;
+	DeviceContext->PSSetShaderResources(0, 1, &SkyboxCube);
+	if (CurrentState.UniqueIdentifier == "DefaultPBR")
+	{
+		MaterialConstants.TextureDiffuse = InMaterial.DiffuseTextureID == -1 ? false : true;
+		MaterialConstants.DiffuseColor = InMaterial.DiffuseColor;
+		MaterialConstants.TextureNormal = InMaterial.NormalTextureID == -1 ? false : true;
 
-	MapBuffer(MaterialConstantBuffer, MaterialConstants);
+		MapBuffer(MaterialConstantBuffer, MaterialConstants);
 
-	ID3D11ShaderResourceView* const Views[2] = { MaterialConstants.TextureDiffuse ? Engine->TextureRegistry[InMaterial.DiffuseShaderID]->ShaderHandle : NULL,
-											     MaterialConstants.TextureNormal ? Engine->TextureRegistry[InMaterial.NormalShaderID]->ShaderHandle : NULL   };
+		ID3D11ShaderResourceView* const Views[2] = { MaterialConstants.TextureDiffuse ? Engine->TextureRegistry[InMaterial.DiffuseTextureID]->ShaderHandle : NULL,
+													 MaterialConstants.TextureNormal ? Engine->TextureRegistry[InMaterial.NormalTextureID]->ShaderHandle : NULL };
 
-	DeviceContext->PSSetShaderResources(0, 2, Views);
+		DeviceContext->PSSetShaderResources(1, 2, Views);
+	}
+	//else if (CurrentState.UniqueIdentifier == "Skybox")
+	//{
+	//	
+	//}
 }
 
 void dx11_renderer::MapConstants(map_operation Type)
@@ -708,7 +686,133 @@ void dx11_renderer::MapConstants(map_operation Type)
 
 		case map_operation::Material:
 		{ MapBuffer(MaterialConstantBuffer, MaterialConstants); } break;
+
+		case map_operation::Lighting:
+		{ MapBuffer(LightingConstantBuffer, LightingConstants); } break;
 	}
+}
+
+void dx11_renderer::MapTextureArray()
+{
+	D3D11_SUBRESOURCE_DATA SubData[6];
+	for (u32 i = 0; i < 6; i++)
+	{
+		D3D11_SUBRESOURCE_DATA TexData;
+		switch (i)
+		{
+			case 0:
+			{ TexData.pSysMem = Engine->AssetRegistry[GetAssetIDFromName("emap-left.tga")]->Data; } break;
+
+			case 1:
+			{ TexData.pSysMem = Engine->AssetRegistry[GetAssetIDFromName("emap-right.tga")]->Data; } break;
+
+			case 2:
+			{ TexData.pSysMem = Engine->AssetRegistry[GetAssetIDFromName("emap-up.png")]->Data; } break;
+
+			case 3:
+			{ TexData.pSysMem = Engine->AssetRegistry[GetAssetIDFromName("emap-down.png")]->Data; } break;
+
+			case 4:
+			{ TexData.pSysMem = Engine->AssetRegistry[GetAssetIDFromName("emap-front.tga")]->Data; } break;
+
+			case 5:
+			{ TexData.pSysMem = Engine->AssetRegistry[GetAssetIDFromName("emap-back.tga")]->Data; } break;
+		}
+		
+		TexData.SysMemPitch = 512 * 4;
+		TexData.SysMemSlicePitch = 0;
+		SubData[i] = TexData;
+	}
+
+	D3D11_TEXTURE2D_DESC descDepth1;
+	ZeroMemory(&descDepth1, sizeof(descDepth1));
+	descDepth1.Width = 512;
+	descDepth1.Height = 512;
+	descDepth1.MipLevels = 1;
+	descDepth1.ArraySize = 6;
+	descDepth1.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	descDepth1.SampleDesc.Count = 1;
+	descDepth1.SampleDesc.Quality = 0;
+	descDepth1.Usage = D3D11_USAGE_DEFAULT;
+	descDepth1.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+	descDepth1.CPUAccessFlags = 0;
+	descDepth1.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+
+	ID3D11Texture2D* tex;
+	HRESULT hr = Device->CreateTexture2D(&descDepth1, SubData, &tex);
+	if (FAILED(hr))
+		Assert(1 == 2);
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+	srvDesc.Texture2DArray.MipLevels = 1;
+	srvDesc.Texture2DArray.MostDetailedMip = 0;
+	srvDesc.Texture2DArray.FirstArraySlice = 0;
+	srvDesc.Texture2DArray.ArraySize = 6;
+
+	hr = Device->CreateShaderResourceView((ID3D11Resource*)tex, &srvDesc, &SkyboxCube);
+	if (FAILED(hr))
+		Assert(1 == 2);
+
+	SAFE_RELEASE(tex);
+}
+
+void dx11_renderer::SetPipelineState(const pipeline_state& InState)
+{
+	// vertex shader
+	if (CurrentState.VertexShaderID != InState.VertexShaderID)
+	{
+		if (InState.VertexShaderID == -1)
+			DeviceContext->VSSetShader(NULL, NULL, 0);
+		else
+		{
+			Assert(Engine->ShaderRegistry[InState.VertexShaderID].ShaderType == shader_type::VertexShader)
+				DeviceContext->VSSetShader((ID3D11VertexShader*)Engine->ShaderRegistry[InState.VertexShaderID].ShaderRef, NULL, 0);
+		}
+	}
+
+	// pixel shader
+	if (CurrentState.PixelShaderID != InState.PixelShaderID)
+	{
+		if (InState.PixelShaderID == -1)
+			DeviceContext->PSSetShader(NULL, NULL, 0);
+		else
+		{
+			Assert(Engine->ShaderRegistry[InState.PixelShaderID].ShaderType == shader_type::PixelShader)
+				DeviceContext->PSSetShader((ID3D11PixelShader*)Engine->ShaderRegistry[InState.PixelShaderID].ShaderRef, NULL, 0);
+		}
+	}
+
+	// geo shader
+	if (CurrentState.GeometryShaderID != InState.GeometryShaderID)
+	{
+		if (InState.GeometryShaderID == -1)
+			DeviceContext->GSSetShader(NULL, NULL, 0);
+		else
+		{
+			Assert(Engine->ShaderRegistry[InState.GeometryShaderID].ShaderType == shader_type::GeometryShader)
+				DeviceContext->GSSetShader((ID3D11GeometryShader*)Engine->ShaderRegistry[InState.GeometryShaderID].ShaderRef, NULL, 0);
+		}
+	}
+
+	// rasterizer state
+	if (CurrentState.RasterizerState != InState.RasterizerState)
+	{
+		switch (InState.RasterizerState)
+		{
+			case rasterizer_state::DefaultCullBackface:
+			{ DeviceContext->RSSetState(DefaultCullBackface); } break;
+
+			case rasterizer_state::DefaultCullNone:
+			{ DeviceContext->RSSetState(DefaultCullNone); } break;
+
+			case rasterizer_state::Wireframe:
+			{ DeviceContext->RSSetState(Wireframe); } break;
+		}
+	}
+
+	CurrentState = InState;
 }
 
 matrix4x4 dx11_renderer::GetPerspectiveProjectionLH(bool Transpose, camera_info CameraInfo)
@@ -767,10 +871,10 @@ matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraIn
 
 		defaultForward = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
 		camUp = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-		camPosition = DirectX::XMVectorSet(CameraInfo.Position.x, CameraInfo.Position.y, CameraInfo.Position.z, 0.0f);
+		camPosition = DirectX::XMVectorSet(CameraInfo.Transform.Location.x, CameraInfo.Transform.Location.y, CameraInfo.Transform.Location.z, 0.0f);
 
 		// Rotation Matrix
-		DirectX::XMMATRIX RotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(DirectX::XMConvertToRadians(CameraInfo.Rotation.y), DirectX::XMConvertToRadians(CameraInfo.Rotation.x), 0.0f);
+		DirectX::XMMATRIX RotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(DirectX::XMConvertToRadians(CameraInfo.Transform.Rotation.y), DirectX::XMConvertToRadians(CameraInfo.Transform.Rotation.x), 0.0f);
 		DirectX::XMVECTOR camTarget = DirectX::XMVector3TransformCoord(defaultForward, RotationMatrix);
 		camTarget = DirectX::XMVector3Normalize(camTarget);
 
@@ -800,7 +904,7 @@ matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraIn
 	{
 		camUp = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 		if (OrthoUseMovement)
-			camPosition = DirectX::XMVectorSet(CameraInfo.Position.x, CameraInfo.Position.y, CameraInfo.Position.z, 0.0f);
+			camPosition = DirectX::XMVectorSet(CameraInfo.Transform.Location.x, CameraInfo.Transform.Location.y, CameraInfo.Transform.Location.z, 0.0f);
 		else
 			camPosition = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 		camTarget = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
@@ -843,6 +947,15 @@ matrix4x4 dx11_renderer::GenerateWorldMatrix(transform Transform)
 
 	// transform order: scale, rotate (degrees), translate
 	return ToMatrix4x4(scale * rotationx * rotationy * rotationz * translation);
+}
+
+matrix4x4 dx11_renderer::InverseMatrix(const matrix4x4& Matrix, bool Transpose)
+{
+	DirectX::XMMATRIX Inverse = ToDXM(Matrix);
+	Inverse = DirectX::XMMatrixInverse(nullptr, Inverse);
+	if (Transpose)
+		Inverse = DirectX::XMMatrixTranspose(Inverse);
+	return ToMatrix4x4(Inverse);
 }
 
 template<typename AssociatedStruct>

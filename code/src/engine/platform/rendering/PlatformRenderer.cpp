@@ -1,16 +1,18 @@
 #include "pch.h"
-#include "MathTypes.h"
 #include "PlatformRenderer.h"
 
 #if SDK_DIRECTX11
 #include "DX11Renderer.cpp"
 #endif
 
-platform_renderer* PlatformRenderer;
+extern engine* Engine;
+
+platform_renderer* PlatformRenderer; // move into renderer class?
 
 shader_constants_actor ActorConstants;
 shader_constants_frame FrameConstants;
 shader_constants_material MaterialConstants;
+shader_constants_lighting LightingConstants;
 
 void renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 {
@@ -24,6 +26,11 @@ void renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	Window = _Window;
 	PlatformRenderer->Initialize(_Window, WindowWidth, WindowHeight);
 
+	// Default vertex shaders for are registered during platform init
+	RegisterShader("shader/DefaultShader.hlsl", "mainps", shader_type::PixelShader);
+	RegisterShader("shader/SkyboxShader.hlsl", "skyboxvs", shader_type::VertexShader);
+	RegisterShader("shader/SkyboxShader.hlsl", "skyboxps", shader_type::PixelShader);
+	
 	ImGui::NewFrame();
 }
 
@@ -83,6 +90,16 @@ void renderer::MapConstants(map_operation Type)
 	PlatformRenderer->MapConstants(Type);
 }
 
+void renderer::MapTextureArray()
+{
+	PlatformRenderer->MapTextureArray();
+}
+
+void renderer::SetPipelineState(const pipeline_state& InState)
+{
+	PlatformRenderer->SetPipelineState(InState);
+}
+
 matrix4x4 renderer::GetPerspectiveProjectionLH(bool Transpose, camera_info CameraInfo)
 {
 	return PlatformRenderer->GetPerspectiveProjectionLH(Transpose, CameraInfo);
@@ -101,4 +118,18 @@ matrix4x4 renderer::GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v
 matrix4x4 renderer::GenerateWorldMatrix(transform Transform)
 {
 	return PlatformRenderer->GenerateWorldMatrix(Transform);
+}
+
+matrix4x4 renderer::InverseMatrix(const matrix4x4& Matrix, bool Transpose)
+{
+	return PlatformRenderer->InverseMatrix(Matrix, Transpose);
+}
+
+void renderer::RegisterShader(std::string Filename, const char* Entrypoint, shader_type ShaderType)
+{
+	shader Shader = shader();
+	Shader.Name = Entrypoint;
+	Shader.ShaderType = ShaderType;
+	CompileShaderFromFile(Filename, Entrypoint, ShaderType, &Shader.ShaderRef);
+	Engine->ShaderRegistry.push_back(Shader);
 }

@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "Engine.h"
 #include "AssetUtils.h"
-#include "../classes/Actor.h"
 #include "MathUtils.h"
 
 #if PLATFORM_WINDOWS
@@ -10,6 +9,7 @@
 
 extern shader_constants_actor ActorConstants;
 extern shader_constants_frame FrameConstants;
+extern shader_constants_lighting LightingConstants;
 
 void engine::Tick()
 {
@@ -17,9 +17,17 @@ void engine::Tick()
 
 	MainCamera.UpdateFromInput();
 
+	// Update lighting constants
+	f32 Angle = DegreesToRadians(DebugData.SunAngle);
+	LightingConstants.SunDirection = v3{ sin(Angle), cos(Angle), 0.f };
+	DebugData.SunAngle += 0.05f * UserInputs.DeltaTime;
+	Renderer.MapConstants(map_operation::Lighting);
+
 	MainCamera.UpdateProjectionType(projection_type::Perspective);
 	MainCamera.ViewMatrix = renderer::GenerateViewMatrix(true, MainCamera.CameraInfo, MainCamera.LookAtVector);
 	RenderScene();
+
+	UpdateComponents(); // before scene render?
 
 	// separate
 	//ImGui::ShowDemoWindow();
@@ -32,6 +40,7 @@ void engine::Tick()
 	ImGui::End();
 
 	Renderer.FinishFrame();
+
 }
 
 void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
@@ -45,52 +54,52 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 	vertex* verts = new vertex[36];
 
 	// Front
-	verts[0] = { -0.5f, -0.5f, -0.5f, 0.f, 1.f };
-	verts[1] = { -0.5f, 0.5f, -0.5f, 0.f, 0.f };
-	verts[2] = { 0.5f, 0.5f, -0.5f, 1.f, 0.f };
+	verts[0] = { -0.5f, -0.5f, -0.5f, 0.f, 1.f, 0.f, 0.f, -1.f };
+	verts[1] = { -0.5f, 0.5f, -0.5f, 0.f, 0.f, 0.f, 0.f, -1.f };
+	verts[2] = { 0.5f, 0.5f, -0.5f, 1.f, 0.f, 0.f, 0.f, -1.f };
 	verts[3] = verts[0];
 	verts[4] = verts[2];
-	verts[5] = { 0.5f, -0.5f, -0.5f, 1.f, 1.f };
+	verts[5] = { 0.5f, -0.5f, -0.5f, 1.f, 1.f, 0.f, 0.f, -1.f };
 
 	// Back
-	verts[6] = { 0.5f, -0.5f, 0.5f, 0.f, 1.f };
-	verts[7] = { 0.5f, 0.5f, 0.5f, 0.f, 0.f };
-	verts[8] = { -0.5f, 0.5f, 0.5f, 1.f, 0.f };
+	verts[6] = { 0.5f, -0.5f, 0.5f, 0.f, 1.f, 0.f, 0.f, 1.f };
+	verts[7] = { 0.5f, 0.5f, 0.5f, 0.f, 0.f, 0.f, 0.f, 1.f };
+	verts[8] = { -0.5f, 0.5f, 0.5f, 1.f, 0.f, 0.f, 0.f, 1.f };
 	verts[9] = verts[8];
-	verts[10] = { -0.5f, -0.5f, 0.5f, 1.f, 1.f };
+	verts[10] = { -0.5f, -0.5f, 0.5f, 1.f, 1.f, 0.f, 0.f, 1.f };
 	verts[11] = verts[6];
 
 	// Top
-	verts[12] = verts[2]; verts[12].v = 1.f;
-	verts[13] = verts[1]; verts[13].v = 1.f;
-	verts[14] = verts[8]; verts[14].u = 0.f;
+	verts[12] = verts[2]; verts[12].v = 1.f; verts[12].ny = 1; verts[12].nz = 0;
+	verts[13] = verts[1]; verts[13].v = 1.f; verts[13].ny = 1; verts[13].nz = 0;
+	verts[14] = verts[8]; verts[14].u = 0.f; verts[14].ny = 1; verts[14].nz = 0;
 	verts[15] = verts[12]; 
 	verts[16] = verts[14];
-	verts[17] = verts[7]; verts[17].u = 1.f;
+	verts[17] = verts[7]; verts[17].u = 1.f; verts[17].ny = 1; verts[17].nz = 0;
 
 	// Bottom
-	verts[18] = verts[10]; verts[18].v = 0.f;
-	verts[19] = verts[0]; verts[19].u = 1.f;
-	verts[20] = verts[5]; verts[20].u = 0.f;
-	verts[21] = verts[6]; verts[21].v = 0.f;
+	verts[18] = verts[10]; verts[18].v = 0.f; verts[18].ny = -1; verts[18].nz = 0;
+	verts[19] = verts[0]; verts[19].u = 1.f; verts[19].ny = -1; verts[19].nz = 0;
+	verts[20] = verts[5]; verts[20].u = 0.f; verts[20].ny = -1; verts[20].nz = 0;
+	verts[21] = verts[6]; verts[21].v = 0.f; verts[21].ny = -1; verts[21].nz = 0;
 	verts[22] = verts[18];
 	verts[23] = verts[20];
 
 	// Left Side
-	verts[24] = verts[8]; verts[24].u = 0.f;
-	verts[25] = verts[1]; verts[25].u = 1.f;
-	verts[26] = verts[0]; verts[26].u = 1.f;
-	verts[27] = verts[10]; verts[27].u = 0.f;
+	verts[24] = verts[8]; verts[24].u = 0.f; verts[24].nx = -1; verts[24].nz = 0;
+	verts[25] = verts[1]; verts[25].u = 1.f; verts[25].nx = -1; verts[25].nz = 0;
+	verts[26] = verts[0]; verts[26].u = 1.f; verts[26].nx = -1; verts[26].nz = 0;
+	verts[27] = verts[10]; verts[27].u = 0.f; verts[27].nx = -1; verts[27].nz = 0;
 	verts[28] = verts[24];
 	verts[29] = verts[26];
 
 	// Right Side
-	verts[30] = verts[5]; verts[30].u = 0.f;
-	verts[31] = verts[2]; verts[31].u = 0.f;
-	verts[32] = verts[7]; verts[32].u = 1.f;
+	verts[30] = verts[5]; verts[30].u = 0.f; verts[30].nx = 1; verts[30].nz = 0;
+	verts[31] = verts[2]; verts[31].u = 0.f; verts[31].nx = 1; verts[31].nz = 0;
+	verts[32] = verts[7]; verts[32].u = 1.f; verts[32].nx = 1; verts[32].nz = 0;
 	verts[33] = verts[30];
 	verts[34] = verts[32];
-	verts[35] = verts[6]; verts[35].u = 1.f;
+	verts[35] = verts[6]; verts[35].u = 1.f; verts[35].nx = 1; verts[35].nz = 0;
 
 	cMeshAsset* mesh = new cMeshAsset();
 	mesh->VertexCount = 36;
@@ -109,49 +118,66 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 	assetLoader::InitializeAssetsFromPac(&AssetLoadCallbacks);
 #endif
 
+	Renderer.MapTextureArray();
+
+	pipeline_state State = pipeline_state();
+	State.VertexShaderID = GetShaderIDFromName("mainvs");
+	State.PixelShaderID = GetShaderIDFromName("mainps");
+	State.RasterizerState = rasterizer_state::DefaultCullBackface;
+	State.UniqueIdentifier = "DefaultPBR";
+	PipelineStates.CreateComponent(State);
+
+	State = pipeline_state();
+	State.VertexShaderID = GetShaderIDFromName("skyboxvs");
+	State.PixelShaderID = GetShaderIDFromName("skyboxps");
+	State.RasterizerState = rasterizer_state::DefaultCullNone;
+	State.UniqueIdentifier = "Skybox";
+	PipelineStates.CreateComponent(State);
+
 	for (u32 i = 0; i < 5; i++)
 	{
-		s32 matid = CreateMaterial();
-		material& Mat = GetMaterial(matid);
-
+		material Mat = material();
 		switch (i)
 		{
 			default:
-			{ Mat.DiffuseShaderID = GetShaderIDFromName("Canned-Eggplant.jpg");
+			{ Mat.DiffuseTextureID = GetTextureIDFromName("Canned-Eggplant.jpg");
 			  Mat.DiffuseColor = colors::Blue; } break;
 
 			case 1:
-			{ Mat.DiffuseShaderID = GetShaderIDFromName("chev.jpg");
+			{ Mat.DiffuseTextureID = GetTextureIDFromName("chev.jpg");
 			  Mat.DiffuseColor = colors::Red; } break;
 
 			case 2:
-			{ Mat.DiffuseShaderID = GetShaderIDFromName("eyes.jpg");
+			{ Mat.DiffuseTextureID = GetTextureIDFromName("eyes.jpg");
 			  Mat.DiffuseColor = colors::Green; } break;
 
 			case 3:
-			{ Mat.DiffuseShaderID = GetShaderIDFromName("lmao.jpg");
+			{ Mat.DiffuseTextureID = GetTextureIDFromName("lmao.jpg");
 			  Mat.DiffuseColor = colors::Orange; } break;
 
 			case 4:
-			{ Mat.DiffuseShaderID = GetShaderIDFromName("what.jpg");
+			{ Mat.DiffuseTextureID = GetTextureIDFromName("what.jpg");
 			  Mat.DiffuseColor = colors::White; } break;
 		}
+		MaterialRegistry.CreateComponent(Mat);
 	}
 
 	actor_component acomp = actor_component(&MainLevel);
 	s32 actorid = ActorComponents.CreateComponent(acomp, true);
 	u32 ScaleMod = 1;
 	u32 RotationMod = 360;
-	u32 LocationMod = 5000;
-	for (u32 i = 0; i < 10000; i++)
+	u32 LocationMod = 3000;
+	for (u32 i = 0; i < 5000; i++)
 	{
 		rendering_component rcomp = rendering_component(actorid);
-		rcomp.SetScale(v3{ 50.f + (rand() % ScaleMod - (ScaleMod *0.5f)), 50.f + (rand() % ScaleMod - (ScaleMod * 0.5f)), 50.f + (rand() % ScaleMod - (ScaleMod * 0.5f)) });
+		rcomp.SetScale(v3{ 50.f + (rand() % ScaleMod - (ScaleMod *0.5f)), 5.f + (rand() % ScaleMod - (ScaleMod * 0.5f)), 50.f + (rand() % ScaleMod - (ScaleMod * 0.5f)) });
 		rcomp.SetLocation(v3{ (rand() % LocationMod) - (LocationMod * 0.5f), (rand() % LocationMod) - (LocationMod * 0.5f), (rand() % LocationMod) - (LocationMod * 0.5f) });
 		rcomp.SetRotation(v3{ (f32)(rand() % RotationMod), (f32)(rand() % RotationMod), (f32)(rand() % RotationMod) });
-		rcomp.ActorComponentID = actorid;
+		//rcomp.SetRotation(v3{ (rand()%2 == 0 ? 0.f : 90.f), 0.f, 0.f });
+		rcomp.ActorComponentID = (i == 0 ? 0 : actorid);
 		rcomp.RenderResources.MaterialID = rand() % 5;
 		rcomp.RenderResources.MeshAssetID = 0;
+		rcomp.RenderResources.PipelineStateID = (i == 0 ? 1 : 0);
 		RenderingComponents.CreateComponent(rcomp, true);
 	}
 	renderer_actor* Actor = new renderer_actor();
@@ -159,6 +185,9 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 	Actor->RenderingComponentID = 0;
 	MainLevel.AddActorToRegistry(Actor);
 
+	LightingConstants.AmbientColor = v3{ 0.05f, 0.05f, 0.05f };
+	LightingConstants.SunColor = colors::White;
+	DebugData.SunAngle = 0.f;
 }
 
 void engine::Cleanup()
@@ -168,25 +197,25 @@ void engine::Cleanup()
 
 void engine::ProcessUserInput()
 {
-	f32 speed = 2.5f * UserInputs.DeltaTime;
+	f32 speed = 0.5f * UserInputs.DeltaTime;
 	if (UserInputs.KeysDown['A'].Pressed)
 	{
-		MainCamera.CameraInfo.Position += -speed * MainCamera.RightVector;
+		MainCamera.CameraInfo.Transform.Location += -speed * MainCamera.RightVector;
 		UserInputs.PlayerMovement = true;
 	}
 	if (UserInputs.KeysDown['D'].Pressed)
 	{
-		MainCamera.CameraInfo.Position += speed * MainCamera.RightVector;
+		MainCamera.CameraInfo.Transform.Location += speed * MainCamera.RightVector;
 		UserInputs.PlayerMovement = true;
 	}
 	if (UserInputs.KeysDown['W'].Pressed)
 	{
-		MainCamera.CameraInfo.Position += speed * MainCamera.ForwardVector;
+		MainCamera.CameraInfo.Transform.Location += speed * MainCamera.ForwardVector;
 		UserInputs.PlayerMovement = true;
 	}
 	if (UserInputs.KeysDown['S'].Pressed)
 	{
-		MainCamera.CameraInfo.Position += -speed * MainCamera.ForwardVector;
+		MainCamera.CameraInfo.Transform.Location += -speed * MainCamera.ForwardVector;
 		UserInputs.PlayerMovement = true;
 	}
 
@@ -198,73 +227,107 @@ void engine::ProcessUserInput()
 		
 }
 
-bool CompareRenderComponents(rendering_component& Comp1, rendering_component& Comp2)
+inline bool CompareRenderComponents(rendering_component& Comp1, rendering_component& Comp2)
 {
-	return ((Comp1.RenderResources.MaterialID == Comp2.RenderResources.MaterialID) && (Comp1.RenderResources.MeshAssetID < Comp2.RenderResources.MeshAssetID)) || (Comp1.RenderResources.MaterialID < Comp2.RenderResources.MaterialID);
+	//return ((Comp1.RenderResources.MaterialID == Comp2.RenderResources.MaterialID) && (Comp1.RenderResources.MeshAssetID < Comp2.RenderResources.MeshAssetID)) ||
+	//	(Comp1.RenderResources.MaterialID < Comp2.RenderResources.MaterialID);
+
+	return ((Comp1.RenderResources.PipelineStateID == Comp2.RenderResources.PipelineStateID && Comp1.RenderResources.MaterialID < Comp2.RenderResources.MaterialID) ||
+			(Comp1.RenderResources.PipelineStateID == Comp2.RenderResources.PipelineStateID && Comp1.RenderResources.MaterialID == Comp2.RenderResources.MaterialID && Comp1.RenderResources.MeshAssetID < Comp2.RenderResources.MeshAssetID) ||
+			Comp1.RenderResources.PipelineStateID < Comp2.RenderResources.PipelineStateID);
 }
 
 // todo: multithreading
 void engine::RenderScene()
 {
 	std::vector<rendering_component>& RCRegistry = RenderingComponents.GetRegistry();
-	std::vector<actor_component>& ARegistry = ActorComponents.GetRegistry();
-
-	// Sort by material ID then by meshid (optimize?)
-	std::sort(RCRegistry.begin(), RCRegistry.end(), CompareRenderComponents); //todo: dont sort every time
-	s32 MaterialID = -1;
-	s32 AssetID = -1;
-	cMeshAsset* Asset = nullptr;
-
-	FrameConstants.ViewProjectionMatrix = MainCamera.ProjectionMatrix * MainCamera.ViewMatrix;
-	Renderer.MapConstants(map_operation::Frame);
-
-	// Render loop
-	u32 InstanceCount = 0;
 	u32 NumRenderComponents = (u32)RCRegistry.size();
-	for (u32 i = 0; i < NumRenderComponents; i++)
+	if (NumRenderComponents > 0) // first component is skybox
 	{
-		if (RCRegistry[i].IsActive() && RCRegistry[i].RenderResources.MaterialID != -1 && RCRegistry[i].ActorComponentID != -1 && RCRegistry[i].RenderResources.MeshAssetID != -1)
-		{
-			if (RCRegistry[i].RenderResources.MeshAssetID != AssetID || i == RCRegistry.size() - 1 || InstanceCount >= MAX_INSTANCES) // mesh changed, draw previous instances if there are any
-			{
-				if (InstanceCount > 0)
-				{
-					Renderer.MapConstants(map_operation::Actor);
-					Renderer.DrawInstanced((vertex*)Asset->Data, Asset->VertexCount, InstanceCount, draw_topology_types::TriangleList);
-					InstanceCount = 0;
-				}
-			 
-				AssetID = RCRegistry[i].RenderResources.MeshAssetID;
-				Asset = (cMeshAsset*)AssetRegistry[AssetID];
-			}
-			if (RCRegistry[i].RenderResources.MaterialID != MaterialID) // material changed, draw previous instances if there are any
-			{
-				if (InstanceCount > 0)
-				{
-					Renderer.MapConstants(map_operation::Actor);
-					Renderer.DrawInstanced((vertex*)Asset->Data, Asset->VertexCount, InstanceCount, draw_topology_types::TriangleList);
-					InstanceCount = 0;
-				}
-				MaterialID = RCRegistry[i].RenderResources.MaterialID;
-				Renderer.BindMaterial(GetMaterial(MaterialID));
-			}
+		// Sort by material ID then by meshid (optimize?)
+		std::sort(RCRegistry.begin(), RCRegistry.end(), CompareRenderComponents); //todo: dont sort every time
+		s32 MaterialID = RCRegistry[0].RenderResources.MaterialID;
+		s32 AssetID = RCRegistry[0].RenderResources.MeshAssetID;
+		s32 PipelineStateID = RCRegistry[0].RenderResources.PipelineStateID;
+		cMeshAsset* Asset = (cMeshAsset*)AssetRegistry[AssetID];
 
-			actor_component& ActorComp = ActorComponents.GetComponent(RCRegistry[i].ActorComponentID);
-			if (ActorComp.Active)
+		// Prep frame for render
+		transform CamTransform = transform(MainCamera.CameraInfo.Transform.Location);
+		FrameConstants.CameraViewProjectionMatrix = MainCamera.ProjectionMatrix * MainCamera.ViewMatrix;
+		FrameConstants.CameraWorldMatrix = renderer::GenerateWorldMatrix(CamTransform); // cache camera matrix?
+		FrameConstants.CameraPosition = MainCamera.CameraInfo.Transform.Location;
+		Renderer.MapConstants(map_operation::Frame);
+		Renderer.SetPipelineState(PipelineStates.GetComponent(PipelineStateID));
+		Renderer.BindMaterial(MaterialRegistry.GetComponent(MaterialID));
+
+		// Render loop
+		u32 InstanceCount = 0;
+		bool Draw = false;
+		for (u32 i = 0; i < NumRenderComponents; i++)
+		{
+			if (RCRegistry[i].IsActive() && RCRegistry[i].RenderResources.MaterialID != -1 && RCRegistry[i].ActorComponentID != -1 && RCRegistry[i].RenderResources.MeshAssetID != -1 && RCRegistry[i].RenderResources.PipelineStateID != -1)
 			{
-				if (ActorComp.Flag == actor_flag::PositionUpdated)
+				if (i < RCRegistry.size() - 1)
 				{
-					transform FinalRenderTransform = ActorComp.GetTransform() + RCRegistry[i].GetTransform();
-					FinalRenderTransform.Scale = ActorComp.GetScale() * RCRegistry[i].GetScale();
-					ActorConstants.Instances[InstanceCount].WorldMatrix = renderer::GenerateWorldMatrix(FinalRenderTransform);
-					RCRegistry[i].SetWorldMatrix(ActorConstants.Instances[InstanceCount].WorldMatrix);
+					if (RCRegistry[i + 1].RenderResources.PipelineStateID != PipelineStateID) // pipeline state will change
+					{
+						Draw = true;
+						PipelineStateID = RCRegistry[i + 1].RenderResources.PipelineStateID;
+					}
+					if (RCRegistry[i + 1].RenderResources.MaterialID != MaterialID) // material will change
+					{
+						Draw = true;
+						MaterialID = RCRegistry[i + 1].RenderResources.MaterialID;
+					}
+					if (RCRegistry[i + 1].RenderResources.MeshAssetID != AssetID) // mesh will change
+					{
+						Draw = true;
+						AssetID = RCRegistry[i + 1].RenderResources.MeshAssetID;
+					}
 				}
 				else
-					ActorConstants.Instances[InstanceCount].WorldMatrix = RCRegistry[i].GetWorldMatrix();
-				InstanceCount++;
+					Draw = true;
+
+				actor_component& ActorComp = ActorComponents.GetComponent(RCRegistry[i].ActorComponentID);
+				if (ActorComp.Active)
+				{
+					if (ActorComp.Flag == actor_flag::PositionUpdated)
+					{
+						transform FinalRenderTransform = ActorComp.GetTransform() + RCRegistry[i].GetTransform();
+						FinalRenderTransform.Scale = ActorComp.GetScale() * RCRegistry[i].GetScale();
+						ActorConstants.Instances[InstanceCount].WorldMatrix = renderer::GenerateWorldMatrix(FinalRenderTransform);
+						RCRegistry[i].SetWorldMatrix(ActorConstants.Instances[InstanceCount].WorldMatrix);
+					}
+					else
+						ActorConstants.Instances[InstanceCount].WorldMatrix = RCRegistry[i].GetWorldMatrix();
+					ActorConstants.Instances[InstanceCount].InverseTransposeWorldMatrix = Renderer.InverseMatrix(RCRegistry[i].GetWorldMatrix(), true);
+					InstanceCount++;
+				}
+
+				if (Draw || InstanceCount >= MAX_INSTANCES) // draw all previous instances and update state for new batch
+				{
+					if (InstanceCount > 0)
+					{
+						Renderer.MapConstants(map_operation::Actor);
+						Renderer.DrawInstanced((vertex*)Asset->Data, Asset->VertexCount, InstanceCount, draw_topology_types::TriangleList);
+						InstanceCount = 0;
+					}
+					if (Draw) // no need to update state if drawing bc of batching
+					{
+						Renderer.SetPipelineState(PipelineStates.GetComponent(PipelineStateID));
+						Renderer.BindMaterial(MaterialRegistry.GetComponent(MaterialID));
+						Asset = (cMeshAsset*)AssetRegistry[AssetID];
+					}
+				}
+				Draw = false;
 			}
 		}
 	}
+}
+
+void engine::UpdateComponents()
+{
+	std::vector<actor_component>& ARegistry = ActorComponents.GetRegistry();
 
 	// Actor update ?
 	u32 NumActorComponents = (u32)ARegistry.size();
@@ -272,31 +335,4 @@ void engine::RenderScene()
 	{
 		ARegistry[i].Flag = actor_flag::Idle;
 	}
-
-}
-
-
-// remove
-s32 engine::CreateMaterial()
-{
-	material Mat;
-	Mat.MaterialID = MaterialsAdded;
-	MaterialRegistry.push_back(Mat);
-	return MaterialsAdded++;
-}
-
-material& engine::GetMaterial(s32 ID)
-{
-	if (ID != -1)
-	{
-		u32 size = (u32)MaterialRegistry.size();
-		for (u32 i = 0; i < size; i++)
-		{
-			if (MaterialRegistry[i].MaterialID == ID)
-				return MaterialRegistry[i];
-		}
-		Assert(1 == 2); // not found
-	}
-	Assert(1 == 2); // cant get id of -1
-	return MaterialRegistry[0];
 }

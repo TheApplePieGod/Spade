@@ -38,7 +38,7 @@ s32 GetAssetIDFromName(const char* Name)
 /*
 * Returns index into array
 */
-s32 GetShaderIDFromName(const char* Name)
+s32 GetTextureIDFromName(const char* Name)
 {
 	char Buffer[MAX_PATH];
 	_snprintf_s(Buffer, sizeof(Buffer), "%s", Name);
@@ -47,6 +47,26 @@ s32 GetShaderIDFromName(const char* Name)
 	{
 		// assumes filename is already formatted
 		if (strcmp(Buffer, Engine->TextureRegistry[i]->Filename) == 0)
+		{
+			return i;
+		}
+	}
+	Assert(1 == 2);
+	return -1;
+}
+
+/*
+* Returns index into array
+*/
+s32 GetShaderIDFromName(const char* Name)
+{
+	char Buffer[MAX_PATH];
+	_snprintf_s(Buffer, sizeof(Buffer), "%s", Name);
+
+	for (u32 i = 0; i < Engine->ShaderRegistry.size(); i++)
+	{
+		// assumes filename is already formatted
+		if (strcmp(Buffer, Engine->ShaderRegistry[i].Name) == 0)
 		{
 			return i;
 		}

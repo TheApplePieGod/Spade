@@ -5,7 +5,13 @@
 #include "../classes/Level.h"
 #include "../classes/RenderingComponent.h"
 #include "../classes/Actor.h"
+#include "../classes/Pipeline.h"
 #include "MemoryManager.h"
+
+struct debug_data
+{
+	f32 SunAngle = 0.f;
+};
 
 class engine
 {
@@ -13,6 +19,7 @@ public:
 
 	std::vector<cAsset*> AssetRegistry;
 	std::vector<cTextureAsset*> TextureRegistry;
+	std::vector<shader> ShaderRegistry; // shader entry point names must be unique
 
 	bool IsRunning = true;
 
@@ -28,22 +35,20 @@ public:
 
 	void ProcessUserInput();
 	void RenderScene();
+	void UpdateComponents();
 
-	s32 CreateMaterial();
-	material& GetMaterial(s32 ID);
-
-	// Engine classes
 	renderer Renderer;
-
 	v2 ScreenSize = { 0.f, 0.f };
+
+#if SPADE_DEBUG
+	debug_data DebugData;
+#endif
 
 private:
 
-	// component registries
+	// component registries (high performance)
 	component_registry<rendering_component> RenderingComponents;
 	component_registry<actor_component> ActorComponents;
-
-	std::vector<material> MaterialRegistry;
-	s32 MaterialsAdded = 0;
-
+	component_registry<material> MaterialRegistry;
+	component_registry<pipeline_state> PipelineStates;
 };

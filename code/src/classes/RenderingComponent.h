@@ -6,8 +6,9 @@
 struct mesh_render_resources
 {
 	s32 MeshAssetID = -1;
-	draw_topology_types TopologyType = draw_topology_types::TriangleList;
 	s32 MaterialID = -1;
+	s32 PipelineStateID = -1;
+	draw_topology_types TopologyType = draw_topology_types::TriangleList;
 };
 
 class rendering_component : public component

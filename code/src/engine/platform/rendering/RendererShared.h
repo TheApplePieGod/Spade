@@ -25,6 +25,7 @@ enum class draw_topology_types
 
 enum class projection_type
 {
+	NotSet,
 	Perspective,
 	Orthographic,
 };
@@ -33,14 +34,21 @@ enum class map_operation
 {
 	Actor,
 	Material,
-	Frame
+	Frame,
+	Lighting
+};
+
+enum class rasterizer_state
+{
+	DefaultCullBackface,
+	DefaultCullNone,
+	Wireframe
 };
 
 struct camera_info
 {
-	projection_type ProjectionType;
-	v3 Position = { 0.f, 0.f, -1.f };
-	rotator Rotation = rotator();
+	projection_type ProjectionType = projection_type::NotSet;
+	transform Transform;
 	f32 FOV = 70.f; // field of view (degrees)
 	f32 Width = 0.f;
 	f32 Height = 0.f;
@@ -51,6 +59,7 @@ struct camera_info
 struct actor_instance
 {
 	matrix4x4 WorldMatrix;
+	matrix4x4 InverseTransposeWorldMatrix;
 };
 
 #define MAX_INSTANCES (u64)(65536.f / sizeof(actor_instance))
@@ -62,7 +71,10 @@ struct shader_constants_actor
 
 struct shader_constants_frame
 {
-	matrix4x4 ViewProjectionMatrix;
+	matrix4x4 CameraViewProjectionMatrix;
+	matrix4x4 CameraWorldMatrix;
+	v3 CameraPosition;
+	f32 padding;
 };
 
 struct shader_constants_material
@@ -74,6 +86,18 @@ struct shader_constants_material
 
 	bool TextureNormal = false;
 	v3 padding2;
+};
+
+struct shader_constants_lighting
+{
+	v3 AmbientColor;
+	f32 SunIntensity;
+
+	v3 SunColor;
+	f32 padding;
+
+	v3 SunDirection;
+	f32 padding2;
 };
 
 const float VoidColor[4] = { 0.3f, 0.7f, 0.9f, 1.f };

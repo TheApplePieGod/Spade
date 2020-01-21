@@ -15,6 +15,7 @@ union v2
 	f32 E[2];
 };
 
+union v4;
 union v3
 {
 	struct
@@ -30,6 +31,8 @@ union v3
 		f32 r, g, b;
 	};
 	f32 E[3];
+
+	v3& operator=(const v4& A);
 };
 
 typedef v3 rotator;
@@ -37,6 +40,20 @@ typedef v3 rotator;
 // transform order: scale, rotate (degrees), translate
 struct transform
 {
+	transform(v3 _Location, rotator _Rotation, v3 _Scale)
+	{
+		Location = _Location;
+		Rotation = _Rotation;
+		Scale = _Scale;
+	}
+
+	transform(v3 _Location)
+	{
+		Location = _Location;
+	}
+
+	transform() = default;
+
 	v3 Location = { 0.f, 0.f, 0.f };
 	rotator Rotation = { 0.f, 0.f, 0.f };
 	v3 Scale = { 1.f, 1.f, 1.f };
@@ -179,8 +196,19 @@ struct vertex
 		v = V;
 	}
 
-	vertex()
-	{}
+	vertex(f32 X, f32 Y, f32 Z, f32 U, f32 V, f32 NX, f32 NY, f32 NZ)
+	{
+		x = X;
+		y = Y;
+		z = Z;
+		u = U;
+		v = V;
+		nx = NX;
+		ny = NY;
+		nz = NZ;
+	}
+
+	vertex() = default;
 
 	// Position in x/y plane
 	f32 x, y, z;

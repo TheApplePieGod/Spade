@@ -84,7 +84,6 @@ operator+=(v3& A, v3 B)
 	return A;
 }
 
-
 inline transform
 operator+(transform A, transform B)
 {
@@ -121,4 +120,10 @@ operator*(matrix4x4 A, matrix4x4 B)
 	Result.m44 = DotProduct(A.row4, B.col4());
 
 	return Result;
+}
+
+inline matrix4x4
+Inverse(const matrix4x4& A)
+{
+
 }

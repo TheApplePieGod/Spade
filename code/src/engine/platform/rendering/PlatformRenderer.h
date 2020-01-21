@@ -1,9 +1,10 @@
 #pragma once
 #include "RendererShared.h"
 
-struct material;
+class material;
 class actor_component;
 class rendering_component;
+class pipeline_state;
 class renderer
 {
 public:
@@ -19,13 +20,20 @@ public:
 	void RegisterTexture(cAsset* Asset, bool GenerateMIPs);
 	void BindMaterial(const material& InMaterial);
 	void MapConstants(map_operation Type);
+	void MapTextureArray();
+	void SetPipelineState(const pipeline_state& InState);
 
 	static matrix4x4 GetPerspectiveProjectionLH(bool Transpose, camera_info CameraInfo);
 	static matrix4x4 GetOrthographicProjectionLH(bool Transpose, camera_info CameraInfo);
 	static matrix4x4 GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtMatrix, bool OrthoUseMovement = true);
 	static matrix4x4 GenerateWorldMatrix(transform Transform);
+	static matrix4x4 InverseMatrix(const matrix4x4& Matrix, bool Transpose);
 
 	void* Window = nullptr;
+
+// specific
+
+	void RegisterShader(std::string Filename, const char*, shader_type ShaderType);
 
 };
 

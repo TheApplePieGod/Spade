@@ -17,11 +17,14 @@ public:
 	void RegisterTexture(cAsset* Asset, bool GenerateMIPs);
 	void BindMaterial(const material& InMaterial);
 	void MapConstants(map_operation Type);
+	void MapTextureArray();
+	void SetPipelineState(const pipeline_state& InState);
 
 	static matrix4x4 GetPerspectiveProjectionLH(bool Transpose, camera_info CameraInfo);
 	static matrix4x4 GetOrthographicProjectionLH(bool Transpose, camera_info CameraInfo);
 	static matrix4x4 GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtMatrix, bool OrthoUseMovement = true);
 	static matrix4x4 GenerateWorldMatrix(transform Transform);
+	static matrix4x4 InverseMatrix(const matrix4x4& Matrix, bool Transpose);
 
 	HWND Window;
 
@@ -39,6 +42,9 @@ public:
 	ID3D11DepthStencilView* DepthStencilView = NULL;
 	ID3D11DepthStencilState* DepthStencilEnabled = NULL;
 	ID3D11DepthStencilState* DepthStencilDisabled = NULL;
+	ID3D11RasterizerState* DefaultCullBackface = NULL;
+	ID3D11RasterizerState* DefaultCullNone = NULL;
+	ID3D11RasterizerState* Wireframe = NULL;
 	ID3D11BlendState* BlendState = NULL;
 
 	ID3D11InputLayout* DefaultVertexLayout = NULL;
@@ -47,12 +53,15 @@ public:
 	ID3D11VertexShader* MainVertexShader = NULL;
 	ID3D11PixelShader* MainPixelShader = NULL;
 
-	ID3D11Buffer* MainVertexBuffer;
-	ID3D11Buffer* PositionVertexBuffer;
+	ID3D11Buffer* MainVertexBuffer = NULL;
+	ID3D11Buffer* PositionVertexBuffer = NULL;
 
-	ID3D11Buffer* FrameConstantBuffer;
-	ID3D11Buffer* ActorConstantBuffer;
-	ID3D11Buffer* MaterialConstantBuffer;
+	ID3D11Buffer* FrameConstantBuffer = NULL;
+	ID3D11Buffer* ActorConstantBuffer = NULL;
+	ID3D11Buffer* MaterialConstantBuffer = NULL;
+	ID3D11Buffer* LightingConstantBuffer = NULL;
+
+	ID3D11ShaderResourceView* SkyboxCube = NULL;
 
 private:
 
@@ -81,6 +90,32 @@ private:
 		out.m44 = Res._44;
 
 		return out;
+	}
+
+	inline static DirectX::XMMATRIX
+	ToDXM(const matrix4x4& A)
+	{
+		DirectX::XMMATRIX Res;
+		Res = DirectX::XMMatrixSet(
+			A.m11,
+			A.m12,
+			A.m13,
+			A.m14,
+			A.m21,
+			A.m22,
+			A.m23,
+			A.m24,
+			A.m31,
+			A.m32,
+			A.m33,
+			A.m34,
+			A.m41,
+			A.m42,
+			A.m43,
+			A.m44
+		);
+
+		return Res;
 	}
 
 };

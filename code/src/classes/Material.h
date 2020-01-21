@@ -1,12 +1,11 @@
 #pragma once
+#include "Component.h"
 
-struct material
+class material : public component
 {
-	s32 MaterialID = -1;
-
-	// Leave blank to use color
-	s32 DiffuseShaderID = -1;
+public:
+	s32 DiffuseTextureID = -1;
 	v4 DiffuseColor = colors::White;
 
-	s32 NormalShaderID = -1;
+	s32 NormalTextureID = -1;
 };

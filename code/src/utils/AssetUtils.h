@@ -8,6 +8,11 @@ s32 GetAssetIDFromName(const char* Name);
 /*
 * Returns index into array
 */
+s32 GetTextureIDFromName(const char* Name);
+
+/*
+* Returns index into array
+*/
 s32 GetShaderIDFromName(const char* Name);
 
 namespace assetCallbacks
