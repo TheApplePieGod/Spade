@@ -79,13 +79,12 @@ struct shader_constants_frame
 
 struct shader_constants_material
 {
-	bool TextureDiffuse = false;
-	v3 padding;
+	b32 TextureDiffuse = false;
+	b32 TextureNormal = false;
+	b32 TextureReflective = false;
+	f32 Reflectivity = 0.0f;
 
 	v4 DiffuseColor = colors::White;
-
-	bool TextureNormal = false;
-	v3 padding2;
 };
 
 struct shader_constants_lighting

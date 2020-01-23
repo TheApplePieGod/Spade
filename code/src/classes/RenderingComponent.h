@@ -48,25 +48,25 @@ public:
 	inline void SetTransform(transform _Transform)
 	{
 		Transform = _Transform;
-		WorldMatrix = renderer::GenerateWorldMatrix(Transform);
+		UpdateMatrices();
 	}
 
 	inline void SetLocation(v3 Location) // set physics body location as well
 	{
 		Transform.Location = Location;
-		WorldMatrix = renderer::GenerateWorldMatrix(Transform);
+		UpdateMatrices();
 	}
 
 	inline void SetRotation(rotator Rotation)
 	{
 		Transform.Rotation = Rotation;
-		WorldMatrix = renderer::GenerateWorldMatrix(Transform);
+		UpdateMatrices();
 	}
 
 	inline void SetScale(v3 Scale)
 	{
 		Transform.Scale = Scale;
-		WorldMatrix = renderer::GenerateWorldMatrix(Transform);
+		UpdateMatrices();
 	}
 
 	inline matrix4x4& GetWorldMatrix()
@@ -74,14 +74,31 @@ public:
 		return WorldMatrix;
 	}
 
+	inline matrix4x4& GetInverseWorldMatrix()
+	{
+		return InverseWorldMatrix;
+	}
+
 	inline void SetWorldMatrix(matrix4x4 Matrix)
 	{
 		WorldMatrix = Matrix;
 	}
 
+	inline void SetITPWorldMatrix(matrix4x4 Matrix)
+	{
+		InverseWorldMatrix = Matrix;
+	}
+
 private:
 
+	inline void UpdateMatrices()
+	{
+		WorldMatrix = renderer::GenerateWorldMatrix(Transform);
+		InverseWorldMatrix = renderer::InverseMatrix(WorldMatrix, false);
+	}
+
 	matrix4x4 WorldMatrix;
+	matrix4x4 InverseWorldMatrix; // inverse transpose (normal transformations)
 	transform Transform;
 
 };

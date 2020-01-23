@@ -20,7 +20,7 @@ typedef double d64;
 #define Terabytes(Value) (Gigabytes(Value)*1024LL)
 #define BITMAP_BYTES_PER_PIXEL 4
 #define METERS_TO_PIXELS 100.0f
-#define DegreesToRadians(Degrees) Degrees*Pi32/180.f;
+#define DegreesToRadians(Degrees) Degrees*Pi32/180.f
 
 #define Assert(Expression) if(!(Expression)) {*(int *)0 = 0;} // Dereference a NULL pointer
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))

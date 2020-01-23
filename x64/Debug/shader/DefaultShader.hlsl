@@ -51,14 +51,20 @@ float4 mainps(PSIn input) : SV_TARGET
 
 	}
 
+	float Reflect = Reflectivity;
+	if (TextureReflective)
+	{
+
+	}
+
 	float3 ViewVector = normalize(input.CameraPos - input.WorldPos.xyz);
 	float SpecularPower = 50.f;
 	float3 SpecularColor = float3(0.5f, 0.5f, 0.5f);
 	float3 LightVector = -SunDirection;
 	float3 Halfway = normalize(LightVector + ViewVector);
-	FinalColor.xyz = CalcDiffuseReflection(FinalColor.xyz, input.Normal, LightVector, SunColor);
+	FinalColor.xyz = (1 - Reflectivity) * CalcDiffuseReflection(FinalColor.xyz, input.Normal, LightVector, SunColor);
 	FinalColor.xyz += CalcSpecularReflection(input.Normal, Halfway, SpecularPower, dot(input.Normal, LightVector), SunColor, SpecularColor);
-	FinalColor += SampleEnvironmentMap(input.Normal, ViewVector, 1);
+	FinalColor += SampleEnvironmentMap(input.Normal, ViewVector, Reflect);
 
 	if (FinalColor.w <= 0.01) // dont draw the pixel if the transparency is low enough
 		discard;

@@ -8,4 +8,7 @@ public:
 	v4 DiffuseColor = colors::White;
 
 	s32 NormalTextureID = -1;
+
+	s32 ReflectiveTextureID = -1;
+	f32 Reflectivity = 0.0f;
 };

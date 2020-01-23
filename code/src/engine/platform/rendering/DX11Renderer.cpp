@@ -658,8 +658,10 @@ void dx11_renderer::BindMaterial(const material& InMaterial)
 	if (CurrentState.UniqueIdentifier == "DefaultPBR")
 	{
 		MaterialConstants.TextureDiffuse = InMaterial.DiffuseTextureID == -1 ? false : true;
-		MaterialConstants.DiffuseColor = InMaterial.DiffuseColor;
 		MaterialConstants.TextureNormal = InMaterial.NormalTextureID == -1 ? false : true;
+		MaterialConstants.TextureReflective = InMaterial.ReflectiveTextureID == -1 ? false : true;
+		MaterialConstants.DiffuseColor = InMaterial.DiffuseColor;
+		MaterialConstants.Reflectivity = InMaterial.Reflectivity;
 
 		MapBuffer(MaterialConstantBuffer, MaterialConstants);
 
@@ -692,8 +694,11 @@ void dx11_renderer::MapConstants(map_operation Type)
 	}
 }
 
-void dx11_renderer::MapTextureArray()
+void dx11_renderer::UpdateSkybox(s32* TextureIDs)
 {
+	SAFE_RELEASE(SkyboxCube);
+	s32 Width = Engine->TextureRegistry[TextureIDs[0]]->Width;
+	s32 Channels = Engine->TextureRegistry[TextureIDs[0]]->Channels;
 	D3D11_SUBRESOURCE_DATA SubData[6];
 	for (u32 i = 0; i < 6; i++)
 	{
@@ -701,33 +706,33 @@ void dx11_renderer::MapTextureArray()
 		switch (i)
 		{
 			case 0:
-			{ TexData.pSysMem = Engine->AssetRegistry[GetAssetIDFromName("emap-left.tga")]->Data; } break;
+			{ TexData.pSysMem = Engine->TextureRegistry[TextureIDs[0]]->Data; } break;
 
 			case 1:
-			{ TexData.pSysMem = Engine->AssetRegistry[GetAssetIDFromName("emap-right.tga")]->Data; } break;
+			{ TexData.pSysMem = Engine->TextureRegistry[TextureIDs[1]]->Data; } break;
 
 			case 2:
-			{ TexData.pSysMem = Engine->AssetRegistry[GetAssetIDFromName("emap-up.png")]->Data; } break;
+			{ TexData.pSysMem = Engine->TextureRegistry[TextureIDs[2]]->Data; } break;
 
 			case 3:
-			{ TexData.pSysMem = Engine->AssetRegistry[GetAssetIDFromName("emap-down.png")]->Data; } break;
+			{ TexData.pSysMem = Engine->TextureRegistry[TextureIDs[3]]->Data; } break;
 
 			case 4:
-			{ TexData.pSysMem = Engine->AssetRegistry[GetAssetIDFromName("emap-front.tga")]->Data; } break;
+			{ TexData.pSysMem = Engine->TextureRegistry[TextureIDs[4]]->Data; } break;
 
 			case 5:
-			{ TexData.pSysMem = Engine->AssetRegistry[GetAssetIDFromName("emap-back.tga")]->Data; } break;
+			{ TexData.pSysMem = Engine->TextureRegistry[TextureIDs[5]]->Data; } break;
 		}
 		
-		TexData.SysMemPitch = 512 * 4;
+		TexData.SysMemPitch = Width * Channels;
 		TexData.SysMemSlicePitch = 0;
 		SubData[i] = TexData;
 	}
 
 	D3D11_TEXTURE2D_DESC descDepth1;
 	ZeroMemory(&descDepth1, sizeof(descDepth1));
-	descDepth1.Width = 512;
-	descDepth1.Height = 512;
+	descDepth1.Width = Width;
+	descDepth1.Height = Width;
 	descDepth1.MipLevels = 1;
 	descDepth1.ArraySize = 6;
 	descDepth1.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
@@ -940,9 +945,9 @@ matrix4x4 dx11_renderer::GenerateWorldMatrix(transform Transform)
 {
 	DirectX::XMMATRIX translation, rotationx, rotationy, rotationz, scale;
 	translation = DirectX::XMMatrixTranslation(Transform.Location.x, Transform.Location.y, Transform.Location.z);
-	rotationx = DirectX::XMMatrixRotationX(Transform.Rotation.x * (Pi32 / 180.0f)); // convert degrees to radians
-	rotationy = DirectX::XMMatrixRotationY(Transform.Rotation.y * (Pi32 / 180.0f));
-	rotationz = DirectX::XMMatrixRotationZ(Transform.Rotation.z * (Pi32 / 180.0f));
+	rotationx = DirectX::XMMatrixRotationX(DegreesToRadians(Transform.Rotation.x)); // convert degrees to radians
+	rotationy = DirectX::XMMatrixRotationY(DegreesToRadians(Transform.Rotation.y));
+	rotationz = DirectX::XMMatrixRotationZ(DegreesToRadians(Transform.Rotation.z));
 	scale = DirectX::XMMatrixScaling(Transform.Scale.x, Transform.Scale.y, Transform.Scale.z);
 
 	// transform order: scale, rotate (degrees), translate

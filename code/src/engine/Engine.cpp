@@ -118,7 +118,57 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 	assetLoader::InitializeAssetsFromPac(&AssetLoadCallbacks);
 #endif
 
-	Renderer.MapTextureArray();
+	s32 ids[6];
+	switch (4)
+	{
+		default: // mountains
+		{
+			ids[0] = GetTextureIDFromName("emap-left.tga");
+			ids[1] = GetTextureIDFromName("emap-right.tga");
+			ids[2] = GetTextureIDFromName("emap-up.png");
+			ids[3] = GetTextureIDFromName("emap-down.png");
+			ids[4] = GetTextureIDFromName("emap-front.tga");
+			ids[5] = GetTextureIDFromName("emap-back.tga");
+		} break;
+		case 1: // underwater
+		{
+			ids[0] = GetTextureIDFromName("underwater-left.jpg");
+			ids[1] = GetTextureIDFromName("underwater-right.jpg");
+			ids[2] = GetTextureIDFromName("underwater-up.jpg");
+			ids[3] = GetTextureIDFromName("underwater-down.jpg");
+			ids[4] = GetTextureIDFromName("underwater-front.jpg");
+			ids[5] = GetTextureIDFromName("underwater-back.jpg");
+		} break;
+		case 2: // bloodbeach
+		{
+			ids[0] = GetTextureIDFromName("bloodbeach-left.tga");
+			ids[1] = GetTextureIDFromName("bloodbeach-right.tga");
+			ids[2] = GetTextureIDFromName("bloodbeach-up.png");
+			ids[3] = GetTextureIDFromName("bloodbeach-down.png");
+			ids[4] = GetTextureIDFromName("bloodbeach-front.tga");
+			ids[5] = GetTextureIDFromName("bloodbeach-back.tga");
+		} break;
+		case 3: // city1
+		{
+			ids[0] = GetTextureIDFromName("city-left.jpg");
+			ids[1] = GetTextureIDFromName("city-right.jpg");
+			ids[2] = GetTextureIDFromName("city-up.jpg");
+			ids[3] = GetTextureIDFromName("city-down.jpg");
+			ids[4] = GetTextureIDFromName("city-front.jpg");
+			ids[5] = GetTextureIDFromName("city-back.jpg");
+		} break;
+		case 4: // city2
+		{
+			ids[0] = GetTextureIDFromName("city2-left.jpg");
+			ids[1] = GetTextureIDFromName("city2-right.jpg");
+			ids[2] = GetTextureIDFromName("city2-up.jpg");
+			ids[3] = GetTextureIDFromName("city2-down.jpg");
+			ids[4] = GetTextureIDFromName("city2-front.jpg");
+			ids[5] = GetTextureIDFromName("city2-back.jpg");
+		} break;
+	}
+
+	Renderer.UpdateSkybox(ids);
 
 	pipeline_state State = pipeline_state();
 	State.VertexShaderID = GetShaderIDFromName("mainvs");
@@ -141,23 +191,24 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 		{
 			default:
 			{ Mat.DiffuseTextureID = GetTextureIDFromName("Canned-Eggplant.jpg");
-			  Mat.DiffuseColor = colors::Blue; } break;
+			  Mat.Reflectivity = 1.f;
+			  /*Mat.DiffuseColor = colors::Blue;*/ } break;
 
 			case 1:
 			{ Mat.DiffuseTextureID = GetTextureIDFromName("chev.jpg");
-			  Mat.DiffuseColor = colors::Red; } break;
+			  /*Mat.DiffuseColor = colors::Red;*/ } break;
 
 			case 2:
 			{ Mat.DiffuseTextureID = GetTextureIDFromName("eyes.jpg");
-			  Mat.DiffuseColor = colors::Green; } break;
+			  /*Mat.DiffuseColor = colors::Green;*/ } break;
 
 			case 3:
 			{ Mat.DiffuseTextureID = GetTextureIDFromName("lmao.jpg");
-			  Mat.DiffuseColor = colors::Orange; } break;
+			  /*Mat.DiffuseColor = colors::Orange;*/ } break;
 
 			case 4:
 			{ Mat.DiffuseTextureID = GetTextureIDFromName("what.jpg");
-			  Mat.DiffuseColor = colors::White; } break;
+			  /*Mat.DiffuseColor = colors::White;*/ } break;
 		}
 		MaterialRegistry.CreateComponent(Mat);
 	}
@@ -167,13 +218,22 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 	u32 ScaleMod = 1;
 	u32 RotationMod = 360;
 	u32 LocationMod = 3000;
-	for (u32 i = 0; i < 5000; i++)
+	for (u32 i = 0; i < 1000; i++)
 	{
 		rendering_component rcomp = rendering_component(actorid);
-		rcomp.SetScale(v3{ 50.f + (rand() % ScaleMod - (ScaleMod *0.5f)), 5.f + (rand() % ScaleMod - (ScaleMod * 0.5f)), 50.f + (rand() % ScaleMod - (ScaleMod * 0.5f)) });
-		rcomp.SetLocation(v3{ (rand() % LocationMod) - (LocationMod * 0.5f), (rand() % LocationMod) - (LocationMod * 0.5f), (rand() % LocationMod) - (LocationMod * 0.5f) });
-		rcomp.SetRotation(v3{ (f32)(rand() % RotationMod), (f32)(rand() % RotationMod), (f32)(rand() % RotationMod) });
-		//rcomp.SetRotation(v3{ (rand()%2 == 0 ? 0.f : 90.f), 0.f, 0.f });
+		if (i == 1)
+		{
+			rcomp.SetScale(v3{ 2000.f, 5.f, 2000.f });
+		}
+		else
+		{
+			rcomp.SetScale(v3{ 50.f + (rand() % ScaleMod - (ScaleMod * 0.5f)), 5.f + (rand() % ScaleMod - (ScaleMod * 0.5f)), 50.f + (rand() % ScaleMod - (ScaleMod * 0.5f)) });
+			rcomp.SetLocation(v3{ (rand() % LocationMod) - (LocationMod * 0.5f), (rand() % LocationMod) - (LocationMod * 0.5f), (rand() % LocationMod) - (LocationMod * 0.5f) });
+			rcomp.SetRotation(v3{ (f32)(rand() % RotationMod), (f32)(rand() % RotationMod), (f32)(rand() % RotationMod) });
+			//rcomp.SetRotation(v3{ 90.f, 90.f, 0.f });
+			//rcomp.SetRotation(v3{ (rand()%2 == 0 ? 0.f : 90.f), 0.f, 0.f });
+		}
+
 		rcomp.ActorComponentID = (i == 0 ? 0 : actorid);
 		rcomp.RenderResources.MaterialID = rand() % 5;
 		rcomp.RenderResources.MeshAssetID = 0;
@@ -296,11 +356,15 @@ void engine::RenderScene()
 						transform FinalRenderTransform = ActorComp.GetTransform() + RCRegistry[i].GetTransform();
 						FinalRenderTransform.Scale = ActorComp.GetScale() * RCRegistry[i].GetScale();
 						ActorConstants.Instances[InstanceCount].WorldMatrix = renderer::GenerateWorldMatrix(FinalRenderTransform);
+						ActorConstants.Instances[InstanceCount].InverseTransposeWorldMatrix = renderer::InverseMatrix(ActorConstants.Instances[InstanceCount].WorldMatrix, false);
 						RCRegistry[i].SetWorldMatrix(ActorConstants.Instances[InstanceCount].WorldMatrix);
+						RCRegistry[i].SetITPWorldMatrix(ActorConstants.Instances[InstanceCount].InverseTransposeWorldMatrix);
 					}
 					else
+					{
 						ActorConstants.Instances[InstanceCount].WorldMatrix = RCRegistry[i].GetWorldMatrix();
-					ActorConstants.Instances[InstanceCount].InverseTransposeWorldMatrix = Renderer.InverseMatrix(RCRegistry[i].GetWorldMatrix(), true);
+						ActorConstants.Instances[InstanceCount].InverseTransposeWorldMatrix = RCRegistry[i].GetInverseWorldMatrix();
+					}
 					InstanceCount++;
 				}
 

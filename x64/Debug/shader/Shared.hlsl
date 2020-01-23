@@ -27,11 +27,10 @@ cbuffer FrameConstantBuffer : register(b0) // v0
 
 cbuffer MaterialConstantBuffer : register(b0) // p0
 {
-	bool TextureDiffuse;
-	float3 padding;
+	uint TextureDiffuse;
+	uint TextureNormal;
+	uint TextureReflective;
+	float Reflectivity;
 
 	float4 DiffuseColor;
-
-	bool TextureNormal;
-	float3 padding2;
 };

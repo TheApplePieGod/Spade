@@ -90,9 +90,9 @@ void renderer::MapConstants(map_operation Type)
 	PlatformRenderer->MapConstants(Type);
 }
 
-void renderer::MapTextureArray()
+void renderer::UpdateSkybox(s32* TextureIDs)
 {
-	PlatformRenderer->MapTextureArray();
+	PlatformRenderer->UpdateSkybox(TextureIDs);
 }
 
 void renderer::SetPipelineState(const pipeline_state& InState)
