@@ -102,20 +102,23 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 	verts[35] = verts[6]; verts[35].u = 1.f; verts[35].nx = 1; verts[35].nz = 0;
 
 	cMeshAsset* mesh = new cMeshAsset();
-	mesh->VertexCount = 36;
+	mesh->MeshData.NumVertices = 36;
 	mesh->Data = verts;
 	mesh->Loaded = true;
-	AssetRegistry.push_back(mesh);
+	//AssetRegistry.push_back(mesh);
 
 	MemoryManager.Initialize();
 	Renderer.Initialize(Window, WindowWidth, WindowHeight);
 	MainLevel.Initialize();
 
+	defaultAssetTypes::ImageType.LoadCallback = assetCallbacks::ImageLoadCallback;
+	assetLoader::AddAssetType(defaultAssetTypes::ImageType);
+
 #if SPADE_DEBUG
 	assetLoader::ScanAssets("assets\\", false);
-	assetLoader::InitializeAssetsInDirectory("assets\\", &(assetLoader::asset_load_callbacks)AssetLoadCallbacks);
+	assetLoader::InitializeAssetsInDirectory("assets\\");
 #else
-	assetLoader::InitializeAssetsFromPac(&AssetLoadCallbacks);
+	assetLoader::InitializeAssetsFromPack();
 #endif
 
 	s32 ids[6];
@@ -184,7 +187,7 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 	State.UniqueIdentifier = "Skybox";
 	PipelineStates.CreateComponent(State);
 
-	for (u32 i = 0; i < 5; i++)
+	for (u32 i = 0; i < 6; i++)
 	{
 		material Mat = material();
 		switch (i)
@@ -209,6 +212,11 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 			case 4:
 			{ Mat.DiffuseTextureID = GetTextureIDFromName("what.jpg");
 			  /*Mat.DiffuseColor = colors::White;*/ } break;
+
+			case 5:
+			{ Mat.DiffuseTextureID = GetTextureIDFromName("snowpath_diffuse.png");
+			  Mat.NormalTextureID = GetTextureIDFromName("snowpath_normal.png");
+			/*Mat.DiffuseColor = colors::White;*/ } break;
 		}
 		MaterialRegistry.CreateComponent(Mat);
 	}
@@ -218,25 +226,26 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 	u32 ScaleMod = 1;
 	u32 RotationMod = 360;
 	u32 LocationMod = 3000;
-	for (u32 i = 0; i < 1000; i++)
+	for (u32 i = 0; i < 2; i++)
 	{
 		rendering_component rcomp = rendering_component(actorid);
 		if (i == 1)
 		{
-			rcomp.SetScale(v3{ 2000.f, 5.f, 2000.f });
+			rcomp.SetScale(v3{ 500.f, 500.f, 500.f });
+			rcomp.RenderResources.MaterialID = 5;
 		}
 		else
 		{
-			rcomp.SetScale(v3{ 50.f + (rand() % ScaleMod - (ScaleMod * 0.5f)), 5.f + (rand() % ScaleMod - (ScaleMod * 0.5f)), 50.f + (rand() % ScaleMod - (ScaleMod * 0.5f)) });
+			rcomp.SetScale(v3{ 75.f + (rand() % ScaleMod - (ScaleMod * 0.5f)), 75.f + (rand() % ScaleMod - (ScaleMod * 0.5f)), 75.f + (rand() % ScaleMod - (ScaleMod * 0.5f)) });
 			rcomp.SetLocation(v3{ (rand() % LocationMod) - (LocationMod * 0.5f), (rand() % LocationMod) - (LocationMod * 0.5f), (rand() % LocationMod) - (LocationMod * 0.5f) });
 			rcomp.SetRotation(v3{ (f32)(rand() % RotationMod), (f32)(rand() % RotationMod), (f32)(rand() % RotationMod) });
 			//rcomp.SetRotation(v3{ 90.f, 90.f, 0.f });
 			//rcomp.SetRotation(v3{ (rand()%2 == 0 ? 0.f : 90.f), 0.f, 0.f });
+			rcomp.RenderResources.MaterialID = rand() % 5;
 		}
 
 		rcomp.ActorComponentID = (i == 0 ? 0 : actorid);
-		rcomp.RenderResources.MaterialID = rand() % 5;
-		rcomp.RenderResources.MeshAssetID = 0;
+		rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("cube_t.fbx");
 		rcomp.RenderResources.PipelineStateID = (i == 0 ? 1 : 0);
 		RenderingComponents.CreateComponent(rcomp, true);
 	}
@@ -373,7 +382,7 @@ void engine::RenderScene()
 					if (InstanceCount > 0)
 					{
 						Renderer.MapConstants(map_operation::Actor);
-						Renderer.DrawInstanced((vertex*)Asset->Data, Asset->VertexCount, InstanceCount, draw_topology_types::TriangleList);
+						Renderer.DrawInstanced((vertex*)Asset->Data, Asset->MeshData.NumVertices, InstanceCount, draw_topology_types::TriangleList);
 						InstanceCount = 0;
 					}
 					if (Draw) // no need to update state if drawing bc of batching
@@ -398,5 +407,6 @@ void engine::UpdateComponents()
 	for (u32 i = 0; i < NumActorComponents; i++)
 	{
 		ARegistry[i].Flag = actor_flag::Idle;
+		//ARegistry[i].SetRotation(ARegistry[i].GetRotation() + rotator{ 0.f, 0.01f, 0.f });
 	}
 }

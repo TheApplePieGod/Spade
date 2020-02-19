@@ -17,8 +17,7 @@ s32 GetShaderIDFromName(const char* Name);
 
 namespace assetCallbacks
 {
-	void ImageLoadCallback(cTextureAsset* Asset);
-	void FontLoadCallback(cFontAsset* Asset);
+	void ImageLoadCallback(cAsset* Asset);
+	void FontLoadCallback(cAsset* Asset);
+	void MeshLoadCallback(cAsset* Asset);
 }
-
-const assetLoader::asset_load_callbacks AssetLoadCallbacks = { assetCallbacks::ImageLoadCallback, assetCallbacks::FontLoadCallback };

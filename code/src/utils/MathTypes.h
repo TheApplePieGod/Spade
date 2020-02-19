@@ -218,4 +218,7 @@ struct vertex
 
 	// Normals
 	f32 nx, ny, nz;
+
+	// Tangents
+	f32 tx, ty, tz;
 };

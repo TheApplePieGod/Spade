@@ -4,17 +4,22 @@
 
 extern engine* Engine;
 
-void assetCallbacks::ImageLoadCallback(cTextureAsset* Asset)
+void assetCallbacks::ImageLoadCallback(cAsset* Asset)
 {
 	Engine->AssetRegistry.push_back(Asset);
-	Engine->TextureRegistry.push_back(Asset);
+	Engine->TextureRegistry.push_back((cTextureAsset*)Asset);
 	Engine->Renderer.RegisterTexture(Asset, true);
 }
 
-void assetCallbacks::FontLoadCallback(cFontAsset* Asset)
+void assetCallbacks::FontLoadCallback(cAsset* Asset)
 {
 	Engine->AssetRegistry.push_back(Asset);
 	Engine->Renderer.RegisterTexture(Asset, false);
+}
+
+void assetCallbacks::MeshLoadCallback(cAsset* Asset)
+{
+	Engine->AssetRegistry.push_back(Asset);
 }
 
 s32 GetAssetIDFromName(const char* Name)

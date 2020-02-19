@@ -3,6 +3,8 @@
 sampler Samp : register(s0);
 TextureCube EnvironmentMap : register(t0);
 
+static const float Pi = 3.1415926535;
+
 struct PerInstanceData
 {
 	matrix WorldMatrix;

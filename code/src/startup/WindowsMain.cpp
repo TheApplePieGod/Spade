@@ -244,7 +244,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLin
 			ProcessPendingMessages();
 			Engine->Tick();
 			auto stop = std::chrono::high_resolution_clock::now();
-			Engine->UserInputs.DeltaTime = (f32)(std::chrono::duration_cast<std::chrono::milliseconds>(stop - start)).count();
+			Engine->UserInputs.DeltaTime = max((f32)(std::chrono::duration_cast<std::chrono::milliseconds>(stop - start)).count(), 0.5f);
 		}
 
 		Engine->Cleanup();

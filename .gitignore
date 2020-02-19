@@ -59,4 +59,5 @@ local/*
 # Legacy
 spade_legacy/code/lib/fbxsdk/samples
 spade_legacy/build
+src/lib/FBX/*
 !x64/Debug/assets/

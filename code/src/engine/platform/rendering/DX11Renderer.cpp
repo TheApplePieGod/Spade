@@ -207,6 +207,10 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 				0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
 				D3D11_APPEND_ALIGNED_ELEMENT,
 				D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TANGENT",
+				0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+				D3D11_APPEND_ALIGNED_ELEMENT,
+				D3D11_INPUT_PER_VERTEX_DATA, 0 },
 
 			{ "SV_InstanceID", 0, DXGI_FORMAT_R32_UINT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1},
 		};
@@ -425,22 +429,22 @@ void dx11_renderer::Cleanup()
 
 	for (u32 i = 0; i < Engine->AssetRegistry.size(); i++)
 	{
-		switch (Engine->AssetRegistry[i]->Type)
-		{
-			default:
-			{} break;
+		//switch (Engine->AssetRegistry[i]->Type)
+		//{
+		//	default:
+		//	{} break;
 
-			case asset_type::Font:
-			{
-				SAFE_RELEASE(((cFontAsset*)Engine->AssetRegistry[i])->AtlasShaderHandle);
-			} break;
+		//	case asset_type::Font:
+		//	{
+		//		SAFE_RELEASE(((cFontAsset*)Engine->AssetRegistry[i])->AtlasShaderHandle);
+		//	} break;
 
-			case asset_type::Texture:
-			{
-				SAFE_RELEASE(((cTextureAsset*)Engine->AssetRegistry[i])->TextureHandle);
-				SAFE_RELEASE(((cTextureAsset*)Engine->AssetRegistry[i])->ShaderHandle);
-			} break;
-		}
+		//	case asset_type::Texture:
+		//	{
+		//		SAFE_RELEASE(((cTextureAsset*)Engine->AssetRegistry[i])->TextureHandle);
+		//		SAFE_RELEASE(((cTextureAsset*)Engine->AssetRegistry[i])->ShaderHandle);
+		//	} break;
+		//}
 	}
 
 	for (u32 i = 0; i < Engine->ShaderRegistry.size(); i++)
@@ -697,43 +701,16 @@ void dx11_renderer::MapConstants(map_operation Type)
 void dx11_renderer::UpdateSkybox(s32* TextureIDs)
 {
 	SAFE_RELEASE(SkyboxCube);
-	s32 Width = Engine->TextureRegistry[TextureIDs[0]]->Width;
-	s32 Channels = Engine->TextureRegistry[TextureIDs[0]]->Channels;
-	D3D11_SUBRESOURCE_DATA SubData[6];
-	for (u32 i = 0; i < 6; i++)
-	{
-		D3D11_SUBRESOURCE_DATA TexData;
-		switch (i)
-		{
-			case 0:
-			{ TexData.pSysMem = Engine->TextureRegistry[TextureIDs[0]]->Data; } break;
+	s32 Width = Engine->TextureRegistry[TextureIDs[0]]->ImageData.Width;
+	s32 Channels = Engine->TextureRegistry[TextureIDs[0]]->ImageData.Channels;
 
-			case 1:
-			{ TexData.pSysMem = Engine->TextureRegistry[TextureIDs[1]]->Data; } break;
-
-			case 2:
-			{ TexData.pSysMem = Engine->TextureRegistry[TextureIDs[2]]->Data; } break;
-
-			case 3:
-			{ TexData.pSysMem = Engine->TextureRegistry[TextureIDs[3]]->Data; } break;
-
-			case 4:
-			{ TexData.pSysMem = Engine->TextureRegistry[TextureIDs[4]]->Data; } break;
-
-			case 5:
-			{ TexData.pSysMem = Engine->TextureRegistry[TextureIDs[5]]->Data; } break;
-		}
-		
-		TexData.SysMemPitch = Width * Channels;
-		TexData.SysMemSlicePitch = 0;
-		SubData[i] = TexData;
-	}
+	u32 MipLevels = 10;
 
 	D3D11_TEXTURE2D_DESC descDepth1;
 	ZeroMemory(&descDepth1, sizeof(descDepth1));
 	descDepth1.Width = Width;
 	descDepth1.Height = Width;
-	descDepth1.MipLevels = 1;
+	descDepth1.MipLevels = MipLevels;
 	descDepth1.ArraySize = 6;
 	descDepth1.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	descDepth1.SampleDesc.Count = 1;
@@ -741,17 +718,22 @@ void dx11_renderer::UpdateSkybox(s32* TextureIDs)
 	descDepth1.Usage = D3D11_USAGE_DEFAULT;
 	descDepth1.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	descDepth1.CPUAccessFlags = 0;
-	descDepth1.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+	descDepth1.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
 	ID3D11Texture2D* tex;
-	HRESULT hr = Device->CreateTexture2D(&descDepth1, SubData, &tex);
+	HRESULT hr = Device->CreateTexture2D(&descDepth1, NULL, &tex);
 	if (FAILED(hr))
 		Assert(1 == 2);
+
+	for (u32 i = 0; i < 6; i++)
+	{
+		DeviceContext->UpdateSubresource(tex, D3D11CalcSubresource(0, i, MipLevels), NULL, Engine->TextureRegistry[TextureIDs[i]]->Data, Width * Channels, 0);
+	}
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-	srvDesc.Texture2DArray.MipLevels = 1;
+	srvDesc.Texture2DArray.MipLevels = MipLevels;
 	srvDesc.Texture2DArray.MostDetailedMip = 0;
 	srvDesc.Texture2DArray.FirstArraySlice = 0;
 	srvDesc.Texture2DArray.ArraySize = 6;
@@ -759,6 +741,8 @@ void dx11_renderer::UpdateSkybox(s32* TextureIDs)
 	hr = Device->CreateShaderResourceView((ID3D11Resource*)tex, &srvDesc, &SkyboxCube);
 	if (FAILED(hr))
 		Assert(1 == 2);
+
+	DeviceContext->GenerateMips(SkyboxCube);
 
 	SAFE_RELEASE(tex);
 }
