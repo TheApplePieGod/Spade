@@ -23,6 +23,8 @@ cbuffer FrameConstantBuffer : register(b0) // v0
 
 	matrix CameraWorldMatrix;
 
+	matrix CameraWorldViewMatrix;
+
 	float3 CameraPosition;
 	float padding3;
 };

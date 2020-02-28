@@ -161,6 +161,8 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 
 	// Create the no culling rasterizer state.
 	hr = Device->CreateRasterizerState(&rasterDesc, &DefaultCullBackface);
+	rasterDesc.CullMode = D3D11_CULL_FRONT;
+	hr = Device->CreateRasterizerState(&rasterDesc, &DefaultCullFrontface);
 	rasterDesc.CullMode = D3D11_CULL_NONE;
 	hr = Device->CreateRasterizerState(&rasterDesc, &DefaultCullNone);
 	rasterDesc.FillMode = D3D11_FILL_WIREFRAME;
@@ -208,6 +210,10 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 				D3D11_APPEND_ALIGNED_ELEMENT,
 				D3D11_INPUT_PER_VERTEX_DATA, 0 },
 			{ "TANGENT",
+				0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+				D3D11_APPEND_ALIGNED_ELEMENT,
+				D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "BITANGENT",
 				0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
 				D3D11_APPEND_ALIGNED_ELEMENT,
 				D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -289,9 +295,9 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	D3D11_SAMPLER_DESC SamplerDesc;
 	SamplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
 	//SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-	SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-	SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-	SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
 	SamplerDesc.MipLODBias = 0;
 	SamplerDesc.MaxAnisotropy = 4;
 	SamplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
@@ -429,22 +435,7 @@ void dx11_renderer::Cleanup()
 
 	for (u32 i = 0; i < Engine->AssetRegistry.size(); i++)
 	{
-		//switch (Engine->AssetRegistry[i]->Type)
-		//{
-		//	default:
-		//	{} break;
-
-		//	case asset_type::Font:
-		//	{
-		//		SAFE_RELEASE(((cFontAsset*)Engine->AssetRegistry[i])->AtlasShaderHandle);
-		//	} break;
-
-		//	case asset_type::Texture:
-		//	{
-		//		SAFE_RELEASE(((cTextureAsset*)Engine->AssetRegistry[i])->TextureHandle);
-		//		SAFE_RELEASE(((cTextureAsset*)Engine->AssetRegistry[i])->ShaderHandle);
-		//	} break;
-		//}
+		Engine->AssetRegistry[i]->UnloadAsset();
 	}
 
 	for (u32 i = 0; i < Engine->ShaderRegistry.size(); i++)
@@ -475,6 +466,7 @@ void dx11_renderer::Cleanup()
 
 	SAFE_RELEASE(BlendState);
 	SAFE_RELEASE(DefaultCullBackface);
+	SAFE_RELEASE(DefaultCullFrontface);
 	SAFE_RELEASE(DefaultCullNone);
 	SAFE_RELEASE(Wireframe);
 	SAFE_RELEASE(DepthStencilEnabled);
@@ -793,6 +785,9 @@ void dx11_renderer::SetPipelineState(const pipeline_state& InState)
 			case rasterizer_state::DefaultCullBackface:
 			{ DeviceContext->RSSetState(DefaultCullBackface); } break;
 
+			case rasterizer_state::DefaultCullFrontface:
+			{ DeviceContext->RSSetState(DefaultCullFrontface); } break;
+
 			case rasterizer_state::DefaultCullNone:
 			{ DeviceContext->RSSetState(DefaultCullNone); } break;
 
@@ -846,10 +841,11 @@ matrix4x4 dx11_renderer::GetOrthographicProjectionLH(bool Transpose, camera_info
 	return Result;
 }
 
-matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtMatrix, bool OrthoUseMovement)
+matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtVector, v3& OutUpVector, bool OrthoUseMovement)
 {
 	DirectX::XMVECTOR defaultForward;
 	DirectX::XMVECTOR camUp;
+	DirectX::XMVECTOR camRight;
 	DirectX::XMVECTOR camPosition;
 	DirectX::XMVECTOR camTarget;
 	DirectX::XMMATRIX CameraView;
@@ -860,26 +856,30 @@ matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraIn
 
 		defaultForward = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
 		camUp = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+		camRight = DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+		//camTarget = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 		camPosition = DirectX::XMVectorSet(CameraInfo.Transform.Location.x, CameraInfo.Transform.Location.y, CameraInfo.Transform.Location.z, 0.0f);
 
 		// Rotation Matrix
-		DirectX::XMMATRIX RotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(DirectX::XMConvertToRadians(CameraInfo.Transform.Rotation.y), DirectX::XMConvertToRadians(CameraInfo.Transform.Rotation.x), 0.0f);
+
+		DirectX::XMVECTOR Quat = DirectX::XMQuaternionRotationAxis(camRight, DegreesToRadians(CameraInfo.Transform.Rotation.y));
+		Quat = DirectX::XMQuaternionMultiply(Quat, DirectX::XMQuaternionRotationAxis(camUp, DegreesToRadians(CameraInfo.Transform.Rotation.x)));
+		DirectX::XMMATRIX RotationMatrix = DirectX::XMMatrixRotationQuaternion(Quat);// DirectX::XMMatrixRotationQuaternion(Quat);
+		//DirectX::XMMATRIX RotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(DirectX::XMConvertToRadians(CameraInfo.Transform.Rotation.y), DirectX::XMConvertToRadians(CameraInfo.Transform.Rotation.x), 0.0f);
 		DirectX::XMVECTOR camTarget = DirectX::XMVector3TransformCoord(defaultForward, RotationMatrix);
-		camTarget = DirectX::XMVector3Normalize(camTarget);
+		//camTarget = DirectX::XMVector3Normalize(camTarget);
 
 		DirectX::XMFLOAT4 temp;    //the float where we copy the v2 vector members
 		DirectX::XMStoreFloat4(&temp, camTarget);   //the function used to copy
-		OutLookAtMatrix.x = temp.x;
-		OutLookAtMatrix.y = temp.y;
-		OutLookAtMatrix.z = temp.z;
+		OutLookAtVector.x = temp.x;
+		OutLookAtVector.y = temp.y;
+		OutLookAtVector.z = temp.z;
 
-		//DirectX::XMMATRIX RotateYTempMatrix;
-		//RotateYTempMatrix = DirectX::XMMatrixRotationY(DirectX::XMConvertToRadians(CameraInfo.Rotation.y));
-
-		//DirectX::XMMATRIX RotateXTempMatrix;
-		//RotateXTempMatrix = DirectX::XMMatrixRotationY(DirectX::XMConvertToRadians(CameraInfo.Rotation.y));
-
-		//camUp = XMVector3TransformCoord(XMVector3TransformCoord(camUp, RotateYTempMatrix), RotateXTempMatrix);
+		camUp = XMVector3TransformCoord(camUp, RotationMatrix);
+		DirectX::XMStoreFloat4(&temp, camUp);   //the function used to copy
+		OutUpVector.x = temp.x;
+		OutUpVector.y = temp.y;
+		OutUpVector.z = temp.z;
 
 		camTarget = DirectX::XMVectorAdd(camTarget, camPosition);
 
@@ -888,6 +888,7 @@ matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraIn
 		else
 			CameraView = DirectX::XMMatrixLookAtLH(camPosition, camTarget, camUp);
 
+		//CameraView = DirectX::XMMatrixInverse(NULL, DirectX::XMMatrixMultiply(RotationMatrix, DirectX::XMMatrixTranslationFromVector(camPosition)));
 	}
 	else
 	{
@@ -942,7 +943,7 @@ matrix4x4 dx11_renderer::InverseMatrix(const matrix4x4& Matrix, bool Transpose)
 {
 	DirectX::XMMATRIX Inverse = ToDXM(Matrix);
 	Inverse = DirectX::XMMatrixInverse(nullptr, Inverse);
-	if (Transpose)
+	if (true)
 		Inverse = DirectX::XMMatrixTranspose(Inverse);
 	return ToMatrix4x4(Inverse);
 }

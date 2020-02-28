@@ -23,7 +23,7 @@ public:
 
 	static matrix4x4 GetPerspectiveProjectionLH(bool Transpose, camera_info CameraInfo);
 	static matrix4x4 GetOrthographicProjectionLH(bool Transpose, camera_info CameraInfo);
-	static matrix4x4 GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtMatrix, bool OrthoUseMovement = true);
+	static matrix4x4 GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtVector, v3& OutUpVector, bool OrthoUseMovement = true);
 	static matrix4x4 GenerateWorldMatrix(transform Transform);
 	static matrix4x4 InverseMatrix(const matrix4x4& Matrix, bool Transpose);
 
@@ -44,6 +44,7 @@ public:
 	ID3D11DepthStencilState* DepthStencilEnabled = NULL;
 	ID3D11DepthStencilState* DepthStencilDisabled = NULL;
 	ID3D11RasterizerState* DefaultCullBackface = NULL;
+	ID3D11RasterizerState* DefaultCullFrontface = NULL;
 	ID3D11RasterizerState* DefaultCullNone = NULL;
 	ID3D11RasterizerState* Wireframe = NULL;
 	ID3D11BlendState* BlendState = NULL;

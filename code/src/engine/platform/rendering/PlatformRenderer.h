@@ -26,7 +26,7 @@ public:
 
 	static matrix4x4 GetPerspectiveProjectionLH(bool Transpose, camera_info CameraInfo);
 	static matrix4x4 GetOrthographicProjectionLH(bool Transpose, camera_info CameraInfo);
-	static matrix4x4 GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtMatrix, bool OrthoUseMovement = true);
+	static matrix4x4 GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtVector, v3& OutUpVector, bool OrthoUseMovement = true);
 	static matrix4x4 GenerateWorldMatrix(transform Transform);
 	static matrix4x4 InverseMatrix(const matrix4x4& Matrix, bool Transpose);
 

@@ -9,6 +9,8 @@ public:
 	{
 		CameraInfo.Width = Width;
 		CameraInfo.Height = Height;
+		CameraInfo.Transform.Location.z = -520.f;
+		CameraInfo.Transform.Quat = DirectX::XMVectorSet(0.f, 0.f, 0.f, 1.f);
 	}
 
 	camera() = default;

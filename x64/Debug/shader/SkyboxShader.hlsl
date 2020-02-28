@@ -6,6 +6,7 @@ struct VSIn
 	float2 TexCoord   : TEXCOORD;
 	float3 Normal : NORMAL;
 	float3 Tangent: TANGENT;
+	float3 Bitangent: BITANGENT;
 	uint   InstanceID : SV_InstanceID;
 };
 

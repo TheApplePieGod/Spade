@@ -10,10 +10,10 @@ namespace assetLoader
 	* Scan directory and convert assets to asset format
 	* GeneratePac: optionally generate the pack file
 	*/
-	void ScanAssets(const char* DirectoryPath, bool GeneratePac);
+	void ScanAssets(const char* DirectoryPath, bool GeneratePac, bool ScanNestedDirectories);
 
 	// Initialize/load asset files
-	void InitializeAssetsInDirectory(const char* DirectoryPath);
+	void InitializeAssetsInDirectory(const char* DirectoryPath, bool ScanNestedDirectories);
 	// Pack file is assumed to be in the exe directory
 	void InitializeAssetsFromPack();
 
@@ -41,8 +41,8 @@ namespace assetLoader
 	// Returns id of filetype (if supported) from any filename, otherwise returns -1
 	s32 GetFileTypeID(char* Filename);
 
-	// Exports loaded asset to exe directory
-	void ExportAsset(cAsset* Asset);
+	// Exports loaded asset to exe directory (todo)
+	//void ExportAsset(cAsset* Asset);
 
 #ifdef ASSET_DIRECTX11
 	// Call after LoadAssetData, for use with default types (font, image)

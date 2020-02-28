@@ -37,6 +37,9 @@ public:
 	void RenderScene();
 	void UpdateComponents();
 
+	s32 AtmosphereRenderingID = -1;
+	s32 PlanetRenderingID = -1;
+
 	renderer Renderer;
 	v2 ScreenSize = { 0.f, 0.f };
 

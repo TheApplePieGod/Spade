@@ -5,6 +5,7 @@
 
 extern engine* Engine;
 
+using namespace DirectX;
 void camera::UpdateFromInput()
 {
 	ForwardVector = Normalize(LookAtVector);

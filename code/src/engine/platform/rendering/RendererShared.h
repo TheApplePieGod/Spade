@@ -41,6 +41,7 @@ enum class map_operation
 enum class rasterizer_state
 {
 	DefaultCullBackface,
+	DefaultCullFrontface,
 	DefaultCullNone,
 	Wireframe
 };
@@ -73,6 +74,7 @@ struct shader_constants_frame
 {
 	matrix4x4 CameraViewProjectionMatrix;
 	matrix4x4 CameraWorldMatrix;
+	matrix4x4 CameraWorldViewMatrix;
 	v3 CameraPosition;
 	f32 padding;
 };
@@ -99,4 +101,4 @@ struct shader_constants_lighting
 	f32 padding2;
 };
 
-const float VoidColor[4] = { 0.3f, 0.7f, 0.9f, 1.f };
+const float VoidColor[4] = { 0.f, 0.f, 0.f, 1.f };//{ 0.3f, 0.7f, 0.9f, 1.f };

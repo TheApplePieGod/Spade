@@ -57,6 +57,7 @@ struct transform
 	v3 Location = { 0.f, 0.f, 0.f };
 	rotator Rotation = { 0.f, 0.f, 0.f };
 	v3 Scale = { 1.f, 1.f, 1.f };
+	DirectX::XMVECTOR Quat;
 };
 
 union v4
@@ -221,4 +222,7 @@ struct vertex
 
 	// Tangents
 	f32 tx, ty, tz;
+
+	// Bitangents
+	f32 bx, by, bz;
 };

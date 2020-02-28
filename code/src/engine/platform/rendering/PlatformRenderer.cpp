@@ -27,9 +27,12 @@ void renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	PlatformRenderer->Initialize(_Window, WindowWidth, WindowHeight);
 
 	// Default vertex shaders for are registered during platform init
-	RegisterShader("shader/DefaultShader.hlsl", "mainps", shader_type::PixelShader);
+	RegisterShader("shader/DefaultShader.hlsl", "GroundFromSpacePS", shader_type::PixelShader);
+	RegisterShader("shader/DefaultShader.hlsl", "SkyFromSpacePS", shader_type::PixelShader);
+	RegisterShader("shader/DefaultShader.hlsl", "GroundFromAtmospherePS", shader_type::PixelShader);
+	RegisterShader("shader/DefaultShader.hlsl", "SkyFromAtmospherePS", shader_type::PixelShader);
+
 	RegisterShader("shader/SkyboxShader.hlsl", "skyboxvs", shader_type::VertexShader);
-	RegisterShader("shader/SkyboxShader.hlsl", "skyboxps", shader_type::PixelShader);
 	
 	ImGui::NewFrame();
 }
@@ -110,9 +113,9 @@ matrix4x4 renderer::GetOrthographicProjectionLH(bool Transpose, camera_info Came
 	return PlatformRenderer->GetOrthographicProjectionLH(Transpose, CameraInfo);
 }
 
-matrix4x4 renderer::GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtMatrix, bool OrthoUseMovement)
+matrix4x4 renderer::GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtVector, v3& OutUpVector, bool OrthoUseMovement)
 {
-	return PlatformRenderer->GenerateViewMatrix(Transpose, CameraInfo, OutLookAtMatrix, OrthoUseMovement);
+	return PlatformRenderer->GenerateViewMatrix(Transpose, CameraInfo, OutLookAtVector, OutUpVector, OrthoUseMovement);
 }
 
 matrix4x4 renderer::GenerateWorldMatrix(transform Transform)
