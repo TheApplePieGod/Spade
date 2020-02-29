@@ -52,26 +52,6 @@ PSIn mainvs(VSIn input)
 
 float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 {
-	float Km = 0.0025f;
-	float Kr = 0.0015f;
-	float ESun = 10.f;
-	float3 v3InvWavelength = float3(
-	1.0f / pow(0.650f, 4),
-	1.0f / pow(0.570f, 4),
-	1.0f / pow(0.475f, 4));
-	float fOuterRadius = 512.5f;
-	float fOuterRadius2 = fOuterRadius * fOuterRadius;
-	float fInnerRadius = 500.f;
-	float fInnerRadius2 = fInnerRadius * fInnerRadius;
-	float fKrESun = Kr * ESun;
-	float fKmESun = Km * ESun;
-	float fKr4PI = Kr * 4.0f * Pi;
-	float fKm4PI = Km * 4.0f * Pi;
-	float fScaleDepth = 0.25f;
-	float fInvScaleDepth = 1.0f / fScaleDepth;
-	float fScale = 1.0f / (fOuterRadius - fInnerRadius);
-	float fScaleOverScaleDepth = fScale / fScaleDepth;
-	float3 v3LightPos = normalize(float3(0.5f, 0.5f, -0.5f));
 	float fCameraHeight = max(length(input.CameraPos), fInnerRadius);
 
 	// Get the ray from the camera to the vertex and its length (which is the far point of the ray passing through the atmosphere)
@@ -121,31 +101,14 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	else
 		SampleColor = DiffuseColor;
 
-	return float4(c0 + SampleColor * c1, 1);
+	float3 color = c0 + 0.25 * c1;
+	color = 1.0 - exp(color * -fHdrExposure);
+	SampleColor *= color.b;
+	return float4(SampleColor + color, 1);
 }
 
 float4 SkyFromAtmospherePS(PSIn input) : SV_TARGET
 {
-	float Km = 0.0025f;
-	float Kr = 0.0015f;
-	float ESun = 10.f;
-	float3 v3InvWavelength = float3(
-	1.0f / pow(0.650f, 4),
-	1.0f / pow(0.570f, 4),
-	1.0f / pow(0.475f, 4));
-	float fOuterRadius = 512.5f;
-	float fOuterRadius2 = fOuterRadius * fOuterRadius;
-	float fInnerRadius = 500.f;
-	float fInnerRadius2 = fInnerRadius * fInnerRadius;
-	float fKrESun = Kr * ESun;
-	float fKmESun = Km * ESun;
-	float fKr4PI = Kr * 4.0f * Pi;
-	float fKm4PI = Km * 4.0f * Pi;
-	float fScaleDepth = 0.25f;
-	float fInvScaleDepth = 1.0f / fScaleDepth;
-	float fScale = 1.0f / (fOuterRadius - fInnerRadius);
-	float fScaleOverScaleDepth = fScale / fScaleDepth;
-	float3 v3LightPos = normalize(float3(0.5f, 0.5f, -0.5f));
 	float fCameraHeight = length(input.CameraPos);
 
 	// Get the ray from the camera to the vertex and its length (which is the far point of the ray passing through the atmosphere)
@@ -185,35 +148,15 @@ float4 SkyFromAtmospherePS(PSIn input) : SV_TARGET
 	float fCos = dot(v3LightPos, v3Direction) / length(v3Direction);
 	float fCos2 = fCos * fCos;
 	float3 color = getRayleighPhase(fCos2) * c0 + getMiePhase(fCos, fCos2) * c1;
+	color = 1.0 - exp(color * -fHdrExposure);
 	float4 AtmoColor = float4(color, color.b);
 	return AtmoColor;
 }
 
 float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 {
-	float Km = 0.0025f;
-	float Kr = 0.0015f;
-	float ESun = 10.f;
-	float3 v3InvWavelength = float3(
-	1.0f / pow(0.650f, 4),
-	1.0f / pow(0.570f, 4),
-	1.0f / pow(0.475f, 4));
-	float fOuterRadius = 512.5f;
-	float fOuterRadius2 = fOuterRadius * fOuterRadius;
-	float fInnerRadius = 500.f;
-	float fInnerRadius2 = fInnerRadius * fInnerRadius;
-	float fKrESun = Kr * ESun;
-	float fKmESun = Km * ESun;
-	float fKr4PI = Kr * 4.0f * Pi;
-	float fKm4PI = Km * 4.0f * Pi;
-	float fScaleDepth = 0.25f;
-	float fInvScaleDepth = 1.0f / fScaleDepth;
-	float fScale = 1.0f / (fOuterRadius - fInnerRadius);
-	float fScaleOverScaleDepth = fScale / fScaleDepth;
-	float3 v3LightPos = normalize(float3(0.5f, 0.5f, -0.5f));
 	float fCameraHeight = length(input.CameraPos);
 	float fCameraHeight2 = fCameraHeight * fCameraHeight;
-	float fHdrExposure = 0.8f;
 
 	// Get the ray from the camera to the vertex and its length (which is the far point of the ray passing through the atmosphere)
 	float3 v3Pos = input.WorldPos;
@@ -271,29 +214,8 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 
 float4 SkyFromSpacePS(PSIn input) : SV_TARGET
 {
-	float Km = 0.0025f;
-	float Kr = 0.0015f;
-	float ESun = 10.f;
-	float3 v3InvWavelength = float3(
-		1.0f / pow(0.650f, 4),
-		1.0f / pow(0.570f, 4),
-		1.0f / pow(0.475f, 4));
-	float fOuterRadius = 512.5f;
-	float fOuterRadius2 = fOuterRadius * fOuterRadius;
-	float fInnerRadius = 500.f;
-	float fInnerRadius2 = fInnerRadius * fInnerRadius;
-	float fKrESun = Kr * ESun;
-	float fKmESun = Km * ESun;
-	float fKr4PI = Kr * 4.0f * Pi;
-	float fKm4PI = Km * 4.0f * Pi;
-	float fScaleDepth = 0.25f;
-	float fInvScaleDepth = 1.0f / fScaleDepth;
-	float fScale = 1.0f / (fOuterRadius - fInnerRadius);
-	float fScaleOverScaleDepth = fScale / fScaleDepth;
-	float3 v3LightPos = normalize(float3(0.5f, 0.5f, -0.5f));
 	float fCameraHeight = length(input.CameraPos);
 	float fCameraHeight2 = fCameraHeight * fCameraHeight;
-	float fHdrExposure = 0.8f;
 
 	// Get the ray from the camera to the vertex and its length (which is the far point of the ray passing through the atmosphere)
 	float3 v3Pos = input.WorldPos.xyz;

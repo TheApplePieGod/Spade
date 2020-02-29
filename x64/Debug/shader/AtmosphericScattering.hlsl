@@ -1,9 +1,33 @@
+
+// TODO: Move to buffer
 // The number of sample points taken along the ray
 static const int nSamples = 4;
 static const float fSamples = 4.0f;
 // Mie phase assymetry factor
-static const float g = -0.98f;
-static const float g2 = 0.9604f;
+static const float g = -0.99f;
+static const float g2 = 0.9801f;
+
+static const float Km = 0.0010f;
+static const float Kr = 0.0025f;
+static const float ESun = 10.f;
+static const float3 v3InvWavelength = float3(
+	1.0f / pow(0.650f, 4),
+	1.0f / pow(0.570f, 4),
+	1.0f / pow(0.475f, 4));
+static const float fOuterRadius = 512.5f;
+static const float fOuterRadius2 = fOuterRadius * fOuterRadius;
+static const float fInnerRadius = 500.f;
+static const float fInnerRadius2 = fInnerRadius * fInnerRadius;
+static const float fKrESun = Kr * ESun;
+static const float fKmESun = Km * ESun;
+static const float fKr4PI = Kr * 4.0f * Pi;
+static const float fKm4PI = Km * 4.0f * Pi;
+static const float fScaleDepth = 0.25f;
+static const float fInvScaleDepth = 1.0f / fScaleDepth;
+static const float fScale = 1.0f / (fOuterRadius - fInnerRadius);
+static const float fScaleOverScaleDepth = fScale / fScaleDepth;
+static const float3 v3LightPos = normalize(float3(0.5f, 0.5f, -0.5f));
+static const float fHdrExposure = 0.8f;
 
 // The scale equation calculated by Vernier's Graphical Analysis
 float scale(float fCos, float fScaleDepth)

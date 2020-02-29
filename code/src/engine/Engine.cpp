@@ -247,7 +247,7 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 		rendering_component rcomp = rendering_component(actorid);
 		if (i == 0)
 		{
-			rcomp.SetScale(v3{ 512.5, 512.5, 512.5 });
+			rcomp.SetScale(v3{ 512.5f, 512.5f, 512.5f });
 			rcomp.RenderResources.MaterialID = 0;
 			rcomp.RenderResources.PipelineStateID = (0);
 		}
@@ -259,7 +259,7 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 		}
 
 		rcomp.ActorComponentID = actorid;
-		rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("sphere.fbx");
+		rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("sphere2.fbx");
 		if (i == 0)
 			AtmosphereRenderingID = RenderingComponents.CreateComponent(rcomp, true);
 		else
