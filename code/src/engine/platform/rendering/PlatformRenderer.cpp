@@ -33,6 +33,7 @@ void renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	RegisterShader("shader/DefaultShader.hlsl", "SkyFromAtmospherePS", shader_type::PixelShader);
 
 	RegisterShader("shader/SkyboxShader.hlsl", "skyboxvs", shader_type::VertexShader);
+	RegisterShader("shader/SkyboxShader.hlsl", "skyboxps", shader_type::PixelShader);
 	
 	ImGui::NewFrame();
 }
@@ -48,17 +49,17 @@ void renderer::FinishFrame()
 	ImGui::NewFrame();
 }
 
-void renderer::Draw(vertex* InVertexArray, u32 NumVertices, draw_topology_types TopologyType)
+void renderer::Draw(vertex* InVertexArray, u32 NumVertices, draw_topology_type TopologyType)
 {
 	PlatformRenderer->Draw(InVertexArray, NumVertices, TopologyType);
 }
 
-void renderer::Draw(v3* InPositionArray, u32 NumVertices, draw_topology_types TopologyType)
+void renderer::Draw(v3* InPositionArray, u32 NumVertices, draw_topology_type TopologyType)
 {
 	PlatformRenderer->Draw(InPositionArray, NumVertices, TopologyType);
 }
 
-void renderer::DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 NumInstances, draw_topology_types TopologyType)
+void renderer::DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 NumInstances, draw_topology_type TopologyType)
 {
 	PlatformRenderer->DrawInstanced(InVertexArray, NumVertices, NumInstances, TopologyType);
 }
@@ -68,7 +69,7 @@ void renderer::SetViewport(float Width, float Height)
 	PlatformRenderer->SetViewport(Width, Height);
 }
 
-void renderer::SetDrawTopology(draw_topology_types TopologyType)
+void renderer::SetDrawTopology(draw_topology_type TopologyType)
 {
 	PlatformRenderer->SetDrawTopology(TopologyType);
 }

@@ -8,11 +8,11 @@ public:
 	void Initialize(void* Window, int WindowWidth, int WindowHeight);
 	void Cleanup();
 	void FinishFrame();
-	void Draw(vertex* InVertexArray, u32 NumVertices, draw_topology_types TopologyType);
-	void Draw(v3* InPositionArray, u32 NumVertices, draw_topology_types TopologyType);
-	void DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 NumInstances, draw_topology_types TopologyType);
+	void Draw(vertex* InVertexArray, u32 NumVertices, draw_topology_type TopologyType);
+	void Draw(v3* InPositionArray, u32 NumVertices, draw_topology_type TopologyType);
+	void DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 NumInstances, draw_topology_type TopologyType);
 	void SetViewport(float Width, float Height);
-	void SetDrawTopology(draw_topology_types TopologyType);
+	void SetDrawTopology(draw_topology_type TopologyType);
 	void CompileShaderFromFile(std::string Filename, std::string EntryPoint, shader_type ShaderType, void* ShaderRef);
 	void RegisterTexture(cAsset* Asset, bool GenerateMIPs);
 	void BindMaterial(const material& InMaterial);

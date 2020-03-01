@@ -57,14 +57,24 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	// Get the ray from the camera to the vertex and its length (which is the far point of the ray passing through the atmosphere)
 	float3 v3Pos = input.WorldPos;
 	float3 v3Ray = v3Pos - input.CameraPos;
-	v3Pos = normalize(v3Pos);
 	float fFar = length(v3Ray);
 	v3Ray /= fFar;
+
+	if (fCameraHeight < length(v3Pos)) { // ?
+		float3 t = v3Pos;
+		v3Pos = input.CameraPos;
+		input.CameraPos = t;
+		v3Ray = -v3Ray;
+	}
+
+	v3Pos = normalize(v3Pos);
 
 	// Calculate the ray's starting position, then calculate its scattering offset
 	float3 v3Start = input.CameraPos;
 	float fDepth = exp((fInnerRadius - fCameraHeight) * (1.0 / fScaleDepth));
-	float fCameraAngle = dot(-v3Ray, v3Pos);
+	float fCameraAngle = 1.f;// dot(-v3Ray, v3Pos);
+	//if (fCameraAngle == 0)
+	//	fCameraAngle = 0.1;
 	float fLightAngle = dot(v3LightPos, v3Pos);
 	float fCameraScale = scale(fCameraAngle, fScaleDepth);
 	float fLightScale = scale(fLightAngle, fScaleDepth);
@@ -72,7 +82,6 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	float fTemp = (fLightScale + fCameraScale);
 
 	// Initialize the scattering loop variables
-	//gl_FrontColor = vec4(0.0, 0.0, 0.0, 0.0);
 	float fSampleLength = fFar / fSamples;
 	float fScaledLength = fSampleLength * fScale;
 	float3 v3SampleRay = v3Ray * fSampleLength;
@@ -95,16 +104,14 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	float4 SampleColor = float4(0.f, 0.f, 0.f, 1.f);
 	if (TextureDiffuse)
 	{
-		SampleColor = DiffuseTex.Sample(Samp, input.TexCoord * 800.f);  // Sample the color from the texture
+		SampleColor = DiffuseTex.Sample(Samp, input.TexCoord * 4000.f);  // Sample the color from the texture
 		SampleColor *= DiffuseColor;
 	}
 	else
 		SampleColor = DiffuseColor;
 
-	float3 color = c0 + 0.25 * c1;
-	color = 1.0 - exp(color * -fHdrExposure);
-	SampleColor *= color.b;
-	return float4(SampleColor + color, 1);
+	float3 color = c0 + SampleColor.xyz * c1;
+	return float4(color, 1);
 }
 
 float4 SkyFromAtmospherePS(PSIn input) : SV_TARGET
@@ -142,14 +149,15 @@ float4 SkyFromAtmospherePS(PSIn input) : SV_TARGET
 		v3SamplePoint += v3SampleRay;
 	}
 	// Finally, scale the Mie and Rayleigh colors and set up the varying variables for the pixel shader
-	float3 c0 = v3FrontColor * (v3InvWavelength * fKrESun);
-	float3 c1 = v3FrontColor * fKmESun;
+	float3 c0 = v3FrontColor * (v3InvWavelength * fKrESun * 1);
+	float3 c1 = v3FrontColor * fKmESun * 1;
 	float3 v3Direction = input.CameraPos - v3Pos;
 	float fCos = dot(v3LightPos, v3Direction) / length(v3Direction);
 	float fCos2 = fCos * fCos;
 	float3 color = getRayleighPhase(fCos2) * c0 + getMiePhase(fCos, fCos2) * c1;
 	color = 1.0 - exp(color * -fHdrExposure);
 	float4 AtmoColor = float4(color, color.b);
+	//return float4(0,0,0,0);
 	return AtmoColor;
 }
 
@@ -200,16 +208,19 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 	float4 SampleColor = float4(0.f, 0.f, 0.f, 1.f);
 	if (TextureDiffuse)
 	{
-		SampleColor = DiffuseTex.Sample(Samp, input.TexCoord * 800.f);  // Sample the color from the texture
+		SampleColor = DiffuseTex.Sample(Samp, input.TexCoord * 4000.f);  // Sample the color from the texture
 		SampleColor *= DiffuseColor;
 	}
 	else
 		SampleColor = DiffuseColor;
 
-	float3 color = c0 + 0.25 * c1;
-	color = 1.0 - exp(color * -fHdrExposure);
-	SampleColor *= color.b;
-	return float4(SampleColor + color, 1);
+	//SampleColor = float4(0.2f,0.6f,1.f,1.f);
+	float3 color = c0 + SampleColor.xyz * c1;
+	return float4(color, 1);
+	//float3 color = c0 + 0.25 * c1;
+	//color = 1.0 - exp(color * -fHdrExposure);
+	//SampleColor *= color.b;
+	//return float4(SampleColor + color, 1);
 }
 
 float4 SkyFromSpacePS(PSIn input) : SV_TARGET

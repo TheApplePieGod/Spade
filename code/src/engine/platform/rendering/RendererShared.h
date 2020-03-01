@@ -16,7 +16,7 @@ enum class shader_presets : u32
 	Circle,
 };
 
-enum class draw_topology_types
+enum class draw_topology_type
 {
 	TriangleList,
 	LineList,

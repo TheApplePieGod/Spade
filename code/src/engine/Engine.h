@@ -36,6 +36,7 @@ public:
 	void ProcessUserInput();
 	void RenderScene();
 	void UpdateComponents();
+	void RenderDebugWidgets();
 
 	s32 AtmosphereRenderingID = -1;
 	s32 PlanetRenderingID = -1;

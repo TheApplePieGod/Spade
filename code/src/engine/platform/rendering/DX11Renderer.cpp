@@ -122,6 +122,8 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	if (FAILED(hr))
 		Assert(1 == 2);;
 
+	//D3D11_RENDER_TARGET_VIEW_DESC rtd;
+	//rtd.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	hr = Device->CreateRenderTargetView(pRenderTargetTexture, NULL, &RenderTargetView);
 	pRenderTargetTexture->Release();
 	if (FAILED(hr))
@@ -249,7 +251,7 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	D3D11_BUFFER_DESC bufferDesc;
 	ZeroMemory(&bufferDesc, sizeof(bufferDesc));
 	bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	bufferDesc.ByteWidth = sizeof(vertex) * 100000; // MAX BUFFER SIZE
+	bufferDesc.ByteWidth = sizeof(vertex) * 200000; // MAX BUFFER SIZE
 	bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
@@ -326,7 +328,7 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	BlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 
 	hr = Device->CreateBlendState(&BlendDesc, &BlendState);
-	DeviceContext->OMSetBlendState(BlendState, 0, 0xffffffff);
+	DeviceContext->OMSetBlendState(BlendState, NULL, 0xffffffff);
 
 	//
 	// Setup depth stencil texture
@@ -503,7 +505,7 @@ void dx11_renderer::FinishFrame()
 /*
 * Sets topology type
 */
-void dx11_renderer::Draw(vertex* InVertexArray, u32 NumVertices, draw_topology_types TopologyType)
+void dx11_renderer::Draw(vertex* InVertexArray, u32 NumVertices, draw_topology_type TopologyType)
 {
 	D3D11_MAPPED_SUBRESOURCE Mapped;
 	DeviceContext->Map(MainVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &Mapped);
@@ -519,7 +521,7 @@ void dx11_renderer::Draw(vertex* InVertexArray, u32 NumVertices, draw_topology_t
 	DeviceContext->Draw(NumVertices, 0);
 }
 
-void dx11_renderer::Draw(v3* InPositionArray, u32 NumVertices, draw_topology_types TopologyType)
+void dx11_renderer::Draw(v3* InPositionArray, u32 NumVertices, draw_topology_type TopologyType)
 {
 	D3D11_MAPPED_SUBRESOURCE Mapped;
 	DeviceContext->Map(PositionVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &Mapped);
@@ -535,7 +537,7 @@ void dx11_renderer::Draw(v3* InPositionArray, u32 NumVertices, draw_topology_typ
 	DeviceContext->Draw(NumVertices, 0);
 }
 
-void dx11_renderer::DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 NumInstances, draw_topology_types TopologyType)
+void dx11_renderer::DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 NumInstances, draw_topology_type TopologyType)
 {
 	D3D11_MAPPED_SUBRESOURCE Mapped;
 	DeviceContext->Map(MainVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &Mapped);
@@ -564,18 +566,18 @@ void dx11_renderer::SetViewport(float Width, float Height)
 	DeviceContext->RSSetViewports(1, &vp);
 }
 
-void dx11_renderer::SetDrawTopology(draw_topology_types TopologyType)
+void dx11_renderer::SetDrawTopology(draw_topology_type TopologyType)
 {
 	switch (TopologyType)
 	{
 		default:
-		case draw_topology_types::TriangleList:
+		case draw_topology_type::TriangleList:
 		{ DeviceContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); } break;
 
-		case draw_topology_types::LineList:
+		case draw_topology_type::LineList:
 		{ DeviceContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST); } break;
 
-		case draw_topology_types::PointList:
+		case draw_topology_type::PointList:
 		{ DeviceContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST); } break;
 	}
 }

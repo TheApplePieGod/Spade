@@ -22,6 +22,7 @@ PSIn skyboxvs(VSIn input)
 
 	output.Position = mul(mul(float4(input.Position, 1.f), CameraWorldMatrix), CameraViewProjectionMatrix).xyww;
 	output.LocalPosition = input.Position.xyz;
+	output.LocalPosition.y = -output.LocalPosition.y;
 
 	return output;
 }

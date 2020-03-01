@@ -4,25 +4,25 @@
 static const int nSamples = 4;
 static const float fSamples = 4.0f;
 // Mie phase assymetry factor
-static const float g = -0.99f;
-static const float g2 = 0.9801f;
+static const float g = -0.95f;
+static const float g2 = 0.9025f;
 
-static const float Km = 0.0010f;
+static const float Km = 0.0015f;
 static const float Kr = 0.0025f;
 static const float ESun = 10.f;
 static const float3 v3InvWavelength = float3(
 	1.0f / pow(0.650f, 4),
 	1.0f / pow(0.570f, 4),
 	1.0f / pow(0.475f, 4));
-static const float fOuterRadius = 512.5f;
-static const float fOuterRadius2 = fOuterRadius * fOuterRadius;
-static const float fInnerRadius = 500.f;
+static const float fInnerRadius = 1000.f;
 static const float fInnerRadius2 = fInnerRadius * fInnerRadius;
+static const float fOuterRadius = fInnerRadius * 1.025;
+static const float fOuterRadius2 = fOuterRadius * fOuterRadius;
 static const float fKrESun = Kr * ESun;
 static const float fKmESun = Km * ESun;
 static const float fKr4PI = Kr * 4.0f * Pi;
 static const float fKm4PI = Km * 4.0f * Pi;
-static const float fScaleDepth = 0.25f;
+static const float fScaleDepth = 0.23f;
 static const float fInvScaleDepth = 1.0f / fScaleDepth;
 static const float fScale = 1.0f / (fOuterRadius - fInnerRadius);
 static const float fScaleOverScaleDepth = fScale / fScaleDepth;
@@ -43,7 +43,7 @@ float getMiePhase(float fCos, float fCos2)
 // Calculates the Rayleigh phase function
 float getRayleighPhase(float fCos2)
 {
-	//return 1.0;
+	//return 0.75 * (1.0 + fCos2);
 	return 0.75 + 0.75 * fCos2;
 }
 // Returns the near intersection point of a line and a sphere

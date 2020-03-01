@@ -13,6 +13,11 @@ public:
 		return RegistryID != -1 && Active;
 	}
 
+	inline bool IsValid()
+	{
+		return RegistryID != -1;
+	}
+
 };
 
 template <class T> //, typename... Args>
