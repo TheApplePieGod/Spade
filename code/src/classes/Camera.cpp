@@ -11,10 +11,13 @@ void camera::UpdateFromInput()
 	ForwardVector = Normalize(LookAtVector);
 	RightVector = CrossProduct(UpVector, ForwardVector);
 
-	if (Engine->UserInputs.MouseMovement)
+	if (!Engine->UserInputs.GuiMouseFocus)
 	{
-		CameraInfo.Transform.Rotation.x += (Engine->UserInputs.MouseDeltaX * 0.1f);
-		CameraInfo.Transform.Rotation.y += (Engine->UserInputs.MouseDeltaY * 0.1f);
+		if (Engine->UserInputs.MouseMovement)
+		{
+			CameraInfo.Transform.Rotation.x += (Engine->UserInputs.MouseDeltaX * 0.1f);
+			CameraInfo.Transform.Rotation.y += (Engine->UserInputs.MouseDeltaY * 0.1f);
+		}
 	}
 }
 

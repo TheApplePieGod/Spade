@@ -42,4 +42,4 @@
 #endif
 
 #include "../3rdparty/AssetSystem/assetLoader.h"
-#include "../3rdparty/AssetSystem/defaultAssetTypes.h"
+#include "../3rdparty/AssetSystem/assetTypes.h"

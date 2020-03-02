@@ -75,7 +75,7 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	float fCameraAngle = 1.f;// dot(-v3Ray, v3Pos);
 	//if (fCameraAngle == 0)
 	//	fCameraAngle = 0.1;
-	float fLightAngle = dot(v3LightPos, v3Pos);
+	float fLightAngle = dot(SunDirection, v3Pos);
 	float fCameraScale = scale(fCameraAngle, fScaleDepth);
 	float fLightScale = scale(fLightAngle, fScaleDepth);
 	float fCameraOffset = fDepth * fCameraScale;
@@ -141,7 +141,7 @@ float4 SkyFromAtmospherePS(PSIn input) : SV_TARGET
 	{
 		float fHeight = length(v3SamplePoint);
 		float fDepth = exp(fScaleOverScaleDepth * (fInnerRadius - fHeight));
-		float fLightAngle = dot(v3LightPos, v3SamplePoint) / fHeight;
+		float fLightAngle = dot(SunDirection, v3SamplePoint) / fHeight;
 		float fCameraAngle = dot(v3Ray, v3SamplePoint) / fHeight;
 		float fScatter = (fStartOffset + fDepth * (scale(fLightAngle, fScaleDepth) - scale(fCameraAngle, fScaleDepth)));
 		float3 v3Attenuate = exp(-fScatter * (v3InvWavelength * fKr4PI + fKm4PI));
@@ -152,7 +152,7 @@ float4 SkyFromAtmospherePS(PSIn input) : SV_TARGET
 	float3 c0 = v3FrontColor * (v3InvWavelength * fKrESun * 1);
 	float3 c1 = v3FrontColor * fKmESun * 1;
 	float3 v3Direction = input.CameraPos - v3Pos;
-	float fCos = dot(v3LightPos, v3Direction) / length(v3Direction);
+	float fCos = dot(SunDirection, v3Direction) / length(v3Direction);
 	float fCos2 = fCos * fCos;
 	float3 color = getRayleighPhase(fCos2) * c0 + getMiePhase(fCos, fCos2) * c1;
 	color = 1.0 - exp(color * -fHdrExposure);
@@ -179,7 +179,7 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 	fFar -= fNear;
 	float fDepth = exp((fInnerRadius - fOuterRadius) * fInvScaleDepth);
 	float fCameraAngle = dot(-v3Ray, v3Pos) / length(v3Pos);
-	float fLightAngle = dot(v3LightPos, v3Pos);
+	float fLightAngle = dot(SunDirection, v3Pos);
 	float fCameraScale = scale(fCameraAngle, fScaleDepth);
 	float fLightScale = scale(fLightAngle, fScaleDepth);
 	float fCameraOffset = fDepth * fCameraScale;
@@ -252,7 +252,7 @@ float4 SkyFromSpacePS(PSIn input) : SV_TARGET
 	{
 		float fHeight = length(v3SamplePoint);
 		float fDepth = exp(fScaleOverScaleDepth * (fInnerRadius - fHeight));
-		float fLightAngle = dot(v3LightPos, v3SamplePoint) / fHeight;
+		float fLightAngle = dot(SunDirection, v3SamplePoint) / fHeight;
 		float fCameraAngle = dot(v3Ray, v3SamplePoint) / fHeight;
 		float fScatter = (fStartOffset + fDepth * (scale(fLightAngle, fScaleDepth) - scale(fCameraAngle, fScaleDepth)));
 		float3 v3Attenuate = exp(-fScatter * (v3InvWavelength * fKr4PI + fKm4PI));
@@ -263,7 +263,7 @@ float4 SkyFromSpacePS(PSIn input) : SV_TARGET
 	float3 c0 = v3FrontColor * (v3InvWavelength * fKrESun);
 	float3 c1 = v3FrontColor * fKmESun;
 	float3 v3Direction = input.CameraPos - v3Pos;
-	float fCos = dot(v3LightPos, v3Direction) / length(v3Direction);
+	float fCos = dot(SunDirection, v3Direction) / length(v3Direction);
 	float fCos2 = fCos * fCos;
 	float3 color = getRayleighPhase(fCos2) * c0 + getMiePhase(fCos, fCos2) * c1;
 	color = 1.0 - exp(color * -fHdrExposure);

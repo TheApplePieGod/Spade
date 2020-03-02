@@ -33,6 +33,7 @@ public:
 	void Initialize(void* Window, int WindowWidth, int WindowHeight);
 	void Cleanup();
 
+	void InitializeAssetSystem();
 	void ProcessUserInput();
 	void RenderScene();
 	void UpdateComponents();
@@ -47,8 +48,6 @@ public:
 #if SPADE_DEBUG
 	debug_data DebugData;
 #endif
-
-private:
 
 	// component registries (high performance)
 	component_registry<rendering_component> RenderingComponents;

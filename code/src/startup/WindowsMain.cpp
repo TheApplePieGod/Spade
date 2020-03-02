@@ -47,8 +47,10 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM wParam, LPARAM lPa
 		u32 KeyCode = (u32)wParam;
 
 		// temp
+#if SPADE_DEBUG
 		if (KeyCode == VK_ESCAPE)
 			Engine->IsRunning = false;
+#endif
 
 		if (KeyCode < 256)
 		{
@@ -84,7 +86,7 @@ void ProcessPendingMessages()
 		{
 		case WM_INPUT:
 		{
-			if (true)//(PlayerState->EnableInput && !io.WantCaptureMouse && !DebugData.Editor_ContentBrowser_DraggingFiles)
+			if (true)//(!io.WantCaptureMouse)//(PlayerState->EnableInput && !io.WantCaptureMouse && !DebugData.Editor_ContentBrowser_DraggingFiles)
 			{
 				UINT dwSize;
 

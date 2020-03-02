@@ -1,5 +1,5 @@
 #pragma once
-#include "Material.h"
+#include "./Pipeline.h"
 #include "Component.h"
 #include "../engine/platform/rendering/PlatformRenderer.h"
 

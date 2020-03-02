@@ -18,6 +18,8 @@ struct user_inputs // controller support later?
 
 	bool MouseMovement = false;
 	bool PlayerMovement = false;
+	bool GuiMouseFocus = false;
+	bool GuiKeyboardFocus = false;
 
 	// view space
 	f32 MousePosX;

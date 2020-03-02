@@ -26,7 +26,7 @@ static const float fScaleDepth = 0.23f;
 static const float fInvScaleDepth = 1.0f / fScaleDepth;
 static const float fScale = 1.0f / (fOuterRadius - fInnerRadius);
 static const float fScaleOverScaleDepth = fScale / fScaleDepth;
-static const float3 v3LightPos = normalize(float3(0.5f, 0.5f, -0.5f));
+//static const float3 v3LightPos = normalize(float3(0.5f, 0.5f, -0.5f));
 static const float fHdrExposure = 0.8f;
 
 // The scale equation calculated by Vernier's Graphical Analysis

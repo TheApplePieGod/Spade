@@ -1,6 +1,6 @@
 #pragma once
 
-namespace defaultAssetTypes
+namespace assetTypes
 {
 	// image
 	struct image_data
@@ -155,7 +155,7 @@ namespace defaultAssetTypes
 
 struct cTextureAsset : public cAsset // todo: change to cImageAsset
 {
-	defaultAssetTypes::image_data ImageData;
+	assetTypes::image_data ImageData;
 
 #ifdef ASSET_DIRECTX11
 	ID3D11Texture2D* TextureHandle = nullptr;
@@ -168,7 +168,7 @@ struct cTextureAsset : public cAsset // todo: change to cImageAsset
 
 struct cFontAsset : public cAsset
 {
-	defaultAssetTypes::font_data FontData;
+	assetTypes::font_data FontData;
 
 #ifdef ASSET_DIRECTX11
 	ID3D11ShaderResourceView* AtlasShaderHandle = nullptr;
@@ -176,24 +176,24 @@ struct cFontAsset : public cAsset
 
 	u32 NumChars;
 	u32 NumKernVals;
-	defaultAssetTypes::char_entry* Characters;
-	defaultAssetTypes::kern_entry* KernValues;
+	assetTypes::char_entry* Characters;
+	assetTypes::kern_entry* KernValues;
 
 	// Register atlas tex with rendering sdk by calling assetLoader::Register(your_sdk)Texture
 	void UnloadAsset() override;
 
-	inline defaultAssetTypes::char_entry FindCharEntryByAscii(u32 AsciiVal)
+	inline assetTypes::char_entry FindCharEntryByAscii(u32 AsciiVal)
 	{
 		for (u32 i = 0; i < NumChars; i++)
 		{
 			if (Characters[i].AsciiValue == AsciiVal)
 				return Characters[i];
 		}
-		return defaultAssetTypes::char_entry();
+		return assetTypes::char_entry();
 	}
 };
 
 struct cMeshAsset : public cAsset
 {
-	defaultAssetTypes::mesh_data MeshData;
+	assetTypes::mesh_data MeshData;
 };
