@@ -5,7 +5,9 @@ enum class shader_type
 {
 	VertexShader,
 	PixelShader,
-	GeometryShader
+	GeometryShader,
+	HullShader,
+	DomainShader
 };
 
 enum class shader_presets : u32

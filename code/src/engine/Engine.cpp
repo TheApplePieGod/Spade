@@ -73,8 +73,12 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 	PipelineStates.CreateComponent(State);
 
 	State = pipeline_state();
-	State.VertexShaderID = GetShaderIDFromName("mainvs");
+	//State.VertexShaderID = GetShaderIDFromName("mainvs");
+	State.VertexShaderID = GetShaderIDFromName("TerrainVS");
 	State.PixelShaderID = GetShaderIDFromName("GroundFromSpacePS");
+	State.HullShaderID = GetShaderIDFromName("TerrainHullShader");
+	State.DomainShaderID = GetShaderIDFromName("TerrainDomainShader");
+	State.EnableTesselation = true;
 	State.RasterizerState = rasterizer_state::DefaultCullBackface;
 	State.UniqueIdentifier = "DefaultPBR";
 	PipelineStates.CreateComponent(State);
@@ -88,7 +92,11 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 
 	State = pipeline_state();
 	State.VertexShaderID = GetShaderIDFromName("mainvs");
+	State.VertexShaderID = GetShaderIDFromName("TerrainVS");
 	State.PixelShaderID = GetShaderIDFromName("GroundFromAtmospherePS");
+	State.HullShaderID = GetShaderIDFromName("TerrainHullShader");
+	State.DomainShaderID = GetShaderIDFromName("TerrainDomainShader");
+	State.EnableTesselation = true;
 	State.RasterizerState = rasterizer_state::DefaultCullBackface;
 	State.UniqueIdentifier = "DefaultPBR";
 	PipelineStates.CreateComponent(State);
@@ -135,28 +143,37 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 	u32 ScaleMod = 1;
 	u32 RotationMod = 360;
 	u32 LocationMod = 3000;
+	float PlanetRadius = 1160.f;
+	v3 PlanetScale = v3{ PlanetRadius, PlanetRadius, PlanetRadius };
 	for (u32 i = 0; i < 3; i++)
 	{
 		rendering_component rcomp = rendering_component(actorid);
 		if (i == 0)
 		{
-			rcomp.SetScale(v3{ 1025.f, 1025.f, 1025.f });
+			rcomp.SetScale(1.025f * PlanetScale);
 			rcomp.RenderResources.MaterialID = 1;
 			rcomp.RenderResources.PipelineStateID = 1;
-			rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("sphere2.fbx");
+			rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("sphere3.fbx");
 		}
 		else if (i == 1)
 		{
-			rcomp.SetScale(v3{ 1000.f, 1000.f, 1000.f });
+			rcomp.SetScale(PlanetScale);
 			rcomp.RenderResources.MaterialID = 0;
 			rcomp.RenderResources.PipelineStateID = 2;
-			rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("sphere2.fbx");
+			rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("sphere3.fbx");
 		}
-		else
+		else if (i == 2)
 		{
 			rcomp.RenderResources.MaterialID = 1;
 			rcomp.RenderResources.PipelineStateID = 0;
 			rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("cube_t.fbx");
+		}
+		else
+		{
+			rcomp.SetLocation(v3{ 0.f, 0.f, -1000.f });
+			rcomp.RenderResources.MaterialID = 0;
+			rcomp.RenderResources.PipelineStateID = 2;
+			rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("parasite_l_starkie.fbx");
 		}
 
 		rcomp.ActorComponentID = actorid;
@@ -347,7 +364,8 @@ void engine::RenderScene()
 					if (InstanceCount > 0)
 					{
 						Renderer.MapConstants(map_operation::Actor);
-						Renderer.DrawInstanced((vertex*)Asset->Data, Asset->MeshData.NumVertices, InstanceCount, draw_topology_type::TriangleList);
+						//Renderer.DrawInstanced((vertex*)Asset->Data, Asset->MeshData.NumVertices, InstanceCount, draw_topology_type::TriangleList);
+						Renderer.DrawIndexedInstanced((vertex*)Asset->Data, (u32*)((vertex*)Asset->Data + Asset->MeshData.NumVertices), Asset->MeshData.NumVertices, Asset->MeshData.NumIndices, InstanceCount, draw_topology_type::TriangleList);
 						InstanceCount = 0;
 					}
 				}
@@ -378,7 +396,7 @@ void engine::UpdateComponents()
 
 void engine::RenderDebugWidgets()
 {
-	ImGui::ShowDemoWindow();
+	//ImGui::ShowDemoWindow();
 	if (ImGui::Begin("Debug Screen"))
 	{
 		ImGui::Text("FPS: %f", 1 / (UserInputs.DeltaTime / 1000));
@@ -547,12 +565,21 @@ void engine::RenderDebugWidgets()
 
 				if (Asset->Active)
 				{
-					ImGui::PushID(i);
-					ImGui::Button(Asset->Filename, ButtonSize);
 					float last_button_x2 = ImGui::GetItemRectMax().x;
 					float next_button_x2 = last_button_x2 + style.ItemSpacing.x + ButtonSize.x; // Expected position if next button was on same line
-					if (i + 1 < AssetRegistry.size() && next_button_x2 < window_visible_x2)
+					if (i < AssetRegistry.size() && next_button_x2 < window_visible_x2)
 						ImGui::SameLine();
+					ImGui::BeginGroup();
+					ImGui::PushID(i);
+					if (Asset->Type == TEXTURE_ASSET_ID)
+						ImGui::ImageButton(((cTextureAsset*)Asset)->ShaderHandle, ImVec2(ButtonSize.x - 6, ButtonSize.y - 6)); // TODO: PLATFORM
+					else
+						ImGui::Button(Asset->Filename, ButtonSize);
+
+					ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + ButtonSize.x);
+					ImGui::Text(Asset->Filename);
+					ImGui::PopTextWrapPos();
+					ImGui::EndGroup();
 
 					if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
 						ImGui::OpenPopup("Details");
@@ -604,76 +631,80 @@ void engine::RenderDebugWidgets()
 
 						switch (Asset->Type)
 						{
-						default:
-						{} break;
+							default:
+							{} break;
 
-						case TEXTURE_ASSET_ID:
-						{
-							cTextureAsset* Tex = (cTextureAsset*)Asset;
-							ImGui::Text("Size: %d x %d", Tex->ImageData.Width, Tex->ImageData.Height);
-							ImGui::Text("Channels: %d", Tex->ImageData.Channels);
-							ImGui::Text("Preview:");
-							ImGui::Image(Tex->ShaderHandle, ImVec2(512.f, 512.f)/*ImVec2(Tex->ImageData.Width * PreviewScale, Tex->ImageData.Height * PreviewScale)*/, ImVec2(0, 0), ImVec2(1, 1), ImVec4(1.0f, 1.0f, 1.0f, 1.0f), ImVec4(1.0f, 1.0f, 1.0f, 0.5f));
-						} break;
-
-						//case FONT_ASSET_ID:
-						//{
-						//	cFontAsset* Font = (cFontAsset*)Asset;
-						//	ImGui::Text("Preview:");
-						//	ImGui::Image(Font->AtlasShaderHandle, ImVec2(Font->FontData.AtlasDim * PreviewScale, Font->FontData.AtlasDim * PreviewScale), ImVec2(0, 0), ImVec2(1, 1), ImVec4(1.0f, 1.0f, 1.0f, 1.0f), ImVec4(1.0f, 1.0f, 1.0f, 0.5f));
-						//} break;
-
-						case MESH_ASSET_ID:
-						{
-							cMeshAsset* Mesh = (cMeshAsset*)Asset;
-							ImGui::Text("Vertex Count: %d", Mesh->MeshData.NumVertices);
-							//ImGui::Text("Preview:");
-						} break;
-
-						case MATERIAL_ASSET_ID:
-						{
-							assetTypes::cMaterialAsset* MatAsset = (assetTypes::cMaterialAsset*)Asset;
-							if (MatAsset->Loaded)
+							case TEXTURE_ASSET_ID:
 							{
-								material& Mat = Engine->MaterialRegistry.GetComponent(((assetTypes::material_data*)MatAsset->Data)->ComponentID);
+								cTextureAsset* Tex = (cTextureAsset*)Asset;
+								ImGui::Text("TextureID: %d", GetTextureIDFromName(Asset->Filename));
+								ImGui::Text("Size: %d x %d", Tex->ImageData.Width, Tex->ImageData.Height);
+								ImGui::Text("Channels: %d", Tex->ImageData.Channels);
+								ImGui::Text("Preview:");
+								ImGui::Image(Tex->ShaderHandle, ImVec2(512.f, 512.f)/*ImVec2(Tex->ImageData.Width * PreviewScale, Tex->ImageData.Height * PreviewScale)*/, ImVec2(0, 0), ImVec2(1, 1), ImVec4(1.0f, 1.0f, 1.0f, 1.0f), ImVec4(1.0f, 1.0f, 1.0f, 0.5f));
+							} break;
 
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text("Diffuse Color:");
-								ImGui::SameLine();
-								ImGui::ColorEdit4("##diffuse", Mat.DiffuseColor.E);
+							//case FONT_ASSET_ID:
+							//{
+							//	cFontAsset* Font = (cFontAsset*)Asset;
+							//	ImGui::Text("Preview:");
+							//	ImGui::Image(Font->AtlasShaderHandle, ImVec2(Font->FontData.AtlasDim * PreviewScale, Font->FontData.AtlasDim * PreviewScale), ImVec2(0, 0), ImVec2(1, 1), ImVec4(1.0f, 1.0f, 1.0f, 1.0f), ImVec4(1.0f, 1.0f, 1.0f, 0.5f));
+							//} break;
 
-								char Buffer[10];
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text("Reflectivity:");
-								ImGui::SameLine();
-								_snprintf_s(Buffer, sizeof(Buffer), "%f", Mat.Reflectivity);
-								if (ImGui::InputText("##Reflectivity", Buffer, 10, ImGuiInputTextFlags_CharsDecimal | ImGuiInputTextFlags_EnterReturnsTrue))
-									Mat.Reflectivity = (f32)atof(Buffer);
-
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text("DiffuseTextureID:");
-								ImGui::SameLine();
-								_snprintf_s(Buffer, sizeof(Buffer), "%d", Mat.DiffuseTextureID);
-								if (ImGui::InputText("##DiffuseTextureID", Buffer, 10, ImGuiInputTextFlags_CharsDecimal | ImGuiInputTextFlags_EnterReturnsTrue))
-									Mat.DiffuseTextureID = atoi(Buffer);
-
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text("NormalTextureID:");
-								ImGui::SameLine();
-								_snprintf_s(Buffer, sizeof(Buffer), "%d", Mat.NormalTextureID);
-								if (ImGui::InputText("##NormalTextureID", Buffer, 10, ImGuiInputTextFlags_CharsDecimal | ImGuiInputTextFlags_EnterReturnsTrue))
-									Mat.NormalTextureID = atoi(Buffer);
-
-								ImGui::AlignTextToFramePadding();
-								ImGui::Text("ReflectiveTextureID:");
-								ImGui::SameLine();
-								_snprintf_s(Buffer, sizeof(Buffer), "%d", Mat.ReflectiveTextureID);
-								if (ImGui::InputText("##ReflectiveTextureID", Buffer, 10, ImGuiInputTextFlags_CharsDecimal | ImGuiInputTextFlags_EnterReturnsTrue))
-									Mat.ReflectiveTextureID = atoi(Buffer);
-
+							case MESH_ASSET_ID:
+							{
+								cMeshAsset* Mesh = (cMeshAsset*)Asset;
+								ImGui::Text("Vertex Count: %d", Mesh->MeshData.NumVertices);
+								ImGui::Text("Index Count: %d", Mesh->MeshData.NumIndices);
 								//ImGui::Text("Preview:");
-							}
-						} break;
+							} break;
+
+							case MATERIAL_ASSET_ID:
+							{
+								assetTypes::cMaterialAsset* MatAsset = (assetTypes::cMaterialAsset*)Asset;
+								if (MatAsset->Loaded)
+								{
+									u32 CompID = ((assetTypes::material_data*)MatAsset->Data)->ComponentID;
+									material& Mat = Engine->MaterialRegistry.GetComponent(CompID);
+									ImGui::Text("MaterialID: %d", CompID);
+
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text("Diffuse Color:");
+									ImGui::SameLine();
+									ImGui::ColorEdit4("##diffuse", Mat.DiffuseColor.E);
+
+									char Buffer[10];
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text("Reflectivity:");
+									ImGui::SameLine();
+									_snprintf_s(Buffer, sizeof(Buffer), "%f", Mat.Reflectivity);
+									if (ImGui::InputText("##Reflectivity", Buffer, 10, ImGuiInputTextFlags_CharsDecimal | ImGuiInputTextFlags_EnterReturnsTrue))
+										Mat.Reflectivity = (f32)atof(Buffer);
+
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text("DiffuseTextureID:");
+									ImGui::SameLine();
+									_snprintf_s(Buffer, sizeof(Buffer), "%d", Mat.DiffuseTextureID);
+									if (ImGui::InputText("##DiffuseTextureID", Buffer, 10, ImGuiInputTextFlags_CharsDecimal | ImGuiInputTextFlags_EnterReturnsTrue))
+										Mat.DiffuseTextureID = atoi(Buffer);
+
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text("NormalTextureID:");
+									ImGui::SameLine();
+									_snprintf_s(Buffer, sizeof(Buffer), "%d", Mat.NormalTextureID);
+									if (ImGui::InputText("##NormalTextureID", Buffer, 10, ImGuiInputTextFlags_CharsDecimal | ImGuiInputTextFlags_EnterReturnsTrue))
+										Mat.NormalTextureID = atoi(Buffer);
+
+									ImGui::AlignTextToFramePadding();
+									ImGui::Text("ReflectiveTextureID:");
+									ImGui::SameLine();
+									_snprintf_s(Buffer, sizeof(Buffer), "%d", Mat.ReflectiveTextureID);
+									if (ImGui::InputText("##ReflectiveTextureID", Buffer, 10, ImGuiInputTextFlags_CharsDecimal | ImGuiInputTextFlags_EnterReturnsTrue))
+										Mat.ReflectiveTextureID = atoi(Buffer);
+
+									//ImGui::Text("Preview:");
+								}
+							} break;
 						}
 						ImGui::EndPopup();
 					}
@@ -699,12 +730,29 @@ void engine::RenderDebugWidgets()
 
 						if (ImGui::Button("Rename"))
 						{
-							//assetLoader::ExportAsset(Asset);
-							ImGui::CloseCurrentPopup();
+							ImGui::OpenPopup("Rename (enter to confirm)");
+							//ImGui::CloseCurrentPopup();
 						}
 
 						if (ImGui::Button("Close"))
 							ImGui::CloseCurrentPopup();
+
+						if (ImGui::BeginPopupModal("Rename (enter to confirm)", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+						{
+							char Buffer[MAX_PATH];
+							_snprintf_s(Buffer, sizeof(Buffer), "%s", Asset->Filename);
+							Buffer[strlen(Asset->Filename) - 4] = '\0';
+							if (ImGui::InputText("##RenameName", Buffer, 30, ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_EnterReturnsTrue))
+							{
+								assetLoader::RenameAsset(Asset, Buffer); // todo: check for duplicate filenames
+								ImGui::CloseCurrentPopup();
+							}
+
+							if (ImGui::Button("Close##2"))
+								ImGui::CloseCurrentPopup();
+
+							ImGui::EndPopup();
+						}
 
 						ImGui::EndPopup();
 					}

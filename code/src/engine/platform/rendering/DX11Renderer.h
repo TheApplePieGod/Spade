@@ -11,6 +11,7 @@ public:
 	void Draw(vertex* InVertexArray, u32 NumVertices, draw_topology_type TopologyType);
 	void Draw(v3* InPositionArray, u32 NumVertices, draw_topology_type TopologyType);
 	void DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 NumInstances, draw_topology_type TopologyType);
+	void DrawIndexedInstanced(vertex* InVertexArray, u32* InIndexArray, u32 NumVertices, u32 NumIndices, u32 NumInstances, draw_topology_type TopologyType);
 	void SetViewport(float Width, float Height);
 	void SetDrawTopology(draw_topology_type TopologyType);
 	void CompileShaderFromFile(std::string Filename, std::string EntryPoint, shader_type ShaderType, void* ShaderRef);
@@ -52,8 +53,7 @@ public:
 	ID3D11InputLayout* DefaultVertexLayout = NULL;
 	ID3D11InputLayout* PositionVertexLayout = NULL;
 
-	ID3D11VertexShader* MainVertexShader = NULL;
-	ID3D11PixelShader* MainPixelShader = NULL;
+	ID3D11Buffer* MainIndexBuffer = NULL;
 
 	ID3D11Buffer* MainVertexBuffer = NULL;
 	ID3D11Buffer* PositionVertexBuffer = NULL;

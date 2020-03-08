@@ -17,8 +17,11 @@ public:
 	s32 VertexShaderID = -1;
 	s32 PixelShaderID = -1;
 	s32 GeometryShaderID = -1;
+	s32 HullShaderID = -1;
+	s32 DomainShaderID = -1;
 	rasterizer_state RasterizerState;
 	std::string UniqueIdentifier;
+	bool EnableTesselation = false;
 };
 
 class material : public component

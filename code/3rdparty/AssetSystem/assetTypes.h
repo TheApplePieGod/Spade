@@ -11,7 +11,7 @@ namespace assetTypes
 	};
 
 	bool Image_GetDataForWriting(char*& Out_ExtraData, char*& Out_RawData, u32& Out_ExtraDataSize, u32& Out_RawDataSize, char* FilePath);
-	cAsset* Image_InitializeData(cAsset* AssetDefaults, char* Data, u32 DataSize);
+	cAsset* Image_InitializeData(cAsset* AssetDefaults, char* ExtraData, u32 ExtraDataSize);
 
 	static asset_type ImageType = { 1, "Image", {"png", "jpg", "tga"}, Image_GetDataForWriting, Image_InitializeData }; // Set callback separately
 
@@ -118,7 +118,7 @@ namespace assetTypes
 	}
 
 	bool Font_GetDataForWriting(char*& Out_ExtraData, char*& Out_RawData, u32& Out_ExtraDataSize, u32& Out_RawDataSize, char* FilePath);
-	cAsset* Font_InitializeData(cAsset* AssetDefaults, char* Data, u32 DataSize);
+	cAsset* Font_InitializeData(cAsset* AssetDefaults, char* ExtraData, u32 ExtraDataSize);
 
 	static asset_type FontType = { 2, "Font", {"ttf"}, Font_GetDataForWriting, Font_InitializeData }; // Set callback separately
 
@@ -145,10 +145,11 @@ namespace assetTypes
 	struct mesh_data
 	{
 		u32 NumVertices;
+		u32 NumIndices;
 	};
 
 	bool Mesh_GetDataForWriting(char*& Out_ExtraData, char*& Out_RawData, u32& Out_ExtraDataSize, u32& Out_RawDataSize, char* FilePath);
-	cAsset* Mesh_InitializeData(cAsset* AssetDefaults, char* Data, u32 DataSize);
+	cAsset* Mesh_InitializeData(cAsset* AssetDefaults, char* ExtraData, u32 ExtraDataSize);
 
 	static asset_type MeshType = { 3, "Mesh", {"fbx"}, Mesh_GetDataForWriting, Mesh_InitializeData }; // Set callback separately
 };

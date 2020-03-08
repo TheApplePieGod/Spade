@@ -191,6 +191,7 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 			Assert(1 == 2);
 		}
 
+		ID3D11VertexShader* MainVertexShader = NULL;
 		hr = Device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), NULL, &MainVertexShader);
 		if (FAILED(hr))
 		{
@@ -259,6 +260,13 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	if (FAILED(hr))
 		Assert(1 == 2);;
 
+	bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	bufferDesc.ByteWidth = sizeof(u32) * 200000; // MAX BUFFER SIZE
+
+	hr = Device->CreateBuffer(&bufferDesc, NULL, &MainIndexBuffer);
+	if (FAILED(hr))
+		Assert(1 == 2);;
+
 	// Create frame constant buffer
 	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	bufferDesc.ByteWidth = sizeof(shader_constants_frame); // CONST BUFFER SIZE
@@ -266,6 +274,7 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	if (FAILED(hr))
 		Assert(1 == 2);
 	DeviceContext->VSSetConstantBuffers(0, 1, &FrameConstantBuffer);
+	DeviceContext->DSSetConstantBuffers(0, 1, &FrameConstantBuffer);
 	//DeviceContext->PSSetConstantBuffers(0, 1, &ActorConstantBuffer);
 	//DeviceContext->GSSetConstantBuffers(0, 1, &ActorConstantBuffer);
 
@@ -275,6 +284,7 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	if (FAILED(hr))
 		Assert(1 == 2);;
 	DeviceContext->VSSetConstantBuffers(1, 1, &ActorConstantBuffer);
+	DeviceContext->DSSetConstantBuffers(1, 1, &ActorConstantBuffer);
 
 	// Create material constant buffer
 	bufferDesc.ByteWidth = sizeof(shader_constants_material); // CONST BUFFER SIZE
@@ -311,7 +321,7 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	SamplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	Device->CreateSamplerState(&SamplerDesc, &DefaultSampler);
 	DeviceContext->PSSetSamplers(0, 1, &DefaultSampler);
-
+	DeviceContext->DSSetSamplers(0, 1, &DefaultSampler);
 
 	//
 	// Create blend state
@@ -452,9 +462,16 @@ void dx11_renderer::Cleanup()
 
 			case shader_type::GeometryShader:
 			{ SAFE_RELEASE(((ID3D11GeometryShader*)Engine->ShaderRegistry[i].ShaderRef)); } break;
+
+			case shader_type::HullShader:
+			{ SAFE_RELEASE(((ID3D11HullShader*)Engine->ShaderRegistry[i].ShaderRef)); } break;
+
+			case shader_type::DomainShader:
+			{ SAFE_RELEASE(((ID3D11DomainShader*)Engine->ShaderRegistry[i].ShaderRef)); } break;
 		}
 	}
 
+	SAFE_RELEASE(MainIndexBuffer);
 	SAFE_RELEASE(MainVertexBuffer);
 	SAFE_RELEASE(ActorConstantBuffer);
 	SAFE_RELEASE(MaterialConstantBuffer);
@@ -553,6 +570,27 @@ void dx11_renderer::DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 Nu
 	DeviceContext->DrawInstanced(NumVertices, NumInstances, 0, 0);
 }
 
+void dx11_renderer::DrawIndexedInstanced(vertex* InVertexArray, u32* InIndexArray, u32 NumVertices, u32 NumIndices, u32 NumInstances, draw_topology_type TopologyType)
+{
+	D3D11_MAPPED_SUBRESOURCE Mapped;
+	DeviceContext->Map(MainVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &Mapped);
+	memcpy(Mapped.pData, InVertexArray, sizeof(vertex) * NumVertices);
+	DeviceContext->Unmap(MainVertexBuffer, NULL);
+
+	DeviceContext->Map(MainIndexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &Mapped);
+	memcpy(Mapped.pData, InIndexArray, sizeof(u32) * NumIndices);
+	DeviceContext->Unmap(MainIndexBuffer, NULL);
+
+	UINT stride = sizeof(vertex);
+	UINT offset = 0;
+
+	SetDrawTopology(TopologyType);
+
+	DeviceContext->IASetVertexBuffers(0, 1, &MainVertexBuffer, &stride, &offset);
+	DeviceContext->IASetIndexBuffer(MainIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	DeviceContext->DrawIndexedInstanced(NumIndices, NumInstances, 0, 0, 0);
+}
+
 void dx11_renderer::SetViewport(float Width, float Height)
 {
 	D3D11_VIEWPORT vp;
@@ -568,8 +606,12 @@ void dx11_renderer::SetViewport(float Width, float Height)
 
 void dx11_renderer::SetDrawTopology(draw_topology_type TopologyType)
 {
-	switch (TopologyType)
+	if (CurrentState.EnableTesselation) // override top type if tesselation is enabled (assumes triangulated vertex inputs)
+		DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
+	else
 	{
+		switch (TopologyType)
+		{
 		default:
 		case draw_topology_type::TriangleList:
 		{ DeviceContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); } break;
@@ -579,6 +621,7 @@ void dx11_renderer::SetDrawTopology(draw_topology_type TopologyType)
 
 		case draw_topology_type::PointList:
 		{ DeviceContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST); } break;
+		}
 	}
 }
 
@@ -604,6 +647,14 @@ void dx11_renderer::CompileShaderFromFile(std::string Filename, std::string Entr
 		case shader_type::GeometryShader:
 		{
 			Target = "gs_5_0";
+		} break;
+		case shader_type::HullShader:
+		{
+			Target = "hs_5_0";
+		} break;
+		case shader_type::DomainShader:
+		{
+			Target = "ds_5_0";
 		} break;
 	}
 
@@ -633,6 +684,14 @@ void dx11_renderer::CompileShaderFromFile(std::string Filename, std::string Entr
 		case shader_type::GeometryShader:
 		{
 			hr = Device->CreateGeometryShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), NULL, (ID3D11GeometryShader**)ShaderRef);
+		} break;
+		case shader_type::HullShader:
+		{
+			hr = Device->CreateHullShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), NULL, (ID3D11HullShader**)ShaderRef);
+		} break;
+		case shader_type::DomainShader:
+		{
+			hr = Device->CreateDomainShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), NULL, (ID3D11DomainShader**)ShaderRef);
 		} break;
 	}
 
@@ -667,6 +726,7 @@ void dx11_renderer::BindMaterial(const material& InMaterial)
 													 MaterialConstants.TextureNormal ? Engine->TextureRegistry[InMaterial.NormalTextureID]->ShaderHandle : NULL };
 
 		DeviceContext->PSSetShaderResources(1, 2, Views);
+		DeviceContext->DSSetShaderResources(1, 2, Views);
 	}
 	//else if (CurrentState.UniqueIdentifier == "Skybox")
 	//{
@@ -776,6 +836,25 @@ void dx11_renderer::SetPipelineState(const pipeline_state& InState)
 		{
 			Assert(Engine->ShaderRegistry[InState.GeometryShaderID].ShaderType == shader_type::GeometryShader)
 				DeviceContext->GSSetShader((ID3D11GeometryShader*)Engine->ShaderRegistry[InState.GeometryShaderID].ShaderRef, NULL, 0);
+		}
+	}
+
+	if (CurrentState.EnableTesselation != InState.EnableTesselation)
+	{
+		if (InState.HullShaderID == -1 || InState.EnableTesselation == false)
+			DeviceContext->HSSetShader(NULL, NULL, 0);
+		else
+		{
+			Assert(Engine->ShaderRegistry[InState.HullShaderID].ShaderType == shader_type::HullShader)
+				DeviceContext->HSSetShader((ID3D11HullShader*)Engine->ShaderRegistry[InState.HullShaderID].ShaderRef, NULL, 0);
+		}
+
+		if (InState.DomainShaderID == -1 || InState.EnableTesselation == false)
+			DeviceContext->DSSetShader(NULL, NULL, 0);
+		else
+		{
+			Assert(Engine->ShaderRegistry[InState.DomainShaderID].ShaderType == shader_type::DomainShader)
+				DeviceContext->DSSetShader((ID3D11DomainShader*)Engine->ShaderRegistry[InState.DomainShaderID].ShaderRef, NULL, 0);
 		}
 	}
 
