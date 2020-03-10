@@ -65,41 +65,6 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 	State.UniqueIdentifier = "DefaultPBR";
 	PipelineStates.CreateComponent(State);
 
-	State = pipeline_state();
-	State.VertexShaderID = GetShaderIDFromName("mainvs");
-	State.PixelShaderID = GetShaderIDFromName("SkyFromSpacePS");
-	State.RasterizerState = rasterizer_state::DefaultCullFrontface;
-	State.UniqueIdentifier = "DefaultPBR";
-	PipelineStates.CreateComponent(State);
-
-	State = pipeline_state();
-	//State.VertexShaderID = GetShaderIDFromName("mainvs");
-	State.VertexShaderID = GetShaderIDFromName("TerrainVS");
-	State.PixelShaderID = GetShaderIDFromName("GroundFromSpacePS");
-	State.HullShaderID = GetShaderIDFromName("TerrainHullShader");
-	State.DomainShaderID = GetShaderIDFromName("TerrainDomainShader");
-	State.EnableTesselation = true;
-	State.RasterizerState = rasterizer_state::DefaultCullBackface;
-	State.UniqueIdentifier = "DefaultPBR";
-	PipelineStates.CreateComponent(State);
-
-	State = pipeline_state();
-	State.VertexShaderID = GetShaderIDFromName("mainvs");
-	State.PixelShaderID = GetShaderIDFromName("SkyFromAtmospherePS");
-	State.RasterizerState = rasterizer_state::DefaultCullFrontface;
-	State.UniqueIdentifier = "DefaultPBR";
-	PipelineStates.CreateComponent(State);
-
-	State = pipeline_state();
-	State.VertexShaderID = GetShaderIDFromName("mainvs");
-	State.VertexShaderID = GetShaderIDFromName("TerrainVS");
-	State.PixelShaderID = GetShaderIDFromName("GroundFromAtmospherePS");
-	State.HullShaderID = GetShaderIDFromName("TerrainHullShader");
-	State.DomainShaderID = GetShaderIDFromName("TerrainDomainShader");
-	State.EnableTesselation = true;
-	State.RasterizerState = rasterizer_state::DefaultCullBackface;
-	State.UniqueIdentifier = "DefaultPBR";
-	PipelineStates.CreateComponent(State);
 
 	// todo: hardcoded default texture and material data
 	for (u32 i = 0; i < 2; i++)
@@ -143,26 +108,10 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 	u32 ScaleMod = 1;
 	u32 RotationMod = 360;
 	u32 LocationMod = 3000;
-	float PlanetRadius = 1160.f;
-	v3 PlanetScale = v3{ PlanetRadius, PlanetRadius, PlanetRadius };
-	for (u32 i = 0; i < 3; i++)
+	for (u32 i = 0; i < 1; i++)
 	{
 		rendering_component rcomp = rendering_component(actorid);
 		if (i == 0)
-		{
-			rcomp.SetScale(1.025f * PlanetScale);
-			rcomp.RenderResources.MaterialID = 1;
-			rcomp.RenderResources.PipelineStateID = 1;
-			rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("sphere3.fbx");
-		}
-		else if (i == 1)
-		{
-			rcomp.SetScale(PlanetScale);
-			rcomp.RenderResources.MaterialID = 0;
-			rcomp.RenderResources.PipelineStateID = 2;
-			rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("sphere3.fbx");
-		}
-		else if (i == 2)
 		{
 			rcomp.RenderResources.MaterialID = 1;
 			rcomp.RenderResources.PipelineStateID = 0;
@@ -177,12 +126,7 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 		}
 
 		rcomp.ActorComponentID = actorid;
-		if (i == 0)
-			AtmosphereRenderingID = RenderingComponents.CreateComponent(rcomp, true);
-		else if (i == 1)
-			PlanetRenderingID = RenderingComponents.CreateComponent(rcomp, true);
-		else
-			RenderingComponents.CreateComponent(rcomp, true);
+		RenderingComponents.CreateComponent(rcomp, true);
 	}
 
 	LightingConstants.AmbientColor = v3{ 0.05f, 0.05f, 0.05f };
@@ -207,6 +151,7 @@ void engine::InitializeAssetSystem()
 	assetLoader::ScanAssets("assets\\", false, true);
 	assetLoader::InitializeAssetsInDirectory("assets\\", true);
 #else
+	GetAssetSettings().LoadFromPack = true;
 	assetLoader::InitializeAssetsFromPack();
 #endif
 
@@ -224,7 +169,7 @@ void engine::ProcessUserInput()
 	UserInputs.GuiMouseFocus = io.WantCaptureMouse;
 	UserInputs.GuiKeyboardFocus = io.WantCaptureKeyboard;
 
-	f32 speed = 0.08f * UserInputs.DeltaTime;
+	f32 speed = DebugData.CameraSpeed * UserInputs.DeltaTime;
 	v3 OldLocation = MainCamera.CameraInfo.Transform.Location;
 
 	if (!UserInputs.GuiKeyboardFocus)
@@ -254,23 +199,86 @@ void engine::ProcessUserInput()
 	//if (Length(MainCamera.CameraInfo.Transform.Location) < 999.f)
 	//	MainCamera.CameraInfo.Transform.Location = OldLocation;
 
-	if (Length(MainCamera.CameraInfo.Transform.Location) > 1025.f)
-	{
-		RenderingComponents.GetComponent(AtmosphereRenderingID).RenderResources.PipelineStateID = 1;
-		RenderingComponents.GetComponent(PlanetRenderingID).RenderResources.PipelineStateID = 2;
-	}
-	else
-	{
-		RenderingComponents.GetComponent(AtmosphereRenderingID).RenderResources.PipelineStateID = 3;
-		RenderingComponents.GetComponent(PlanetRenderingID).RenderResources.PipelineStateID = 4;
-	}
-
 	// move to platform layer / optimize
 	if (UserInputs.KeysDown[VK_CONTROL].Pressed)
 		while (ShowCursor(true) <= 0);
 	else
 		while (ShowCursor(false) >= 0);
 		
+}
+
+//always rendered first & has very specific rendering. move out of here later?
+void engine::RenderPlanet()
+{
+	pipeline_state SkyFromSpace = pipeline_state();
+	SkyFromSpace.VertexShaderID = GetShaderIDFromName("mainvs");
+	SkyFromSpace.PixelShaderID = GetShaderIDFromName("SkyFromSpacePS");
+	SkyFromSpace.RasterizerState = rasterizer_state::DefaultCullFrontface;
+	SkyFromSpace.UniqueIdentifier = "DefaultPBR";
+
+	pipeline_state GroundFromSpace = pipeline_state();
+	GroundFromSpace.VertexShaderID = GetShaderIDFromName("TerrainVS");
+	GroundFromSpace.PixelShaderID = GetShaderIDFromName("GroundFromSpacePS");
+	GroundFromSpace.HullShaderID = GetShaderIDFromName("TerrainHullShader");
+	GroundFromSpace.DomainShaderID = GetShaderIDFromName("TerrainDomainShader");
+	GroundFromSpace.EnableTesselation = true;
+	GroundFromSpace.RasterizerState = rasterizer_state::DefaultCullBackface;
+	GroundFromSpace.UniqueIdentifier = "DefaultPBR";
+
+	pipeline_state SkyFromAtmoshere = pipeline_state();
+	SkyFromAtmoshere.VertexShaderID = GetShaderIDFromName("mainvs");
+	SkyFromAtmoshere.PixelShaderID = GetShaderIDFromName("SkyFromAtmospherePS");
+	SkyFromAtmoshere.RasterizerState = rasterizer_state::DefaultCullFrontface;
+	SkyFromAtmoshere.UniqueIdentifier = "DefaultPBR";
+
+	pipeline_state GroundFromAtmosphere = pipeline_state();
+	GroundFromAtmosphere.VertexShaderID = GetShaderIDFromName("mainvs");
+	GroundFromAtmosphere.VertexShaderID = GetShaderIDFromName("TerrainVS");
+	GroundFromAtmosphere.PixelShaderID = GetShaderIDFromName("GroundFromAtmospherePS");
+	GroundFromAtmosphere.HullShaderID = GetShaderIDFromName("TerrainHullShader");
+	GroundFromAtmosphere.DomainShaderID = GetShaderIDFromName("TerrainDomainShader");
+	GroundFromAtmosphere.EnableTesselation = true;
+	GroundFromAtmosphere.RasterizerState = rasterizer_state::DefaultCullBackface;
+	GroundFromAtmosphere.UniqueIdentifier = "DefaultPBR";
+
+	bool InAtmosphere = true;
+	if (Length(MainCamera.CameraInfo.Transform.Location) > 1025.f)
+		InAtmosphere = false;
+
+	cMeshAsset* PlanetMesh = (cMeshAsset*)AssetRegistry[GetAssetIDFromName("sphere.fbx")];
+	float PlanetRadius = 998.f;
+	v3 PlanetScale = v3{ PlanetRadius, PlanetRadius, PlanetRadius };
+
+	transform AtmosphereTransform = transform();
+	AtmosphereTransform.Scale = 1.025f * PlanetScale;
+	ActorConstants.Instances[0].WorldMatrix = renderer::GenerateWorldMatrix(AtmosphereTransform); // todo: static
+	Renderer.MapConstants(map_operation::Actor);
+
+	if (InAtmosphere)
+		Renderer.SetPipelineState(SkyFromAtmoshere);
+	else
+		Renderer.SetPipelineState(SkyFromSpace);
+
+	Renderer.DrawIndexedInstanced((vertex*)PlanetMesh->Data, (u32*)((vertex*)PlanetMesh->Data + PlanetMesh->MeshData.NumVertices), PlanetMesh->MeshData.NumVertices, PlanetMesh->MeshData.NumIndices, 0, 1, draw_topology_type::TriangleList);
+
+	transform PlanetTransform = transform();
+	PlanetTransform.Scale = PlanetScale;
+	PlanetTransform.Rotation = v3{ 0.f, 180.f, 0.f };
+	ActorConstants.Instances[0].WorldMatrix = renderer::GenerateWorldMatrix(PlanetTransform);
+	Renderer.MapConstants(map_operation::Actor);
+
+	if (InAtmosphere)
+		Renderer.SetPipelineState(GroundFromAtmosphere);
+	else
+		Renderer.SetPipelineState(GroundFromSpace);
+
+	u32 IndexBaseOffset = 2604;
+	f32 CamX = MainCamera.CameraInfo.Transform.Location.x;
+	f32 CamY = MainCamera.CameraInfo.Transform.Location.y;
+	f32 CamZ = MainCamera.CameraInfo.Transform.Location.z;
+	v3 Direction = Normalize(MainCamera.CameraInfo.Transform.Location);
+	//f32 Angle = atan2f();
+	Renderer.DrawIndexedInstanced((vertex*)PlanetMesh->Data, (u32*)((vertex*)PlanetMesh->Data + PlanetMesh->MeshData.NumVertices), PlanetMesh->MeshData.NumVertices, 6, 2604, 1, draw_topology_type::TriangleList);
 }
 
 inline bool CompareRenderComponents(rendering_component* Comp1, rendering_component* Comp2)
@@ -286,6 +294,14 @@ inline bool CompareRenderComponents(rendering_component* Comp1, rendering_compon
 // todo: multithreading
 void engine::RenderScene()
 {
+	// Prep frame for render
+	transform CamTransform = transform(MainCamera.CameraInfo.Transform.Location);
+	FrameConstants.CameraViewProjectionMatrix = MainCamera.ProjectionMatrix * MainCamera.ViewMatrix;
+	FrameConstants.CameraWorldMatrix = renderer::GenerateWorldMatrix(CamTransform); // cache camera matrix?
+	FrameConstants.CameraWorldViewMatrix = MainCamera.ViewMatrix * FrameConstants.CameraWorldMatrix;
+	FrameConstants.CameraPosition = MainCamera.CameraInfo.Transform.Location;
+	Renderer.MapConstants(map_operation::Frame);
+
 	std::vector<rendering_component>& RCRegistry = RenderingComponents.GetRegistry();
 	std::vector<rendering_component*> SortedRegistry;
 	u32 NumRenderComponents = (u32)RCRegistry.size();
@@ -301,13 +317,6 @@ void engine::RenderScene()
 		s32 PipelineStateID = SortedRegistry[0]->RenderResources.PipelineStateID;
 		cMeshAsset* Asset = (cMeshAsset*)AssetRegistry[AssetID];
 
-		// Prep frame for render
-		transform CamTransform = transform(MainCamera.CameraInfo.Transform.Location);
-		FrameConstants.CameraViewProjectionMatrix = MainCamera.ProjectionMatrix * MainCamera.ViewMatrix;
-		FrameConstants.CameraWorldMatrix = renderer::GenerateWorldMatrix(CamTransform); // cache camera matrix?
-		FrameConstants.CameraWorldViewMatrix = MainCamera.ViewMatrix * FrameConstants.CameraWorldMatrix;
-		FrameConstants.CameraPosition = MainCamera.CameraInfo.Transform.Location;
-		Renderer.MapConstants(map_operation::Frame);
 		Renderer.SetPipelineState(PipelineStates.GetComponent(PipelineStateID));
 		Renderer.BindMaterial(MaterialRegistry.GetComponent(MaterialID));
 
@@ -365,7 +374,7 @@ void engine::RenderScene()
 					{
 						Renderer.MapConstants(map_operation::Actor);
 						//Renderer.DrawInstanced((vertex*)Asset->Data, Asset->MeshData.NumVertices, InstanceCount, draw_topology_type::TriangleList);
-						Renderer.DrawIndexedInstanced((vertex*)Asset->Data, (u32*)((vertex*)Asset->Data + Asset->MeshData.NumVertices), Asset->MeshData.NumVertices, Asset->MeshData.NumIndices, InstanceCount, draw_topology_type::TriangleList);
+						Renderer.DrawIndexedInstanced((vertex*)Asset->Data, (u32*)((vertex*)Asset->Data + Asset->MeshData.NumVertices), Asset->MeshData.NumVertices, Asset->MeshData.NumIndices, 0, InstanceCount, draw_topology_type::TriangleList);
 						InstanceCount = 0;
 					}
 				}
@@ -379,6 +388,8 @@ void engine::RenderScene()
 			Draw = false;
 		}
 	}
+
+	RenderPlanet();
 }
 
 void engine::UpdateComponents()
@@ -413,6 +424,13 @@ void engine::RenderDebugWidgets()
 		f32 Min = 0.f;
 		f32 Max = 360.f;
 		ImGui::DragScalar("##SunAngle", ImGuiDataType_Float, &DebugData.SunAngle, 0.5f, &Min, &Max, "%f", 1.0f);
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text("Camera Speed:");
+		ImGui::SameLine();
+		Min = 0.f;
+		Max = 1.f;
+		ImGui::DragScalar("##CameraSpeed", ImGuiDataType_Float, &DebugData.CameraSpeed, 0.001f, &Min, &Max, "%f", 1.0f);
 
 		if (ImGui::CollapsingHeader("Rendering Components"))
 		{

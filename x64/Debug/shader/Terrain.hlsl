@@ -103,13 +103,13 @@ PSIn TerrainDomainShader(ConstantOutputType input, float3 uvwCoord : SV_DomainLo
 	// Determine the position of the new vertex.
 	float3 VertPos = uvwCoord.x * patch[0].Position + uvwCoord.y * patch[1].Position + uvwCoord.z * patch[2].Position;
 	float2 TexCoord = uvwCoord.x * patch[0].TexCoord + uvwCoord.y * patch[1].TexCoord + uvwCoord.z * patch[2].TexCoord;
-	float3 Normal = uvwCoord.x * patch[0].Normal + uvwCoord.y * patch[1].Normal + uvwCoord.z * patch[2].Normal;
+	float3 Normal = normalize(VertPos);//uvwCoord.x * patch[0].Normal + uvwCoord.y * patch[1].Normal + uvwCoord.z * patch[2].Normal;
 
-	float NoiseVal = 0.1;//DiffuseTex.SampleLevel(Samp, TexCoord * 1, 0).r;
+	float NoiseVal = DiffuseTex.SampleLevel(Samp, TexCoord * 200, 0).r;
 
 	// Calculate the position of the new vertex against the world, view, and projection matrices.
 	output.WorldPos = mul(float4(VertPos, 1.0f), Instances[patch[0].InstanceID].WorldMatrix);
-	output.WorldPos += float4((NoiseVal * 500) * Normal, 0);
+	output.WorldPos += float4((NoiseVal * 10) * Normal, 0);
 	output.Position = mul(output.WorldPos, CameraViewProjectionMatrix);
 	output.TexCoord = TexCoord;
 	output.CameraPos = CameraPosition;

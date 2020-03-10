@@ -570,7 +570,7 @@ void dx11_renderer::DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 Nu
 	DeviceContext->DrawInstanced(NumVertices, NumInstances, 0, 0);
 }
 
-void dx11_renderer::DrawIndexedInstanced(vertex* InVertexArray, u32* InIndexArray, u32 NumVertices, u32 NumIndices, u32 NumInstances, draw_topology_type TopologyType)
+void dx11_renderer::DrawIndexedInstanced(vertex* InVertexArray, u32* InIndexArray, u32 NumVertices, u32 NumIndices, u32 IndexOffset, u32 NumInstances, draw_topology_type TopologyType)
 {
 	D3D11_MAPPED_SUBRESOURCE Mapped;
 	DeviceContext->Map(MainVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &Mapped);
@@ -588,7 +588,7 @@ void dx11_renderer::DrawIndexedInstanced(vertex* InVertexArray, u32* InIndexArra
 
 	DeviceContext->IASetVertexBuffers(0, 1, &MainVertexBuffer, &stride, &offset);
 	DeviceContext->IASetIndexBuffer(MainIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	DeviceContext->DrawIndexedInstanced(NumIndices, NumInstances, 0, 0, 0);
+	DeviceContext->DrawIndexedInstanced(NumIndices, NumInstances, IndexOffset, 0, 0);
 }
 
 void dx11_renderer::SetViewport(float Width, float Height)

@@ -68,9 +68,9 @@ void renderer::DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 NumInst
 	PlatformRenderer->DrawInstanced(InVertexArray, NumVertices, NumInstances, TopologyType);
 }
 
-void renderer::DrawIndexedInstanced(vertex* InVertexArray, u32* InIndexArray, u32 NumVertices, u32 NumIndices, u32 NumInstances, draw_topology_type TopologyType)
+void renderer::DrawIndexedInstanced(vertex* InVertexArray, u32* InIndexArray, u32 NumVertices, u32 NumIndices, u32 IndexOffset, u32 NumInstances, draw_topology_type TopologyType)
 {
-	PlatformRenderer->DrawIndexedInstanced(InVertexArray, InIndexArray, NumVertices, NumIndices, NumInstances, TopologyType);
+	PlatformRenderer->DrawIndexedInstanced(InVertexArray, InIndexArray, NumVertices, NumIndices, IndexOffset, NumInstances, TopologyType);
 }
 
 void renderer::SetViewport(float Width, float Height)

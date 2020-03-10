@@ -11,6 +11,7 @@
 struct debug_data
 {
 	f32 SunAngle = 0.f;
+	f32 CameraSpeed = 0.08f;
 };
 
 class engine
@@ -35,6 +36,7 @@ public:
 
 	void InitializeAssetSystem();
 	void ProcessUserInput();
+	void RenderPlanet();
 	void RenderScene();
 	void UpdateComponents();
 	void RenderDebugWidgets();

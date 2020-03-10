@@ -57,7 +57,6 @@ struct transform
 	v3 Location = { 0.f, 0.f, 0.f };
 	rotator Rotation = { 0.f, 0.f, 0.f };
 	v3 Scale = { 1.f, 1.f, 1.f };
-	DirectX::XMVECTOR Quat;
 };
 
 union v4
