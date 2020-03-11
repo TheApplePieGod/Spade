@@ -47,6 +47,8 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 
 	InitializeAssetSystem();
 
+	TerrainManager.Initialize((cMeshAsset*)AssetRegistry[GetAssetIDFromName("sphere.fbx")], 998.f);
+
 	s32 ids[6];
 	s32 id = GetTextureIDFromName("stars.png");
 	ids[0] = id;
@@ -222,7 +224,7 @@ void engine::RenderPlanet()
 	GroundFromSpace.HullShaderID = GetShaderIDFromName("TerrainHullShader");
 	GroundFromSpace.DomainShaderID = GetShaderIDFromName("TerrainDomainShader");
 	GroundFromSpace.EnableTesselation = true;
-	GroundFromSpace.RasterizerState = rasterizer_state::DefaultCullBackface;
+	GroundFromSpace.RasterizerState = rasterizer_state::Wireframe;
 	GroundFromSpace.UniqueIdentifier = "DefaultPBR";
 
 	pipeline_state SkyFromAtmoshere = pipeline_state();
@@ -263,7 +265,7 @@ void engine::RenderPlanet()
 
 	transform PlanetTransform = transform();
 	PlanetTransform.Scale = PlanetScale;
-	PlanetTransform.Rotation = v3{ 0.f, 180.f, 0.f };
+	PlanetTransform.Rotation = v3{ 0.f, 0.f, 0.f };
 	ActorConstants.Instances[0].WorldMatrix = renderer::GenerateWorldMatrix(PlanetTransform);
 	Renderer.MapConstants(map_operation::Actor);
 
@@ -272,13 +274,30 @@ void engine::RenderPlanet()
 	else
 		Renderer.SetPipelineState(GroundFromSpace);
 
-	u32 IndexBaseOffset = 2604;
+	//u32 IndexBaseOffset = 2604;
 	f32 CamX = MainCamera.CameraInfo.Transform.Location.x;
 	f32 CamY = MainCamera.CameraInfo.Transform.Location.y;
 	f32 CamZ = MainCamera.CameraInfo.Transform.Location.z;
 	v3 Direction = Normalize(MainCamera.CameraInfo.Transform.Location);
 	//f32 Angle = atan2f();
-	Renderer.DrawIndexedInstanced((vertex*)PlanetMesh->Data, (u32*)((vertex*)PlanetMesh->Data + PlanetMesh->MeshData.NumVertices), PlanetMesh->MeshData.NumVertices, 6, 2604, 1, draw_topology_type::TriangleList);
+	//Renderer.DrawIndexedInstanced((vertex*)PlanetMesh->Data, (u32*)((vertex*)PlanetMesh->Data + PlanetMesh->MeshData.NumVertices), PlanetMesh->MeshData.NumVertices, PlanetMesh->MeshData.NumIndices, 0, 1, draw_topology_type::TriangleList);
+	Renderer.BindMaterial(MaterialRegistry.GetComponent(0));
+	std::vector<vertex> LodVertices;
+	std::vector<u32> LodIndices;
+	LodIndices.clear();
+	u32 CurrentOffset = 0;
+	for (u32 i = 0; i < (u32)TerrainManager.ChunkArray.size(); i++)
+	{
+		f32 Distance = Length(MainCamera.CameraInfo.Transform.Location - TerrainManager.ChunkArray[i].Midpoint);
+		if (Distance < 500.f)
+		{
+			u32 indexes[6] = { 0 + CurrentOffset, 1 + CurrentOffset, 2 + CurrentOffset, 0 + CurrentOffset, 3 + CurrentOffset, 1 + CurrentOffset };
+			LodVertices.insert(LodVertices.end(), TerrainManager.ChunkArray[i].Vertices, TerrainManager.ChunkArray[i].Vertices + 4);
+			LodIndices.insert(LodIndices.end(), indexes, indexes + 6);
+			CurrentOffset += 4;
+		}
+	}
+	Renderer.DrawIndexedTerrainChunk(LodVertices.data(), LodIndices.data(), (u32)LodVertices.size(), (u32)LodIndices.size());
 }
 
 inline bool CompareRenderComponents(rendering_component* Comp1, rendering_component* Comp2)

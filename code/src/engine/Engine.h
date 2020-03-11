@@ -6,6 +6,7 @@
 #include "../classes/RenderingComponent.h"
 #include "../classes/Actor.h"
 #include "../classes/Pipeline.h"
+#include "../classes/TerrainManager.h"
 #include "MemoryManager.h"
 
 struct debug_data
@@ -28,6 +29,7 @@ public:
 	camera MainCamera;
 	level MainLevel;
 	user_inputs UserInputs;
+	planet_terrain_manager TerrainManager;
 
 	// Called from platform
 	void Tick(); // every frame

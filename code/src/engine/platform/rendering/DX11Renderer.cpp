@@ -260,12 +260,32 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	if (FAILED(hr))
 		Assert(1 == 2);;
 
+	bufferDesc.ByteWidth = sizeof(vertex) * 4000;
+
+	hr = Device->CreateBuffer(&bufferDesc, NULL, &TerrainChunkVertexBuffer);
+	if (FAILED(hr))
+		Assert(1 == 2);;
+
+
 	bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	bufferDesc.ByteWidth = sizeof(u32) * 200000; // MAX BUFFER SIZE
 
 	hr = Device->CreateBuffer(&bufferDesc, NULL, &MainIndexBuffer);
 	if (FAILED(hr))
 		Assert(1 == 2);;
+
+	bufferDesc.ByteWidth = sizeof(u32) * 6000;
+
+	hr = Device->CreateBuffer(&bufferDesc, NULL, &TerrainChunkIndexBuffer);
+	if (FAILED(hr))
+		Assert(1 == 2);;
+
+	// map terrain index buffer because it will always stay the same
+	//D3D11_MAPPED_SUBRESOURCE Mapped;
+	//u32 indexes[6] = { 0, 1, 2, 0, 3, 1 };
+	//DeviceContext->Map(TerrainChunkIndexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &Mapped);
+	//memcpy(Mapped.pData, indexes, sizeof(u32) * 6);
+	//DeviceContext->Unmap(TerrainChunkIndexBuffer, NULL);
 
 	// Create frame constant buffer
 	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -275,6 +295,7 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 		Assert(1 == 2);
 	DeviceContext->VSSetConstantBuffers(0, 1, &FrameConstantBuffer);
 	DeviceContext->DSSetConstantBuffers(0, 1, &FrameConstantBuffer);
+	DeviceContext->HSSetConstantBuffers(0, 1, &FrameConstantBuffer);
 	//DeviceContext->PSSetConstantBuffers(0, 1, &ActorConstantBuffer);
 	//DeviceContext->GSSetConstantBuffers(0, 1, &ActorConstantBuffer);
 
@@ -307,6 +328,7 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	D3D11_SAMPLER_DESC SamplerDesc;
 	SamplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
 	//SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+	//SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
 	SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
 	SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
 	SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
@@ -322,6 +344,7 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	Device->CreateSamplerState(&SamplerDesc, &DefaultSampler);
 	DeviceContext->PSSetSamplers(0, 1, &DefaultSampler);
 	DeviceContext->DSSetSamplers(0, 1, &DefaultSampler);
+	//DeviceContext->VSSetSamplers(0, 1, &DefaultSampler);
 
 	//
 	// Create blend state
@@ -472,7 +495,9 @@ void dx11_renderer::Cleanup()
 	}
 
 	SAFE_RELEASE(MainIndexBuffer);
+	SAFE_RELEASE(TerrainChunkIndexBuffer);
 	SAFE_RELEASE(MainVertexBuffer);
+	SAFE_RELEASE(TerrainChunkVertexBuffer);
 	SAFE_RELEASE(ActorConstantBuffer);
 	SAFE_RELEASE(MaterialConstantBuffer);
 	SAFE_RELEASE(FrameConstantBuffer);
@@ -589,6 +614,27 @@ void dx11_renderer::DrawIndexedInstanced(vertex* InVertexArray, u32* InIndexArra
 	DeviceContext->IASetVertexBuffers(0, 1, &MainVertexBuffer, &stride, &offset);
 	DeviceContext->IASetIndexBuffer(MainIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 	DeviceContext->DrawIndexedInstanced(NumIndices, NumInstances, IndexOffset, 0, 0);
+}
+
+void dx11_renderer::DrawIndexedTerrainChunk(vertex* InVertexArray, u32* InIndexArray, u32 NumVertices, u32 NumIndices)
+{
+	D3D11_MAPPED_SUBRESOURCE Mapped;
+	DeviceContext->Map(TerrainChunkVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &Mapped);
+	memcpy(Mapped.pData, InVertexArray, sizeof(vertex) * NumVertices);
+	DeviceContext->Unmap(TerrainChunkVertexBuffer, NULL);
+
+	DeviceContext->Map(TerrainChunkIndexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &Mapped);
+	memcpy(Mapped.pData, InIndexArray, sizeof(u32) * NumIndices);
+	DeviceContext->Unmap(TerrainChunkIndexBuffer, NULL);
+
+	UINT stride = sizeof(vertex);
+	UINT offset = 0;
+
+	SetDrawTopology(draw_topology_type::TriangleList);
+
+	DeviceContext->IASetVertexBuffers(0, 1, &TerrainChunkVertexBuffer, &stride, &offset);
+	DeviceContext->IASetIndexBuffer(TerrainChunkIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	DeviceContext->DrawIndexedInstanced(NumIndices, 1, 0, 0, 0);
 }
 
 void dx11_renderer::SetViewport(float Width, float Height)

@@ -12,6 +12,7 @@ public:
 	void Draw(v3* InPositionArray, u32 NumVertices, draw_topology_type TopologyType);
 	void DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 NumInstances, draw_topology_type TopologyType);
 	void DrawIndexedInstanced(vertex* InVertexArray, u32* InIndexArray, u32 NumVertices, u32 NumIndices, u32 IndexOffset, u32 NumInstances, draw_topology_type TopologyType);
+	void DrawIndexedTerrainChunk(vertex* InVertexArray, u32* InIndexArray, u32 NumVertices, u32 NumIndices); // assumes triangle list w 4 vertices and 6 indices
 	void SetViewport(float Width, float Height);
 	void SetDrawTopology(draw_topology_type TopologyType);
 	void CompileShaderFromFile(std::string Filename, std::string EntryPoint, shader_type ShaderType, void* ShaderRef);
@@ -54,9 +55,11 @@ public:
 	ID3D11InputLayout* PositionVertexLayout = NULL;
 
 	ID3D11Buffer* MainIndexBuffer = NULL;
+	ID3D11Buffer* TerrainChunkIndexBuffer = NULL;
 
 	ID3D11Buffer* MainVertexBuffer = NULL;
 	ID3D11Buffer* PositionVertexBuffer = NULL;
+	ID3D11Buffer* TerrainChunkVertexBuffer = NULL;
 
 	ID3D11Buffer* FrameConstantBuffer = NULL;
 	ID3D11Buffer* ActorConstantBuffer = NULL;

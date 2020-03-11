@@ -73,6 +73,11 @@ void renderer::DrawIndexedInstanced(vertex* InVertexArray, u32* InIndexArray, u3
 	PlatformRenderer->DrawIndexedInstanced(InVertexArray, InIndexArray, NumVertices, NumIndices, IndexOffset, NumInstances, TopologyType);
 }
 
+void renderer::DrawIndexedTerrainChunk(vertex* InVertexArray, u32* InIndexArray, u32 NumVertices, u32 NumIndices)
+{
+	PlatformRenderer->DrawIndexedTerrainChunk(InVertexArray, InIndexArray, NumVertices, NumIndices);
+}
+
 void renderer::SetViewport(float Width, float Height)
 {
 	PlatformRenderer->SetViewport(Width, Height);

@@ -15,6 +15,7 @@ public:
 	void Draw(v3* InPositionArray, u32 NumVertices, draw_topology_type TopologyType);
 	void DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 NumInstances, draw_topology_type TopologyType);
 	void DrawIndexedInstanced(vertex* InVertexArray, u32* InIndexArray, u32 NumVertices, u32 NumIndices, u32 IndexOffset, u32 NumInstances, draw_topology_type TopologyType);
+	void DrawIndexedTerrainChunk(vertex* InVertexArray, u32* InIndexArray, u32 NumVertices, u32 NumIndices); // assumes triangle list w 4 vertices and 6 indices
 	void SetViewport(float Width, float Height);
 	void SetDrawTopology(draw_topology_type TopologyType);
 	void CompileShaderFromFile(std::string Filename, std::string EntryPoint, shader_type ShaderType, void* ShaderRef);

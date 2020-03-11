@@ -52,7 +52,7 @@ HSIn TerrainVS(VSIn input)
 {
 	HSIn output;
 
-	output.Position = input.Position;
+	output.Position = mul(float4(input.Position, 1.0f), Instances[0].WorldMatrix);
 	output.TexCoord = input.TexCoord;
 	output.Normal = input.Normal;
 	output.InstanceID = input.InstanceID;
@@ -60,19 +60,41 @@ HSIn TerrainVS(VSIn input)
 	return output;
 }
 
+float CalcTessFactor(float3 p, float3 eyePos)
+{
+	float d = distance(p, eyePos);
+
+	// max norm in xz plane (useful to see detail levels from a bird's eye).
+	//float d = max( abs(p.x- eyePos.x), abs(p.z- eyePos.z) );
+
+	float gMinDist = 1.f;
+	float gMaxDist = 500.f;
+	float gMinTess = 1.f;
+	float gMaxTess = 64.f;
+	//float s = saturate((d - gMinDist) / (gMaxDist - gMinDist));
+
+	//return pow(2, (lerp(gMaxTess, gMinTess, s)));
+
+	float TessellationScale = 1 - ((d - gMinDist) / (gMaxDist - gMinDist));
+	return  clamp(TessellationScale * gMaxTess - 1 + gMinTess, gMinTess, gMaxTess);
+}
+
 ConstantOutputType PatchConstantFunction(InputPatch<HSIn, NUM_CONTROL_POINTS> inputPatch, uint patchId : SV_PrimitiveID)
 {
 	ConstantOutputType output;
 
-	float tessellationAmount = 1;
+	float3 m1 = (inputPatch[0].Position + inputPatch[1].Position) * 0.5f;
+	float3 mid = (m1 + inputPatch[2].Position) * 0.5f;
+
+	float tessellationAmount = 1.f;
 
 	// Set the tessellation factors for the three edges of the triangle.
-	output.Edges[0] = tessellationAmount;
-	output.Edges[1] = tessellationAmount;
-	output.Edges[2] = tessellationAmount;
+	output.Edges[0] = tessellationAmount;//CalcTessFactor(0.5f * (inputPatch[0].Position + inputPatch[1].Position), CameraPosition);
+	output.Edges[1] = tessellationAmount;//CalcTessFactor(0.5f * (inputPatch[1].Position + inputPatch[2].Position), CameraPosition);
+	output.Edges[2] = tessellationAmount;//CalcTessFactor(0.5f * (inputPatch[2].Position + inputPatch[0].Position), CameraPosition);
 
 	// Set the tessellation factor for tessallating inside the triangle.
-	output.Inside = tessellationAmount;
+	output.Inside = tessellationAmount;//CalcTessFactor(mid, CameraPosition);
 
 	return output;
 }
@@ -82,6 +104,7 @@ ConstantOutputType PatchConstantFunction(InputPatch<HSIn, NUM_CONTROL_POINTS> in
 [outputtopology("triangle_cw")]
 [outputcontrolpoints(NUM_CONTROL_POINTS)]
 [patchconstantfunc("PatchConstantFunction")]
+[maxtessfactor(64.0f)]
 DSIn TerrainHullShader(InputPatch<HSIn, NUM_CONTROL_POINTS> patch, uint pointId : SV_OutputControlPointID, uint patchId : SV_PrimitiveID)
 {
 	DSIn output;
@@ -105,11 +128,11 @@ PSIn TerrainDomainShader(ConstantOutputType input, float3 uvwCoord : SV_DomainLo
 	float2 TexCoord = uvwCoord.x * patch[0].TexCoord + uvwCoord.y * patch[1].TexCoord + uvwCoord.z * patch[2].TexCoord;
 	float3 Normal = normalize(VertPos);//uvwCoord.x * patch[0].Normal + uvwCoord.y * patch[1].Normal + uvwCoord.z * patch[2].Normal;
 
-	float NoiseVal = DiffuseTex.SampleLevel(Samp, TexCoord * 200, 0).r;
+	float NoiseVal = DiffuseTex.SampleLevel(Samp, TexCoord * 1000, 0).r;
 
 	// Calculate the position of the new vertex against the world, view, and projection matrices.
-	output.WorldPos = mul(float4(VertPos, 1.0f), Instances[patch[0].InstanceID].WorldMatrix);
-	output.WorldPos += float4((NoiseVal * 10) * Normal, 0);
+	output.WorldPos = float4(VertPos, 1.f);// mul(float4(VertPos, 1.0f), Instances[patch[0].InstanceID].WorldMatrix);
+	output.WorldPos += float4((NoiseVal * 5) * Normal, 0);
 	output.Position = mul(output.WorldPos, CameraViewProjectionMatrix);
 	output.TexCoord = TexCoord;
 	output.CameraPos = CameraPosition;
