@@ -15,8 +15,6 @@ void engine::Tick()
 {
 	ProcessUserInput();
 
-	MainCamera.UpdateFromInput();
-
 	// Update lighting constants
 	f32 Angle = DegreesToRadians(DebugData.SunAngle);
 	LightingConstants.SunDirection = v3{ sin(Angle), 0.f, cos(Angle)};
@@ -47,7 +45,8 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 
 	InitializeAssetSystem();
 
-	TerrainManager.Initialize((cMeshAsset*)AssetRegistry[GetAssetIDFromName("sphere.fbx")], 998.f);
+	//TerrainManager.Initialize((cMeshAsset*)AssetRegistry[GetAssetIDFromName("sphere.fbx")], 998.f);
+	TerrainManager.Initialize(PlanetRadius);
 
 	s32 ids[6];
 	s32 id = GetTextureIDFromName("stars.png");
@@ -174,39 +173,87 @@ void engine::ProcessUserInput()
 	f32 speed = DebugData.CameraSpeed * UserInputs.DeltaTime;
 	v3 OldLocation = MainCamera.CameraInfo.Transform.Location;
 
-	if (!UserInputs.GuiKeyboardFocus)
-	{
-		if (UserInputs.KeysDown['A'].Pressed)
-		{
-			MainCamera.CameraInfo.Transform.Location += -speed * MainCamera.RightVector;
-			UserInputs.PlayerMovement = true;
-		}
-		if (UserInputs.KeysDown['D'].Pressed)
-		{
-			MainCamera.CameraInfo.Transform.Location += speed * MainCamera.RightVector;
-			UserInputs.PlayerMovement = true;
-		}
-		if (UserInputs.KeysDown['W'].Pressed)
-		{
-			MainCamera.CameraInfo.Transform.Location += speed * MainCamera.ForwardVector;
-			UserInputs.PlayerMovement = true;
-		}
-		if (UserInputs.KeysDown['S'].Pressed)
-		{
-			MainCamera.CameraInfo.Transform.Location += -speed * MainCamera.ForwardVector;
-			UserInputs.PlayerMovement = true;
-		}
-	}
-
 	//if (Length(MainCamera.CameraInfo.Transform.Location) < 999.f)
 	//	MainCamera.CameraInfo.Transform.Location = OldLocation;
 
 	// move to platform layer / optimize
 	if (UserInputs.KeysDown[VK_CONTROL].Pressed)
+	{
 		while (ShowCursor(true) <= 0);
+	}
 	else
+	{
+		MainCamera.UpdateFromInput();
+		if (!UserInputs.GuiKeyboardFocus)
+		{
+			if (UserInputs.KeysDown['A'].Pressed)
+			{
+				MainCamera.CameraInfo.Transform.Location += -speed * MainCamera.RightVector;
+				UserInputs.PlayerMovement = true;
+			}
+			if (UserInputs.KeysDown['D'].Pressed)
+			{
+				MainCamera.CameraInfo.Transform.Location += speed * MainCamera.RightVector;
+				UserInputs.PlayerMovement = true;
+			}
+			if (UserInputs.KeysDown['W'].Pressed)
+			{
+				MainCamera.CameraInfo.Transform.Location += speed * MainCamera.ForwardVector;
+				UserInputs.PlayerMovement = true;
+			}
+			if (UserInputs.KeysDown['S'].Pressed)
+			{
+				MainCamera.CameraInfo.Transform.Location += -speed * MainCamera.ForwardVector;
+				UserInputs.PlayerMovement = true;
+			}
+		}
 		while (ShowCursor(false) >= 0);
-		
+	}		
+}
+
+void UpdateVisibleChunks(planet_terrain_manager* TerrainManager, camera* MainCamera)
+{
+	if (!TerrainManager->UpdatingChunkData)
+	{
+		std::vector<u32> NewVisibleChunkIDs;
+		TerrainManager->UpdatingChunkData = true;
+		for (u32 i = 0; i < (u32)TerrainManager->ChunkArray.size(); i++)
+		{
+			v3 ChunkNormal = Normalize(TerrainManager->ChunkArray[i].Midpoint);
+			v3 PositionNormal = Normalize(MainCamera->CameraInfo.Transform.Location);
+			f32 DotProd = DotProduct(PositionNormal, ChunkNormal);
+			f32 Angle = acos(DotProd);
+			f32 MaxAngle = min((Length(MainCamera->CameraInfo.Transform.Location) / TerrainManager->GetPlanetRadius()) * (Pi32 * 0.2f), Pi32 * 0.35f);
+			if (Angle < MaxAngle)
+			{
+				f32 Distance = Length(MainCamera->CameraInfo.Transform.Location - TerrainManager->ChunkArray[i].Midpoint);
+				//if (Distance <= 400.f)
+				{
+					NewVisibleChunkIDs.push_back(i);
+					if (Distance <= 25.f)
+						TerrainManager->GenerateChunkVerticesAndIndices(0, TerrainManager->ChunkArray[i]);
+					else if (Distance < 50.f)
+						TerrainManager->GenerateChunkVerticesAndIndices(1, TerrainManager->ChunkArray[i]);
+					else if (Distance < 75.f)
+						TerrainManager->GenerateChunkVerticesAndIndices(2, TerrainManager->ChunkArray[i]);
+					else if (Distance < 100.f)
+						TerrainManager->GenerateChunkVerticesAndIndices(3, TerrainManager->ChunkArray[i]);
+					else if (Distance < 125.f)
+						TerrainManager->GenerateChunkVerticesAndIndices(5, TerrainManager->ChunkArray[i]);
+					else if (Distance < 200.f)
+						TerrainManager->GenerateChunkVerticesAndIndices(6, TerrainManager->ChunkArray[i]);
+					else
+						TerrainManager->GenerateChunkVerticesAndIndices(30, TerrainManager->ChunkArray[i]);
+				}
+			}
+		}
+
+		TerrainManager->VisibleChunkSwapMutex.lock();
+		std::swap(TerrainManager->VisibleChunkIDs, NewVisibleChunkIDs);
+		TerrainManager->VisibleChunkSwapMutex.unlock();
+
+		TerrainManager->UpdatingChunkData = false;
+	}
 }
 
 //always rendered first & has very specific rendering. move out of here later?
@@ -219,12 +266,9 @@ void engine::RenderPlanet()
 	SkyFromSpace.UniqueIdentifier = "DefaultPBR";
 
 	pipeline_state GroundFromSpace = pipeline_state();
-	GroundFromSpace.VertexShaderID = GetShaderIDFromName("TerrainVS");
+	GroundFromSpace.VertexShaderID = GetShaderIDFromName("mainvs");
 	GroundFromSpace.PixelShaderID = GetShaderIDFromName("GroundFromSpacePS");
-	GroundFromSpace.HullShaderID = GetShaderIDFromName("TerrainHullShader");
-	GroundFromSpace.DomainShaderID = GetShaderIDFromName("TerrainDomainShader");
-	GroundFromSpace.EnableTesselation = true;
-	GroundFromSpace.RasterizerState = rasterizer_state::Wireframe;
+	GroundFromSpace.RasterizerState = (DebugData.EnableWireframe ? rasterizer_state::Wireframe : rasterizer_state::DefaultCullBackface);
 	GroundFromSpace.UniqueIdentifier = "DefaultPBR";
 
 	pipeline_state SkyFromAtmoshere = pipeline_state();
@@ -235,12 +279,8 @@ void engine::RenderPlanet()
 
 	pipeline_state GroundFromAtmosphere = pipeline_state();
 	GroundFromAtmosphere.VertexShaderID = GetShaderIDFromName("mainvs");
-	GroundFromAtmosphere.VertexShaderID = GetShaderIDFromName("TerrainVS");
 	GroundFromAtmosphere.PixelShaderID = GetShaderIDFromName("GroundFromAtmospherePS");
-	GroundFromAtmosphere.HullShaderID = GetShaderIDFromName("TerrainHullShader");
-	GroundFromAtmosphere.DomainShaderID = GetShaderIDFromName("TerrainDomainShader");
-	GroundFromAtmosphere.EnableTesselation = true;
-	GroundFromAtmosphere.RasterizerState = rasterizer_state::DefaultCullBackface;
+	GroundFromAtmosphere.RasterizerState = (DebugData.EnableWireframe ? rasterizer_state::Wireframe : rasterizer_state::DefaultCullBackface);
 	GroundFromAtmosphere.UniqueIdentifier = "DefaultPBR";
 
 	bool InAtmosphere = true;
@@ -248,7 +288,6 @@ void engine::RenderPlanet()
 		InAtmosphere = false;
 
 	cMeshAsset* PlanetMesh = (cMeshAsset*)AssetRegistry[GetAssetIDFromName("sphere.fbx")];
-	float PlanetRadius = 998.f;
 	v3 PlanetScale = v3{ PlanetRadius, PlanetRadius, PlanetRadius };
 
 	transform AtmosphereTransform = transform();
@@ -274,30 +313,50 @@ void engine::RenderPlanet()
 	else
 		Renderer.SetPipelineState(GroundFromSpace);
 
-	//u32 IndexBaseOffset = 2604;
 	f32 CamX = MainCamera.CameraInfo.Transform.Location.x;
 	f32 CamY = MainCamera.CameraInfo.Transform.Location.y;
 	f32 CamZ = MainCamera.CameraInfo.Transform.Location.z;
 	v3 Direction = Normalize(MainCamera.CameraInfo.Transform.Location);
-	//f32 Angle = atan2f();
+
 	//Renderer.DrawIndexedInstanced((vertex*)PlanetMesh->Data, (u32*)((vertex*)PlanetMesh->Data + PlanetMesh->MeshData.NumVertices), PlanetMesh->MeshData.NumVertices, PlanetMesh->MeshData.NumIndices, 0, 1, draw_topology_type::TriangleList);
 	Renderer.BindMaterial(MaterialRegistry.GetComponent(0));
-	std::vector<vertex> LodVertices;
-	std::vector<u32> LodIndices;
-	LodIndices.clear();
+
+	std::thread(UpdateVisibleChunks, &TerrainManager, &MainCamera).detach();
+	
+	// lower LODs get batched rendered to save draw calls
+	std::vector<vertex> LowLODVertices;
+	std::vector<u32> LowLODIndices;
 	u32 CurrentOffset = 0;
-	for (u32 i = 0; i < (u32)TerrainManager.ChunkArray.size(); i++)
+	u32 IndicesIndex = 0;
+
+	DebugData.ChunkDrawCalls = 1;
+
+	TerrainManager.VisibleChunkSwapMutex.lock();
+	TerrainManager.ChunkDataSwapMutex.lock();
+	for (u32 i = 0; i < (u32)TerrainManager.VisibleChunkIDs.size(); i++)
 	{
-		f32 Distance = Length(MainCamera.CameraInfo.Transform.Location - TerrainManager.ChunkArray[i].Midpoint);
-		if (Distance < 500.f)
+		terrain_chunk& Chunk = TerrainManager.ChunkArray[TerrainManager.VisibleChunkIDs[i]];
+
+		if (Chunk.CurrentLOD > 3)
 		{
-			u32 indexes[6] = { 0 + CurrentOffset, 1 + CurrentOffset, 2 + CurrentOffset, 0 + CurrentOffset, 3 + CurrentOffset, 1 + CurrentOffset };
-			LodVertices.insert(LodVertices.end(), TerrainManager.ChunkArray[i].Vertices, TerrainManager.ChunkArray[i].Vertices + 4);
-			LodIndices.insert(LodIndices.end(), indexes, indexes + 6);
-			CurrentOffset += 4;
+			LowLODVertices.insert(LowLODVertices.end(), Chunk.Vertices.begin(), Chunk.Vertices.end());
+			LowLODIndices.resize(LowLODIndices.size() + Chunk.Indices.size());
+			for (u32 n = 0; n < Chunk.Indices.size(); n++)
+			{
+				LowLODIndices[IndicesIndex] = Chunk.Indices[n] + CurrentOffset;
+				IndicesIndex++;
+			}
+			CurrentOffset += (u32)Chunk.Vertices.size();
+		}
+		else
+		{
+			Renderer.DrawIndexedTerrainChunk(Chunk.Vertices.data(), Chunk.Indices.data(), (u32)Chunk.Vertices.size(), (u32)Chunk.Indices.size());
+			DebugData.ChunkDrawCalls++;
 		}
 	}
-	Renderer.DrawIndexedTerrainChunk(LodVertices.data(), LodIndices.data(), (u32)LodVertices.size(), (u32)LodIndices.size());
+	Renderer.DrawIndexedTerrainChunk(LowLODVertices.data(), LowLODIndices.data(), (u32)LowLODVertices.size(), (u32)LowLODIndices.size());
+	TerrainManager.VisibleChunkSwapMutex.unlock();
+	TerrainManager.ChunkDataSwapMutex.unlock();
 }
 
 inline bool CompareRenderComponents(rendering_component* Comp1, rendering_component* Comp2)
@@ -437,6 +496,10 @@ void engine::RenderDebugWidgets()
 
 	if (ImGui::Begin("Engine State"))
 	{
+		ImGui::Text("Player Position: (%f, %f, %f)", MainCamera.CameraInfo.Transform.Location.x, MainCamera.CameraInfo.Transform.Location.y, MainCamera.CameraInfo.Transform.Location.z);
+
+		ImGui::Text("Chunk Draw Calls: %d", DebugData.ChunkDrawCalls);
+
 		ImGui::AlignTextToFramePadding();
 		ImGui::Text("Sun Angle:");
 		ImGui::SameLine();
@@ -450,6 +513,12 @@ void engine::RenderDebugWidgets()
 		Min = 0.f;
 		Max = 1.f;
 		ImGui::DragScalar("##CameraSpeed", ImGuiDataType_Float, &DebugData.CameraSpeed, 0.001f, &Min, &Max, "%f", 1.0f);
+		
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text("Enable Wireframe:");
+		ImGui::SameLine();
+		if (ImGui::Button((DebugData.EnableWireframe ? "true" : "false")))
+			DebugData.EnableWireframe = !DebugData.EnableWireframe;
 
 		if (ImGui::CollapsingHeader("Rendering Components"))
 		{

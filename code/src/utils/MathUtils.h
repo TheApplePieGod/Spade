@@ -1,6 +1,21 @@
 #pragma once
 #include "MathTypes.h"
 
+inline vertex
+Midpoint(const vertex& A, const vertex& B)
+{
+	vertex Result;
+	Result.x = (A.x + B.x) * 0.5f;
+	Result.y = (A.y + B.y) * 0.5f;
+	Result.z = (A.z + B.z) * 0.5f;
+	Result.u = (A.u + B.u) * 0.5f;
+	Result.v = (A.v + B.v) * 0.5f;
+	Result.nx = (A.nx + B.nx) * 0.5f;
+	Result.ny = (A.ny + B.ny) * 0.5f;
+	Result.nz = (A.nz + B.nz) * 0.5f;
+	return Result;
+}
+
 inline f32 Length(v3 A)
 {
 	return sqrt((A.x * A.x) + (A.y * A.y) + (A.z * A.z));
@@ -78,6 +93,18 @@ operator*(f32 A, v3 B)
 }
 
 inline v3
+operator*(v3 A, f32 B)
+{
+	v3 Result;
+
+	Result.x = A.x * B;
+	Result.y = A.y * B;
+	Result.z = A.z * B;
+
+	return(Result);
+}
+
+inline v3
 operator*(v3 A, v3 B)
 {
 	v3 Result;
@@ -94,6 +121,17 @@ operator+=(v3& A, v3 B)
 {
 	A = A + B;
 	return A;
+}
+
+inline v2
+operator/(v2 A, f32 B)
+{
+	v2 Result;
+
+	Result.x = A.x / B;
+	Result.y = A.y / B;
+
+	return(Result);
 }
 
 inline transform

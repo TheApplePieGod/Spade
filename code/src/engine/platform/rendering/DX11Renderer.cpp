@@ -260,7 +260,7 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	if (FAILED(hr))
 		Assert(1 == 2);;
 
-	bufferDesc.ByteWidth = sizeof(vertex) * 4000;
+	bufferDesc.ByteWidth = sizeof(vertex) * 100000;
 
 	hr = Device->CreateBuffer(&bufferDesc, NULL, &TerrainChunkVertexBuffer);
 	if (FAILED(hr))
@@ -274,7 +274,7 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	if (FAILED(hr))
 		Assert(1 == 2);;
 
-	bufferDesc.ByteWidth = sizeof(u32) * 6000;
+	bufferDesc.ByteWidth = sizeof(u32) * 300000;
 
 	hr = Device->CreateBuffer(&bufferDesc, NULL, &TerrainChunkIndexBuffer);
 	if (FAILED(hr))
@@ -635,6 +635,7 @@ void dx11_renderer::DrawIndexedTerrainChunk(vertex* InVertexArray, u32* InIndexA
 	DeviceContext->IASetVertexBuffers(0, 1, &TerrainChunkVertexBuffer, &stride, &offset);
 	DeviceContext->IASetIndexBuffer(TerrainChunkIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 	DeviceContext->DrawIndexedInstanced(NumIndices, 1, 0, 0, 0);
+	//DeviceContext->DrawInstanced(NumVertices, 1, 0, 0);
 }
 
 void dx11_renderer::SetViewport(float Width, float Height)
@@ -661,6 +662,9 @@ void dx11_renderer::SetDrawTopology(draw_topology_type TopologyType)
 		default:
 		case draw_topology_type::TriangleList:
 		{ DeviceContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); } break;
+
+		case draw_topology_type::TriangleStrip:
+		{ DeviceContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP); } break;
 
 		case draw_topology_type::LineList:
 		{ DeviceContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST); } break;

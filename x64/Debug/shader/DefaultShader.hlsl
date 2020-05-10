@@ -104,7 +104,7 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	float4 SampleColor = float4(0.f, 0.f, 0.f, 1.f);
 	if (TextureDiffuse)
 	{
-		SampleColor = DiffuseTex.Sample(Samp, input.TexCoord * 200.f);  // Sample the color from the texture
+		SampleColor = DiffuseTex.Sample(Samp, input.TexCoord);  // Sample the color from the texture
 		SampleColor *= DiffuseColor;
 	}
 	else
@@ -208,7 +208,7 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 	float4 SampleColor = float4(0.f, 0.f, 0.f, 1.f);
 	if (TextureDiffuse)
 	{
-		SampleColor = DiffuseTex.Sample(Samp, input.TexCoord * 200.f);  // Sample the color from the texture
+		SampleColor = DiffuseTex.Sample(Samp, input.TexCoord);  // Sample the color from the texture
 		SampleColor *= DiffuseColor;
 	}
 	else

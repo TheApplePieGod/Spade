@@ -15,6 +15,7 @@
 #include <utility>
 #include <thread>
 #include <string>
+#include <mutex>
 
 //#include "../3rdparty/stb/stb_image.h"
 //#include "../3rdparty/stb/stb_image_write.h"
@@ -22,6 +23,8 @@
 
 #include "../3rdparty/imgui/imgui.h"
 #include "../3rdparty/imgui/imgui_internal.h"
+
+#include "../3rdparty/FastNoise/FastNoise.h"
 
 #if PLATFORM_WINDOWS
 #define WIN32_LEAN_AND_MEAN

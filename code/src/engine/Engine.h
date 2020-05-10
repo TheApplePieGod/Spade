@@ -13,6 +13,8 @@ struct debug_data
 {
 	f32 SunAngle = 0.f;
 	f32 CameraSpeed = 0.08f;
+	u32 ChunkDrawCalls = 0;
+	bool EnableWireframe = false;
 };
 
 class engine
@@ -43,6 +45,7 @@ public:
 	void UpdateComponents();
 	void RenderDebugWidgets();
 
+	float PlanetRadius = 998.f;
 	s32 AtmosphereRenderingID = -1;
 	s32 PlanetRenderingID = -1;
 

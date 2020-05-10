@@ -21,6 +21,7 @@ enum class shader_presets : u32
 enum class draw_topology_type
 {
 	TriangleList,
+	TriangleStrip,
 	LineList,
 	PointList,
 };

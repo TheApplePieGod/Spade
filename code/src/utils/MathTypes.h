@@ -35,6 +35,16 @@ union v3
 	v3& operator=(const v4& A);
 };
 
+struct directions
+{
+	static inline v3 Up = v3{ 0.f, 1.0f, 0.f };
+	static inline v3 Down = v3{ 0.f, -1.0f, 0.f };
+	static inline v3 Left = v3{ -1.f, 0.0f, 0.f };
+	static inline v3 Right = v3{ 1.f, 0.0f, 0.f };
+	static inline v3 Forward = v3{ 0.f, 0.0f, 1.f };
+	static inline v3 Backward = v3{ 0.f, 0.0f, -1.f };
+};
+
 typedef v3 rotator;
 
 // transform order: scale, rotate (degrees), translate
