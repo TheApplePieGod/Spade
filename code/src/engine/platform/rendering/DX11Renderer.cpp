@@ -1,6 +1,7 @@
 #include "DX11Renderer.h"
 #include "../../Engine.h"
 #include "AssetUtils.h"
+#include "MathUtils.h"
 
 extern engine* Engine;
 extern shader_constants_actor ActorConstants;
@@ -983,8 +984,6 @@ matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraIn
 
 	if (CameraInfo.ProjectionType == projection_type::Perspective)
 	{
-		f32 DebugCameraOffset = -0.0f;
-
 		defaultForward = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
 		camUp = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 		camRight = DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
@@ -1032,6 +1031,82 @@ matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraIn
 
 		CameraView = DirectX::XMMatrixTranspose(DirectX::XMMatrixLookAtLH(camPosition, camTarget, camUp));
 	}
+
+	DirectX::XMFLOAT4X4 View;
+	DirectX::XMStoreFloat4x4(&View, CameraView);
+
+	matrix4x4 Result;
+	Result.m11 = View._11;
+	Result.m12 = View._12;
+	Result.m13 = View._13;
+	Result.m14 = View._14;
+	Result.m21 = View._21;
+	Result.m22 = View._22;
+	Result.m23 = View._23;
+	Result.m24 = View._24;
+	Result.m31 = View._31;
+	Result.m32 = View._32;
+	Result.m33 = View._33;
+	Result.m34 = View._34;
+	Result.m41 = View._41;
+	Result.m42 = View._42;
+	Result.m43 = View._43;
+	Result.m44 = View._44;
+
+	return Result;
+}
+
+matrix4x4 dx11_renderer::GeneratePlanetaryViewMatrix(bool Transpose, camera_info CameraInfo, v2 MouseDelta, v3 ForwardVector, v3& OutLookAtVector, v3& OutUpVector, bool OrthoUseMovement)
+{
+	DirectX::XMVECTOR defaultForward;
+	DirectX::XMVECTOR camUp;
+	DirectX::XMVECTOR camRight;
+	DirectX::XMVECTOR camPosition;
+	DirectX::XMVECTOR camTarget;
+	DirectX::XMMATRIX CameraView;
+
+	if (CameraInfo.ProjectionType == projection_type::Perspective)
+	{
+		defaultForward = DirectX::XMVectorSet(ForwardVector.x, ForwardVector.y, ForwardVector.z, 0.0f);
+		v3 NewCamUp = Normalize(CameraInfo.Transform.Location);
+		camUp = DirectX::XMVectorSet(NewCamUp.x, NewCamUp.y, NewCamUp.z, 0.0f);
+		v3 NewRightVector = CrossProduct(ForwardVector, NewCamUp);
+		camRight = DirectX::XMVectorSet(NewRightVector.x, NewRightVector.y, NewRightVector.z, 0.0f);
+		//camTarget = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+		camPosition = DirectX::XMVectorSet(CameraInfo.Transform.Location.x, CameraInfo.Transform.Location.y, CameraInfo.Transform.Location.z, 0.0f);
+
+		// Rotation Matrix
+
+		DirectX::XMVECTOR Quat = DirectX::XMQuaternionRotationAxis(camRight, -DegreesToRadians(MouseDelta.y));
+		Quat = DirectX::XMQuaternionMultiply(Quat, DirectX::XMQuaternionRotationAxis(camUp, DegreesToRadians(MouseDelta.x)));
+		DirectX::XMMATRIX RotationMatrix = DirectX::XMMatrixRotationQuaternion(Quat);// DirectX::XMMatrixRotationQuaternion(Quat);
+		//DirectX::XMMATRIX RotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(DirectX::XMConvertToRadians(CameraInfo.Transform.Rotation.y), DirectX::XMConvertToRadians(CameraInfo.Transform.Rotation.x), 0.0f);
+		DirectX::XMVECTOR camTarget = DirectX::XMVector3TransformCoord(defaultForward, RotationMatrix);
+		//camTarget = DirectX::XMVector3Normalize(camTarget);
+
+		DirectX::XMFLOAT4 temp;    //the float where we copy the v2 vector members
+		DirectX::XMStoreFloat4(&temp, camTarget);   //the function used to copy
+		OutLookAtVector.x = temp.x;
+		OutLookAtVector.y = temp.y;
+		OutLookAtVector.z = temp.z;
+
+		camUp = XMVector3TransformCoord(camUp, RotationMatrix);
+		DirectX::XMStoreFloat4(&temp, camUp);   //the function used to copy
+		OutUpVector.x = temp.x;
+		OutUpVector.y = temp.y;
+		OutUpVector.z = temp.z;
+
+		camTarget = DirectX::XMVectorAdd(camTarget, camPosition);
+
+		if (Transpose)
+			CameraView = DirectX::XMMatrixTranspose(DirectX::XMMatrixLookAtLH(camPosition, camTarget, camUp));
+		else
+			CameraView = DirectX::XMMatrixLookAtLH(camPosition, camTarget, camUp);
+
+		//CameraView = DirectX::XMMatrixInverse(NULL, DirectX::XMMatrixMultiply(RotationMatrix, DirectX::XMMatrixTranslationFromVector(camPosition)));
+	}
+	else
+		Assert(1 == 2); // not allowed
 
 	DirectX::XMFLOAT4X4 View;
 	DirectX::XMStoreFloat4x4(&View, CameraView);

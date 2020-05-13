@@ -15,8 +15,8 @@ void camera::UpdateFromInput()
 	{
 		if (Engine->UserInputs.MouseMovement)
 		{
-			CameraInfo.Transform.Rotation.x += (Engine->UserInputs.MouseDeltaX * 0.1f);
-			CameraInfo.Transform.Rotation.y += (Engine->UserInputs.MouseDeltaY * 0.1f);
+			CameraInfo.Transform.Rotation.x += (Engine->UserInputs.MouseDeltaX * MouseInputScale);
+			CameraInfo.Transform.Rotation.y += (Engine->UserInputs.MouseDeltaY * MouseInputScale);
 		}
 	}
 }

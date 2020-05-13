@@ -2,11 +2,32 @@
 #include "MathUtils.h"
 #include "TerrainManager.h"
 
-void planet_terrain_manager::GenerateChunkVerticesAndIndices(int LOD, terrain_chunk& Chunk)
+bool planet_terrain_manager::IsChunkVisible(const terrain_chunk& Chunk, v3 CameraPosition)
+{
+	v3 ChunkNormal = Normalize(Chunk.Midpoint);
+	v3 PositionNormal = Normalize(CameraPosition);
+	f32 DotProd = DotProduct(PositionNormal, ChunkNormal);
+	f32 Angle = acos(DotProd);
+	f32 MaxAngle = min((Length(CameraPosition) / GetPlanetRadius()) * (Pi32 * 0.2f), Pi32 * 0.35f);
+	if (Angle < MaxAngle)
+		return true;
+	else
+		return false;
+}
+
+void planet_terrain_manager::GenerateChunkVerticesAndIndices(int LOD, terrain_chunk& Chunk, bool _Noise)
 {
 	if (Chunk.CurrentLOD != LOD)
 	{
 		Chunk.CurrentLOD = LOD;
+
+		if (LOD == -1)
+		{
+			Chunk.Vertices.clear();
+			Chunk.Indices.clear();
+			return;
+		}
+
 		srand(MapSeed);
 		FastNoise Noise;
 		f32 NoiseScale = 0.005f;
@@ -57,7 +78,9 @@ void planet_terrain_manager::GenerateChunkVerticesAndIndices(int LOD, terrain_ch
 						v3 VertexPosition = Normalize(UpDirection + AxisAPosition + AxisBPosition);
 						v3 Normal = VertexPosition;
 						f32 NoiseValue = Noise.GetNoise(VertexPosition.x, VertexPosition.y, VertexPosition.z) * NoiseScale;
-						VertexPosition += NoiseValue * Normal;
+
+						if (_Noise)
+							VertexPosition += NoiseValue * Normal;
 
 						vertex Vertex = vertex(VertexPosition.x, VertexPosition.y, VertexPosition.z, Percent.x, Percent.y, Normal.x, Normal.y, Normal.z);
 
@@ -80,12 +103,20 @@ void planet_terrain_manager::GenerateChunkVerticesAndIndices(int LOD, terrain_ch
 					}
 				}
 
-				for (int i = 1; i < VerticesPerLine - 1; i += 2)
-				{
-					int BottomIndex = i + (VerticesPerLine * (VerticesPerLine - 1));
-					NewVertices[i] = Midpoint(NewVertices[i - 1], NewVertices[i + 1]);
-					NewVertices[BottomIndex] = Midpoint(NewVertices[BottomIndex - 1], NewVertices[BottomIndex + 1]);
-				}
+				//if (LOD == 0 || LOD == 2) // every other LOD level adjusts for the next one
+				//{
+				//	for (int i = 1; i < VerticesPerLine - 1; i += 2)
+				//	{
+				//		int BottomIndex = i + (VerticesPerLine * (VerticesPerLine - 1));
+				//		NewVertices[i] = Midpoint(NewVertices[i - 1], NewVertices[i + 1]);
+				//		NewVertices[BottomIndex] = Midpoint(NewVertices[BottomIndex - 1], NewVertices[BottomIndex + 1]);
+
+				//		int LeftIndex = VerticesPerLine * i;
+				//		int RightIndex = LeftIndex + VerticesPerLine - 1;
+				//		NewVertices[LeftIndex] = Midpoint(NewVertices[LeftIndex - VerticesPerLine], NewVertices[LeftIndex + VerticesPerLine]);
+				//		NewVertices[RightIndex] = Midpoint(NewVertices[RightIndex - VerticesPerLine], NewVertices[RightIndex + VerticesPerLine]);
+				//	}
+				//}
 
 				ChunkDataSwapMutex.lock();
 				std::swap(Chunk.Vertices, NewVertices);

@@ -15,6 +15,7 @@ struct debug_data
 	f32 CameraSpeed = 0.08f;
 	u32 ChunkDrawCalls = 0;
 	bool EnableWireframe = false;
+	bool VisibleChunkUpdates = true;
 };
 
 class engine
@@ -32,6 +33,8 @@ public:
 	level MainLevel;
 	user_inputs UserInputs;
 	planet_terrain_manager TerrainManager;
+
+	std::thread ChunkUpdateThread;
 
 	// Called from platform
 	void Tick(); // every frame

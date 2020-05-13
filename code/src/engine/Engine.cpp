@@ -22,7 +22,9 @@ void engine::Tick()
 	Renderer.MapConstants(map_operation::Lighting);
 
 	MainCamera.UpdateProjectionType(projection_type::Perspective);
-	MainCamera.ViewMatrix = renderer::GenerateViewMatrix(true, MainCamera.CameraInfo, MainCamera.LookAtVector, MainCamera.UpVector);
+	//MainCamera.ViewMatrix = renderer::GenerateViewMatrix(true, MainCamera.CameraInfo, MainCamera.LookAtVector, MainCamera.UpVector);
+	v2 MouseDelta = v2{ UserInputs.MouseDeltaX * MainCamera.MouseInputScale, UserInputs.MouseDeltaY * MainCamera.MouseInputScale };
+	MainCamera.ViewMatrix = renderer::GeneratePlanetaryViewMatrix(true, MainCamera.CameraInfo, MouseDelta, MainCamera.ForwardVector, MainCamera.LookAtVector, MainCamera.UpVector);
 	RenderScene();
 
 	UpdateComponents(); // before scene render?
@@ -137,6 +139,8 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 
 void engine::Cleanup()
 {
+	if (ChunkUpdateThread.joinable())
+		ChunkUpdateThread.join();
 	Renderer.Cleanup();
 }
 
@@ -215,41 +219,86 @@ void UpdateVisibleChunks(planet_terrain_manager* TerrainManager, camera* MainCam
 {
 	if (!TerrainManager->UpdatingChunkData)
 	{
-		std::vector<u32> NewVisibleChunkIDs;
 		TerrainManager->UpdatingChunkData = true;
+
+		std::vector<vertex> NewLowLODVertices;
+		std::vector<u32> NewLowLODIndices;
+		std::vector<u32> NewVisibleChunkIDs;
+
+		u32 CurrentOffset = 0;
+		u32 IndicesIndex = 0;
+
 		for (u32 i = 0; i < (u32)TerrainManager->ChunkArray.size(); i++)
 		{
-			v3 ChunkNormal = Normalize(TerrainManager->ChunkArray[i].Midpoint);
-			v3 PositionNormal = Normalize(MainCamera->CameraInfo.Transform.Location);
-			f32 DotProd = DotProduct(PositionNormal, ChunkNormal);
-			f32 Angle = acos(DotProd);
-			f32 MaxAngle = min((Length(MainCamera->CameraInfo.Transform.Location) / TerrainManager->GetPlanetRadius()) * (Pi32 * 0.2f), Pi32 * 0.35f);
-			if (Angle < MaxAngle)
+			terrain_chunk& Chunk = TerrainManager->ChunkArray[i];
+			if (TerrainManager->IsChunkVisible(Chunk, MainCamera->CameraInfo.Transform.Location))
 			{
 				f32 Distance = Length(MainCamera->CameraInfo.Transform.Location - TerrainManager->ChunkArray[i].Midpoint);
 				//if (Distance <= 400.f)
 				{
 					NewVisibleChunkIDs.push_back(i);
+
+
+					//bool LowLOD = false;
 					if (Distance <= 25.f)
-						TerrainManager->GenerateChunkVerticesAndIndices(0, TerrainManager->ChunkArray[i]);
+						TerrainManager->GenerateChunkVerticesAndIndices(0, Chunk, true);
 					else if (Distance < 50.f)
-						TerrainManager->GenerateChunkVerticesAndIndices(1, TerrainManager->ChunkArray[i]);
-					else if (Distance < 75.f)
-						TerrainManager->GenerateChunkVerticesAndIndices(2, TerrainManager->ChunkArray[i]);
+						TerrainManager->GenerateChunkVerticesAndIndices(1, Chunk, true);
 					else if (Distance < 100.f)
-						TerrainManager->GenerateChunkVerticesAndIndices(3, TerrainManager->ChunkArray[i]);
-					else if (Distance < 125.f)
-						TerrainManager->GenerateChunkVerticesAndIndices(5, TerrainManager->ChunkArray[i]);
-					else if (Distance < 200.f)
-						TerrainManager->GenerateChunkVerticesAndIndices(6, TerrainManager->ChunkArray[i]);
+						TerrainManager->GenerateChunkVerticesAndIndices(2, Chunk, true);
+					else if (Distance < 150.f)
+						TerrainManager->GenerateChunkVerticesAndIndices(4, Chunk, true);
 					else
-						TerrainManager->GenerateChunkVerticesAndIndices(30, TerrainManager->ChunkArray[i]);
+					{
+						if (Distance < 300)
+							Chunk.RenderSubChunk = true;
+						TerrainManager->GenerateChunkVerticesAndIndices(36, Chunk, true);
+					}
+
+					Chunk.RenderSubChunk = false;
+
+					if (Chunk.RenderSubChunk || Chunk.CurrentLOD == 36)
+					{
+						terrain_chunk DummyChunk = Chunk;
+						terrain_chunk* ChunkToUse = nullptr;
+
+						if (Chunk.RenderSubChunk)
+						{
+							TerrainManager->GenerateChunkVerticesAndIndices(36, DummyChunk, true);
+							ChunkToUse = &DummyChunk;
+						}
+						else
+							ChunkToUse = &Chunk;
+
+						NewLowLODVertices.insert(NewLowLODVertices.end(), ChunkToUse->Vertices.begin(), ChunkToUse->Vertices.end());
+						NewLowLODIndices.resize(NewLowLODIndices.size() + ChunkToUse->Indices.size());
+						for (u32 n = 0; n < ChunkToUse->Indices.size(); n++)
+						{
+							NewLowLODIndices[IndicesIndex] = ChunkToUse->Indices[n] + CurrentOffset;
+							IndicesIndex++;
+						}
+						CurrentOffset += (u32)ChunkToUse->Vertices.size();
+					}
+
+					//if (LowLOD)
+					//{
+					//	NewLowLODVertices.insert(NewLowLODVertices.end(), Chunk.Vertices.begin(), Chunk.Vertices.end());
+					//	NewLowLODIndices.resize(NewLowLODIndices.size() + Chunk.Indices.size());
+					//	for (u32 n = 0; n < Chunk.Indices.size(); n++)
+					//	{
+					//		NewLowLODIndices[IndicesIndex] = Chunk.Indices[n] + CurrentOffset;
+					//		IndicesIndex++;
+					//	}
+					//	CurrentOffset += (u32)Chunk.Vertices.size();
+					//}
 				}
 			}
 		}
 
 		TerrainManager->VisibleChunkSwapMutex.lock();
 		std::swap(TerrainManager->VisibleChunkIDs, NewVisibleChunkIDs);
+		std::swap(TerrainManager->LowLODVertices, NewLowLODVertices);
+		std::swap(TerrainManager->LowLODIndices, NewLowLODIndices);
 		TerrainManager->VisibleChunkSwapMutex.unlock();
 
 		TerrainManager->UpdatingChunkData = false;
@@ -321,13 +370,12 @@ void engine::RenderPlanet()
 	//Renderer.DrawIndexedInstanced((vertex*)PlanetMesh->Data, (u32*)((vertex*)PlanetMesh->Data + PlanetMesh->MeshData.NumVertices), PlanetMesh->MeshData.NumVertices, PlanetMesh->MeshData.NumIndices, 0, 1, draw_topology_type::TriangleList);
 	Renderer.BindMaterial(MaterialRegistry.GetComponent(0));
 
-	std::thread(UpdateVisibleChunks, &TerrainManager, &MainCamera).detach();
-	
-	// lower LODs get batched rendered to save draw calls
-	std::vector<vertex> LowLODVertices;
-	std::vector<u32> LowLODIndices;
-	u32 CurrentOffset = 0;
-	u32 IndicesIndex = 0;
+	if ((DebugData.VisibleChunkUpdates && !TerrainManager.UpdatingChunkData) || ChunkUpdateThread.get_id() == std::thread::id())
+	{
+		if (ChunkUpdateThread.joinable())
+			ChunkUpdateThread.join();
+		ChunkUpdateThread = std::thread(UpdateVisibleChunks, &TerrainManager, &MainCamera);
+	}
 
 	DebugData.ChunkDrawCalls = 1;
 
@@ -337,24 +385,18 @@ void engine::RenderPlanet()
 	{
 		terrain_chunk& Chunk = TerrainManager.ChunkArray[TerrainManager.VisibleChunkIDs[i]];
 
-		if (Chunk.CurrentLOD > 3)
-		{
-			LowLODVertices.insert(LowLODVertices.end(), Chunk.Vertices.begin(), Chunk.Vertices.end());
-			LowLODIndices.resize(LowLODIndices.size() + Chunk.Indices.size());
-			for (u32 n = 0; n < Chunk.Indices.size(); n++)
-			{
-				LowLODIndices[IndicesIndex] = Chunk.Indices[n] + CurrentOffset;
-				IndicesIndex++;
-			}
-			CurrentOffset += (u32)Chunk.Vertices.size();
-		}
-		else
+		if (Chunk.CurrentLOD <= 4)
 		{
 			Renderer.DrawIndexedTerrainChunk(Chunk.Vertices.data(), Chunk.Indices.data(), (u32)Chunk.Vertices.size(), (u32)Chunk.Indices.size());
 			DebugData.ChunkDrawCalls++;
 		}
+
+		if (Chunk.CurrentLOD == 0 || Chunk.CurrentLOD == 36)
+			Chunk.RenderSubChunk = false;
+		else
+			Chunk.RenderSubChunk = true;
 	}
-	Renderer.DrawIndexedTerrainChunk(LowLODVertices.data(), LowLODIndices.data(), (u32)LowLODVertices.size(), (u32)LowLODIndices.size());
+	Renderer.DrawIndexedTerrainChunk(TerrainManager.LowLODVertices.data(), TerrainManager.LowLODIndices.data(), (u32)TerrainManager.LowLODVertices.size(), (u32)TerrainManager.LowLODIndices.size());
 	TerrainManager.VisibleChunkSwapMutex.unlock();
 	TerrainManager.ChunkDataSwapMutex.unlock();
 }
@@ -517,8 +559,14 @@ void engine::RenderDebugWidgets()
 		ImGui::AlignTextToFramePadding();
 		ImGui::Text("Enable Wireframe:");
 		ImGui::SameLine();
-		if (ImGui::Button((DebugData.EnableWireframe ? "true" : "false")))
+		if (ImGui::Button((DebugData.EnableWireframe ? "true##0" : "false##0")))
 			DebugData.EnableWireframe = !DebugData.EnableWireframe;
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text("Visible Chunk Updates:");
+		ImGui::SameLine();
+		if (ImGui::Button((DebugData.VisibleChunkUpdates ? "true##1" : "false##1")))
+			DebugData.VisibleChunkUpdates = !DebugData.VisibleChunkUpdates;
 
 		if (ImGui::CollapsingHeader("Rendering Components"))
 		{

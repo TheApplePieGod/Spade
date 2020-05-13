@@ -133,6 +133,11 @@ matrix4x4 renderer::GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v
 	return PlatformRenderer->GenerateViewMatrix(Transpose, CameraInfo, OutLookAtVector, OutUpVector, OrthoUseMovement);
 }
 
+matrix4x4 renderer::GeneratePlanetaryViewMatrix(bool Transpose, camera_info CameraInfo, v2 MouseDelta, v3 ForwardVector, v3& OutLookAtVector, v3& OutUpVector, bool OrthoUseMovement)
+{
+	return PlatformRenderer->GeneratePlanetaryViewMatrix(Transpose, CameraInfo, MouseDelta, ForwardVector, OutLookAtVector, OutUpVector, OrthoUseMovement);
+}
+
 matrix4x4 renderer::GenerateWorldMatrix(transform Transform)
 {
 	return PlatformRenderer->GenerateWorldMatrix(Transform);
