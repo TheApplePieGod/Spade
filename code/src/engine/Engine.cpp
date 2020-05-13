@@ -400,20 +400,20 @@ void engine::RenderPlanet()
 	BinaryTreeTest.UniqueIdentifier = "DefaultPBR";
 	Renderer.SetPipelineState(BinaryTreeTest);
 
-	std::vector<int> OutInts = TerrainManager.Trees[0].Traverse(MainCamera.CameraInfo.Transform.Location, 500.f);
 	std::vector<vertex> BTVertices;
 	std::vector<u32> BTIndices;
-	u32 Offset = 0;
-	for (u32 i = 0; i < (u32)OutInts.size(); i++)
+	
+	for (u32 n = 0; n < (u32)TerrainManager.Trees.size(); n++)
 	{
-		const binary_terrain_chunk& Data = TerrainManager.Trees[0].ChunkData[OutInts[i]];
-		//u32 Indices[3] = { 0 + Offset, 1 + Offset, 2 + Offset };
-		//BTIndices.insert(BTIndices.end(), Indices, Indices + 3);
-		BTVertices.insert(BTVertices.end(), Data.Vertices, Data.Vertices + 3);
-		Offset += 3;
+		std::vector<int> OutInts = TerrainManager.Trees[n].Traverse(MainCamera.CameraInfo.Transform.Location, 5000.f);
+		for (u32 i = 0; i < (u32)OutInts.size(); i++)
+		{
+			const binary_terrain_chunk& Data = TerrainManager.Trees[n].ChunkData[OutInts[i]];
+			BTVertices.insert(BTVertices.end(), Data.Vertices, Data.Vertices + 3);
+		}
+		//Renderer.DrawIndexedTerrainChunk(BTVertices.data(), BTIndices.data(), (u32)BTVertices.size(), (u32)BTIndices.size());
+		Renderer.Draw(BTVertices.data(), (u32)BTVertices.size(), draw_topology_type::TriangleList);
 	}
-	//Renderer.DrawIndexedTerrainChunk(BTVertices.data(), BTIndices.data(), (u32)BTVertices.size(), (u32)BTIndices.size());
-	Renderer.Draw(BTVertices.data(), (u32)BTVertices.size(), draw_topology_type::TriangleList);
 	//------
 
 	//TerrainManager.VisibleChunkSwapMutex.lock();

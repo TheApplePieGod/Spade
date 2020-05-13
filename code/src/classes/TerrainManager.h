@@ -33,7 +33,7 @@ struct binary_tree
 {
 	std::vector<binary_node> Nodes;
 	free_list<binary_terrain_chunk> ChunkData;
-	byte MaxDepth = 6;
+	byte MaxDepth = 10;
 	int FirstFreeNode = -1;
 
 	binary_tree(vertex InitialVertices[3]);
@@ -53,6 +53,8 @@ public:
 	void Initialize(f32 _PlanetRadius);
 	void GenerateChunkIndices(int LOD, terrain_chunk& Chunk);
 	void GenerateChunkVerticesAndIndices(int LOD, terrain_chunk& Chunk, bool Noise);
+	static f32 GetTerrainNoise(v3 Location);
+
 	std::vector<terrain_chunk> ChunkArray;
 	std::vector<u32> VisibleChunkIDs;
 
@@ -77,9 +79,9 @@ public:
 private:
 
 	f32 PlanetRadius = 0.f;
-	const int FaceDivision = 80;
-	const int Resolution = 73;
-	const int MapSeed = 1337;
+	static const int FaceDivision = 80;
+	static const int Resolution = 73;
+	static const int MapSeed = 1337;
 	cMeshAsset* PlanetMesh;
 
 };

@@ -16,6 +16,17 @@ inline v3 Normalize(v3 A)
 	return(Result);
 }
 
+inline vertex Normalize(const vertex& A)
+{
+	vertex Result = A;
+	v3 V3A = v3{ A.x, A.y, A.z };
+	f32 length = Length(V3A);
+	Result.x = V3A.x / length;
+	Result.y = V3A.y / length;
+	Result.z = V3A.z / length;
+	return(Result);
+}
+
 inline v3 CrossProduct(v3 A, v3 B)
 {
 	v3 Result;

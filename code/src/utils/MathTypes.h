@@ -188,7 +188,7 @@ struct colors
 };
 
 // Standard struct used in rendering
-struct vertex
+union vertex
 {
 	vertex(f32 X, f32 Y, f32 Z)
 	{
@@ -220,18 +220,39 @@ struct vertex
 
 	vertex() = default;
 
-	// Position in x/y plane
-	f32 x, y, z;
+	struct
+	{
+		// Position in x/y plane
+		f32 x, y, z;
 
-	// UV coordinates
-	f32 u, v;
+		// UV coordinates
+		f32 u, v;
 
-	// Normals
-	f32 nx, ny, nz;
+		// Normals
+		f32 nx, ny, nz;
 
-	// Tangents
-	f32 tx, ty, tz;
+		// Tangents
+		f32 tx, ty, tz;
 
-	// Bitangents
-	f32 bx, by, bz;
+		// Bitangents
+		f32 bx, by, bz;
+	};
+
+	struct
+	{
+		// Position in x/y plane
+		v3 Position;
+
+		// UV coordinates
+		v2 UV;
+
+		// Normals
+		v3 Normal;
+
+		// Tangents
+		v3 Tangent;
+
+		// Bitangents
+		v3 Bitangent;
+	};
 };

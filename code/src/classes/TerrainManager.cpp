@@ -20,12 +20,12 @@ int binary_tree::SplitNode(binary_node Parent)
 	int ParentNodeDataIndex = Parent.FirstChildIndex;
 	const binary_terrain_chunk& Data = ChunkData[ParentNodeDataIndex];
 
-	vertex NewVertex = Midpoint(Data.Vertices[0], Data.Vertices[1]); // becomes vertex 2 of the new nodes;
+	vertex NewVertex = Normalize(Midpoint(Normalize(Data.Vertices[0]), Normalize(Data.Vertices[1]))); // becomes vertex 2 of the new nodes;
+	//NewVertex.Position += NewVertex.Position * planet_terrain_manager::GetTerrainNoise(NewVertex.Position);
 	
 	binary_node NewNode1 = { -1, true, static_cast<byte>(Parent.Depth + 1) };
 	binary_node NewNode2 = { -1, true, static_cast<byte>(Parent.Depth + 1) };
 
-	bool Reverse = ((Parent.Depth + 1) % 2 == 1);
 	binary_terrain_chunk NewData1 = { { Data.Vertices[2], Data.Vertices[0], NewVertex }, Midpoint(Data.Vertices[0], Data.Vertices[2], NewVertex) };
 	binary_terrain_chunk NewData2 = { { Data.Vertices[1], Data.Vertices[2], NewVertex }, Midpoint(Data.Vertices[1], Data.Vertices[2], NewVertex) };
 
@@ -44,8 +44,8 @@ int binary_tree::SplitNode(binary_node Parent)
 	{
 		NewNodeIndex = FirstFreeNode;
 		FirstFreeNode = Nodes[FirstFreeNode].FirstChildIndex;
-		Nodes[FirstFreeNode] = NewNode1;
-		Nodes[FirstFreeNode + 1] = NewNode2;
+		Nodes[NewNodeIndex] = NewNode1;
+		Nodes[NewNodeIndex + 1] = NewNode2;
 	}
 
 	return NewNodeIndex;
@@ -67,7 +67,7 @@ std::vector<int> binary_tree::Traverse(v3 CameraPosition, f32 LodSwitchIncrement
 
 		if (Nodes[NodeIndex].IsLeaf)
 		{
-			if (static_cast<byte>(Nodes[NodeIndex].Depth + 1) <= MaxDepth && Length(CameraPosition - ChunkData[Nodes[NodeIndex].FirstChildIndex].Midpoint) < LodDistance)
+			if (Nodes[NodeIndex].Depth + 1 <= MaxDepth && Length(CameraPosition - ChunkData[Nodes[NodeIndex].FirstChildIndex].Midpoint) < LodDistance)
 			{
 				int ChildIndex = SplitNode(Nodes[NodeIndex]);
 				Nodes[NodeIndex].IsLeaf = false;
@@ -80,12 +80,60 @@ std::vector<int> binary_tree::Traverse(v3 CameraPosition, f32 LodSwitchIncrement
 		}
 		else
 		{
-			ToProcess.push_back(Nodes[NodeIndex].FirstChildIndex);
-			ToProcess.push_back(Nodes[NodeIndex].FirstChildIndex + 1);
+			if (Nodes[Nodes[NodeIndex].FirstChildIndex].IsLeaf && Nodes[Nodes[NodeIndex].FirstChildIndex + 1].IsLeaf)
+			{
+				f32 DistanceToLeaf1 = Length(CameraPosition - ChunkData[Nodes[Nodes[NodeIndex].FirstChildIndex].FirstChildIndex].Midpoint);
+				f32 DistanceToLeaf2 = Length(CameraPosition - ChunkData[Nodes[Nodes[NodeIndex].FirstChildIndex + 1].FirstChildIndex].Midpoint);
+
+				if (DistanceToLeaf1 > LodDistance && DistanceToLeaf2 > LodDistance) // both leaves out of LOD range
+				{
+					binary_terrain_chunk& NodeData1 = ChunkData[Nodes[Nodes[NodeIndex].FirstChildIndex].FirstChildIndex];
+					binary_terrain_chunk& NodeData2 = ChunkData[Nodes[Nodes[NodeIndex].FirstChildIndex + 1].FirstChildIndex];
+					binary_terrain_chunk CombinedData = { { NodeData1.Vertices[1], NodeData2.Vertices[0], NodeData1.Vertices[0] }, Midpoint(NodeData1.Vertices[1], NodeData2.Vertices[0], NodeData1.Vertices[0]) };
+
+					ChunkData.Erase(Nodes[Nodes[NodeIndex].FirstChildIndex].FirstChildIndex);
+					ChunkData.Erase(Nodes[Nodes[NodeIndex].FirstChildIndex + 1].FirstChildIndex);
+
+					Nodes[Nodes[NodeIndex].FirstChildIndex].FirstChildIndex = FirstFreeNode;
+					FirstFreeNode = Nodes[NodeIndex].FirstChildIndex;
+
+					Nodes[NodeIndex].FirstChildIndex = ChunkData.Insert(CombinedData);
+					Nodes[NodeIndex].IsLeaf = true;
+
+					ToProcess.push_back(NodeIndex); // process the node again to get vertices for new leaf
+				}
+				else // otherwise process both nodes as normal
+				{
+					ToProcess.push_back(Nodes[NodeIndex].FirstChildIndex);
+					ToProcess.push_back(Nodes[NodeIndex].FirstChildIndex + 1);
+				}
+			}
+			else
+			{
+				ToProcess.push_back(Nodes[NodeIndex].FirstChildIndex);
+				ToProcess.push_back(Nodes[NodeIndex].FirstChildIndex + 1);
+			}
 		}
 	}
 
 	return OutIndexes;
+}
+
+f32 planet_terrain_manager::GetTerrainNoise(v3 Location)
+{
+	srand(MapSeed);
+	FastNoise Noise;
+	f32 NoiseScale = 0.005f;
+	Noise.SetSeed(MapSeed);
+	Noise.SetFrequency(60.f);
+	Noise.SetFractalOctaves(4);
+	Noise.SetNoiseType(FastNoise::PerlinFractal);
+
+	f32 NoiseValue = Noise.GetNoise(Location.x, Location.y, Location.z) * NoiseScale;
+
+	srand((u32)time(NULL));
+
+	return NoiseValue;
 }
 
 bool planet_terrain_manager::IsChunkVisible(const terrain_chunk& Chunk, v3 CameraPosition)
@@ -291,13 +339,26 @@ void planet_terrain_manager::Initialize(f32 _PlanetRadius)
 		th.join();
 	}
 
-	float Scale = 1.f;
-	vertex Vert0 = vertex(-0.5f * Scale, 0.5f * Scale, -0.5f * Scale, 0.f, 0.f);
-	vertex Vert1 = vertex(0.5f * Scale, -0.5f * Scale, -0.5f * Scale, 1.f, 0.f);
-	vertex Vert2 = vertex(-0.5f * Scale, -0.5f * Scale, -0.5f * Scale, 0.f, 1.f);
+	float Scale = 2.f;
+	vertex Vert0 = Normalize(vertex(-0.5f * Scale, 0.5f * Scale, -0.5f * Scale, 0.f, 0.f));
+	//Vert0.Position += Vert0.Position * GetTerrainNoise(Vert0.Position);
+
+	vertex Vert1 = Normalize(vertex(0.5f * Scale, -0.5f * Scale, -0.5f * Scale, 1.f, 1.f));
+	//Vert1.Position += Vert1.Position * GetTerrainNoise(Vert1.Position);
+
+	vertex Vert2 = Normalize(vertex(-0.5f * Scale, -0.5f * Scale, -0.5f * Scale, 0.f, 1.f));
+	//Vert2.Position += Vert2.Position * GetTerrainNoise(Vert2.Position);
+
+	vertex Vert3 = Vert1;
+	vertex Vert4 = Vert0;
+	vertex Vert5 = Normalize(vertex(0.5f * Scale, 0.5f * Scale, -0.5f * Scale, 1.f, 0.f));
+	//Vert5.Position += Vert5.Position * GetTerrainNoise(Vert5.Position);
 
 	vertex Verts[3] = { Vert0, Vert1, Vert2 };
+	vertex Verts2[3] = { Vert3, Vert4, Vert5 };
 
 	binary_tree Tree1 = binary_tree(Verts);
+	binary_tree Tree2 = binary_tree(Verts2);
 	Trees.push_back(Tree1);
+	Trees.push_back(Tree2);
 }
