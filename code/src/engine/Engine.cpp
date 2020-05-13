@@ -22,9 +22,9 @@ void engine::Tick()
 	Renderer.MapConstants(map_operation::Lighting);
 
 	MainCamera.UpdateProjectionType(projection_type::Perspective);
-	//MainCamera.ViewMatrix = renderer::GenerateViewMatrix(true, MainCamera.CameraInfo, MainCamera.LookAtVector, MainCamera.UpVector);
 	v2 MouseDelta = v2{ UserInputs.MouseDeltaX * MainCamera.MouseInputScale, UserInputs.MouseDeltaY * MainCamera.MouseInputScale };
-	MainCamera.ViewMatrix = renderer::GeneratePlanetaryViewMatrix(true, MainCamera.CameraInfo, MouseDelta, MainCamera.ForwardVector, MainCamera.LookAtVector, MainCamera.UpVector);
+	MainCamera.ViewMatrix = renderer::GenerateViewMatrix(true, MainCamera.CameraInfo, MainCamera.LookAtVector, MainCamera.UpVector);
+	//MainCamera.ViewMatrix = renderer::GeneratePlanetaryViewMatrix(true, MainCamera.CameraInfo, MouseDelta, MainCamera.ForwardVector, MainCamera.LookAtVector, MainCamera.UpVector);
 	RenderScene();
 
 	UpdateComponents(); // before scene render?
@@ -68,6 +68,12 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 	State.UniqueIdentifier = "DefaultPBR";
 	PipelineStates.CreateComponent(State);
 
+	State = pipeline_state();
+	State.VertexShaderID = GetShaderIDFromName("mainvs");
+	State.PixelShaderID = GetShaderIDFromName("mainps");
+	State.RasterizerState = (DebugData.EnableWireframe ? rasterizer_state::Wireframe : rasterizer_state::DefaultCullBackface);
+	State.UniqueIdentifier = "DefaultPBR";
+	PipelineStates.CreateComponent(State);
 
 	// todo: hardcoded default texture and material data
 	for (u32 i = 0; i < 2; i++)
@@ -123,9 +129,10 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 		else
 		{
 			rcomp.SetLocation(v3{ 0.f, 0.f, -1000.f });
+			rcomp.SetScale(v3{ 100.f, 100.f, 100.f });
 			rcomp.RenderResources.MaterialID = 0;
-			rcomp.RenderResources.PipelineStateID = 2;
-			rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("parasite_l_starkie.fbx");
+			rcomp.RenderResources.PipelineStateID = 1;
+			rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("cube_t.fbx");
 		}
 
 		rcomp.ActorComponentID = actorid;
@@ -239,21 +246,21 @@ void UpdateVisibleChunks(planet_terrain_manager* TerrainManager, camera* MainCam
 					NewVisibleChunkIDs.push_back(i);
 
 
-					//bool LowLOD = false;
-					if (Distance <= 25.f)
-						TerrainManager->GenerateChunkVerticesAndIndices(0, Chunk, true);
-					else if (Distance < 50.f)
-						TerrainManager->GenerateChunkVerticesAndIndices(1, Chunk, true);
-					else if (Distance < 100.f)
-						TerrainManager->GenerateChunkVerticesAndIndices(2, Chunk, true);
-					else if (Distance < 150.f)
-						TerrainManager->GenerateChunkVerticesAndIndices(4, Chunk, true);
-					else
-					{
-						if (Distance < 300)
-							Chunk.RenderSubChunk = true;
+					bool LowLOD = false;
+					//if (Distance <= 25.f)
+					//	TerrainManager->GenerateChunkVerticesAndIndices(0, Chunk, true);
+					//else if (Distance < 50.f)
+					//	TerrainManager->GenerateChunkVerticesAndIndices(1, Chunk, true);
+					//else if (Distance < 100.f)
+					//	TerrainManager->GenerateChunkVerticesAndIndices(2, Chunk, true);
+					//else if (Distance < 150.f)
+					//	TerrainManager->GenerateChunkVerticesAndIndices(4, Chunk, true);
+					//else
+					//{
+					//	if (Distance < 300)
+					//		Chunk.RenderSubChunk = true;
 						TerrainManager->GenerateChunkVerticesAndIndices(36, Chunk, true);
-					}
+					//}
 
 					Chunk.RenderSubChunk = false;
 
@@ -317,6 +324,9 @@ void engine::RenderPlanet()
 	pipeline_state GroundFromSpace = pipeline_state();
 	GroundFromSpace.VertexShaderID = GetShaderIDFromName("mainvs");
 	GroundFromSpace.PixelShaderID = GetShaderIDFromName("GroundFromSpacePS");
+	//GroundFromSpace.DomainShaderID = GetShaderIDFromName("TerrainDomainShader");
+	//GroundFromSpace.HullShaderID = GetShaderIDFromName("TerrainHullShader");
+	//GroundFromSpace.EnableTesselation = true;
 	GroundFromSpace.RasterizerState = (DebugData.EnableWireframe ? rasterizer_state::Wireframe : rasterizer_state::DefaultCullBackface);
 	GroundFromSpace.UniqueIdentifier = "DefaultPBR";
 
@@ -329,6 +339,9 @@ void engine::RenderPlanet()
 	pipeline_state GroundFromAtmosphere = pipeline_state();
 	GroundFromAtmosphere.VertexShaderID = GetShaderIDFromName("mainvs");
 	GroundFromAtmosphere.PixelShaderID = GetShaderIDFromName("GroundFromAtmospherePS");
+	//GroundFromAtmosphere.DomainShaderID = GetShaderIDFromName("TerrainDomainShader");
+	//GroundFromAtmosphere.HullShaderID = GetShaderIDFromName("TerrainHullShader");
+	//GroundFromAtmosphere.EnableTesselation = true;
 	GroundFromAtmosphere.RasterizerState = (DebugData.EnableWireframe ? rasterizer_state::Wireframe : rasterizer_state::DefaultCullBackface);
 	GroundFromAtmosphere.UniqueIdentifier = "DefaultPBR";
 
@@ -349,7 +362,7 @@ void engine::RenderPlanet()
 	else
 		Renderer.SetPipelineState(SkyFromSpace);
 
-	Renderer.DrawIndexedInstanced((vertex*)PlanetMesh->Data, (u32*)((vertex*)PlanetMesh->Data + PlanetMesh->MeshData.NumVertices), PlanetMesh->MeshData.NumVertices, PlanetMesh->MeshData.NumIndices, 0, 1, draw_topology_type::TriangleList);
+	//Renderer.DrawIndexedInstanced((vertex*)PlanetMesh->Data, (u32*)((vertex*)PlanetMesh->Data + PlanetMesh->MeshData.NumVertices), PlanetMesh->MeshData.NumVertices, PlanetMesh->MeshData.NumIndices, 0, 1, draw_topology_type::TriangleList);
 
 	transform PlanetTransform = transform();
 	PlanetTransform.Scale = PlanetScale;
@@ -379,26 +392,50 @@ void engine::RenderPlanet()
 
 	DebugData.ChunkDrawCalls = 1;
 
-	TerrainManager.VisibleChunkSwapMutex.lock();
-	TerrainManager.ChunkDataSwapMutex.lock();
-	for (u32 i = 0; i < (u32)TerrainManager.VisibleChunkIDs.size(); i++)
+	//binary tree test
+	pipeline_state BinaryTreeTest = pipeline_state();
+	BinaryTreeTest.VertexShaderID = GetShaderIDFromName("mainvs");
+	BinaryTreeTest.PixelShaderID = GetShaderIDFromName("mainps");
+	BinaryTreeTest.RasterizerState = (DebugData.EnableWireframe ? rasterizer_state::Wireframe : rasterizer_state::DefaultCullBackface);
+	BinaryTreeTest.UniqueIdentifier = "DefaultPBR";
+	Renderer.SetPipelineState(BinaryTreeTest);
+
+	std::vector<int> OutInts = TerrainManager.Trees[0].Traverse(MainCamera.CameraInfo.Transform.Location, 500.f);
+	std::vector<vertex> BTVertices;
+	std::vector<u32> BTIndices;
+	u32 Offset = 0;
+	for (u32 i = 0; i < (u32)OutInts.size(); i++)
 	{
-		terrain_chunk& Chunk = TerrainManager.ChunkArray[TerrainManager.VisibleChunkIDs[i]];
-
-		if (Chunk.CurrentLOD <= 4)
-		{
-			Renderer.DrawIndexedTerrainChunk(Chunk.Vertices.data(), Chunk.Indices.data(), (u32)Chunk.Vertices.size(), (u32)Chunk.Indices.size());
-			DebugData.ChunkDrawCalls++;
-		}
-
-		if (Chunk.CurrentLOD == 0 || Chunk.CurrentLOD == 36)
-			Chunk.RenderSubChunk = false;
-		else
-			Chunk.RenderSubChunk = true;
+		const binary_terrain_chunk& Data = TerrainManager.Trees[0].ChunkData[OutInts[i]];
+		//u32 Indices[3] = { 0 + Offset, 1 + Offset, 2 + Offset };
+		//BTIndices.insert(BTIndices.end(), Indices, Indices + 3);
+		BTVertices.insert(BTVertices.end(), Data.Vertices, Data.Vertices + 3);
+		Offset += 3;
 	}
-	Renderer.DrawIndexedTerrainChunk(TerrainManager.LowLODVertices.data(), TerrainManager.LowLODIndices.data(), (u32)TerrainManager.LowLODVertices.size(), (u32)TerrainManager.LowLODIndices.size());
-	TerrainManager.VisibleChunkSwapMutex.unlock();
-	TerrainManager.ChunkDataSwapMutex.unlock();
+	//Renderer.DrawIndexedTerrainChunk(BTVertices.data(), BTIndices.data(), (u32)BTVertices.size(), (u32)BTIndices.size());
+	Renderer.Draw(BTVertices.data(), (u32)BTVertices.size(), draw_topology_type::TriangleList);
+	//------
+
+	//TerrainManager.VisibleChunkSwapMutex.lock();
+	//TerrainManager.ChunkDataSwapMutex.lock();
+	//for (u32 i = 0; i < (u32)TerrainManager.VisibleChunkIDs.size(); i++)
+	//{
+	//	terrain_chunk& Chunk = TerrainManager.ChunkArray[TerrainManager.VisibleChunkIDs[i]];
+
+	//	if (Chunk.CurrentLOD <= 4)
+	//	{
+	//		Renderer.DrawIndexedTerrainChunk(Chunk.Vertices.data(), Chunk.Indices.data(), (u32)Chunk.Vertices.size(), (u32)Chunk.Indices.size());
+	//		DebugData.ChunkDrawCalls++;
+	//	}
+
+	//	if (Chunk.CurrentLOD == 0 || Chunk.CurrentLOD == 36)
+	//		Chunk.RenderSubChunk = false;
+	//	else
+	//		Chunk.RenderSubChunk = true;
+	//}
+	//Renderer.DrawIndexedTerrainChunk(TerrainManager.LowLODVertices.data(), TerrainManager.LowLODIndices.data(), (u32)TerrainManager.LowLODVertices.size(), (u32)TerrainManager.LowLODIndices.size());
+	//TerrainManager.VisibleChunkSwapMutex.unlock();
+	//TerrainManager.ChunkDataSwapMutex.unlock();
 }
 
 inline bool CompareRenderComponents(rendering_component* Comp1, rendering_component* Comp2)
@@ -427,7 +464,7 @@ void engine::RenderScene()
 	u32 NumRenderComponents = (u32)RCRegistry.size();
 	for (u32 i = 0; i < NumRenderComponents; i++)
 		SortedRegistry.push_back(&RCRegistry[i]);
-		
+	
 	if (NumRenderComponents > 0) // first component is skybox
 	{
 		// Sort by material ID then by meshid (optimize?)

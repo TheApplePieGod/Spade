@@ -1,21 +1,6 @@
 #pragma once
 #include "MathTypes.h"
 
-inline vertex
-Midpoint(const vertex& A, const vertex& B)
-{
-	vertex Result;
-	Result.x = (A.x + B.x) * 0.5f;
-	Result.y = (A.y + B.y) * 0.5f;
-	Result.z = (A.z + B.z) * 0.5f;
-	Result.u = (A.u + B.u) * 0.5f;
-	Result.v = (A.v + B.v) * 0.5f;
-	Result.nx = (A.nx + B.nx) * 0.5f;
-	Result.ny = (A.ny + B.ny) * 0.5f;
-	Result.nz = (A.nz + B.nz) * 0.5f;
-	return Result;
-}
-
 inline f32 Length(v3 A)
 {
 	return sqrt((A.x * A.x) + (A.y * A.y) + (A.z * A.z));
@@ -132,6 +117,38 @@ operator/(v2 A, f32 B)
 	Result.y = A.y / B;
 
 	return(Result);
+}
+
+inline vertex
+Midpoint(const vertex& A, const vertex& B)
+{
+	vertex Result;
+	Result.x = (A.x + B.x) * 0.5f;
+	Result.y = (A.y + B.y) * 0.5f;
+	Result.z = (A.z + B.z) * 0.5f;
+	Result.u = (A.u + B.u) * 0.5f;
+	Result.v = (A.v + B.v) * 0.5f;
+	Result.nx = (A.nx + B.nx) * 0.5f;
+	Result.ny = (A.ny + B.ny) * 0.5f;
+	Result.nz = (A.nz + B.nz) * 0.5f;
+	return Result;
+}
+
+inline v3
+Midpoint(const v3& A, const v3& B, const v3& C)
+{
+	v3 Mid = 0.5f * (A + B);
+	Mid = 0.5f * (Mid + C);
+	return Mid * 998.f;
+}
+
+inline v3
+Midpoint(const vertex& A, const vertex& B, const vertex& C)
+{
+	v3 Point1 = v3{ A.x, A.y, A.z };
+	v3 Point2 = v3{ B.x, B.y, B.z };
+	v3 Point3 = v3{ C.x, C.y, C.z };
+	return Midpoint(Point1, Point2, Point3);
 }
 
 inline transform

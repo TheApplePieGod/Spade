@@ -1,4 +1,5 @@
 #pragma once
+#include "FreeList.h"
 
 struct terrain_chunk
 {
@@ -10,6 +11,38 @@ struct terrain_chunk
 	int FaceDivision;
 	byte Direction;
 	byte CurrentLOD = 255;
+};
+
+struct binary_terrain_chunk
+{
+	// 0 
+	// 2 1
+	vertex Vertices[3];
+	//u32 Indices[6] = { 1, 2, 0, 2, 1, 3 };
+	v3 Midpoint;
+};
+
+struct binary_node
+{
+	int FirstChildIndex = -1;
+	bool IsLeaf = true;
+	byte Depth = 0;
+};
+
+struct binary_tree
+{
+	std::vector<binary_node> Nodes;
+	free_list<binary_terrain_chunk> ChunkData;
+	byte MaxDepth = 6;
+	int FirstFreeNode = -1;
+
+	binary_tree(vertex InitialVertices[3]);
+
+	// returns index to first new child node
+	int SplitNode(binary_node Parent);
+
+	// returns a list of indexes into the ChunkData array
+	std::vector<int> Traverse(v3 CameraPosition, f32 LodSwitchIncrement);
 };
 
 class planet_terrain_manager
@@ -31,6 +64,8 @@ public:
 
 	bool UpdatingChunkData = false;
 	bool CombiningLowLOD = false;
+
+	std::vector<binary_tree> Trees;
 
 	inline f32 GetPlanetRadius()
 	{

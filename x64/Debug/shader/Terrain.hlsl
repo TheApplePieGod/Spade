@@ -68,15 +68,16 @@ float CalcTessFactor(float3 p, float3 eyePos)
 	//float d = max( abs(p.x- eyePos.x), abs(p.z- eyePos.z) );
 
 	float gMinDist = 1.f;
-	float gMaxDist = 500.f;
+	float gMaxDist = 50.f;
 	float gMinTess = 1.f;
-	float gMaxTess = 64.f;
+	float gMaxTess = 5.f;
 	//float s = saturate((d - gMinDist) / (gMaxDist - gMinDist));
 
 	//return pow(2, (lerp(gMaxTess, gMinTess, s)));
 
-	float TessellationScale = 1 - ((d - gMinDist) / (gMaxDist - gMinDist));
-	return  clamp(TessellationScale * gMaxTess - 1 + gMinTess, gMinTess, gMaxTess);
+	float TessellationScale = round(gMaxTess - ((d - gMinDist) / (gMaxDist - gMinDist)));
+	return TessellationScale;
+	//return  clamp(TessellationScale * gMaxTess - 1 + gMinTess, gMinTess, gMaxTess);
 }
 
 ConstantOutputType PatchConstantFunction(InputPatch<HSIn, NUM_CONTROL_POINTS> inputPatch, uint patchId : SV_PrimitiveID)
@@ -89,12 +90,12 @@ ConstantOutputType PatchConstantFunction(InputPatch<HSIn, NUM_CONTROL_POINTS> in
 	float tessellationAmount = 1.f;
 
 	// Set the tessellation factors for the three edges of the triangle.
-	output.Edges[0] = tessellationAmount;//CalcTessFactor(0.5f * (inputPatch[0].Position + inputPatch[1].Position), CameraPosition);
-	output.Edges[1] = tessellationAmount;//CalcTessFactor(0.5f * (inputPatch[1].Position + inputPatch[2].Position), CameraPosition);
-	output.Edges[2] = tessellationAmount;//CalcTessFactor(0.5f * (inputPatch[2].Position + inputPatch[0].Position), CameraPosition);
+	output.Edges[0] = CalcTessFactor(0.5f * (inputPatch[0].Position + inputPatch[1].Position), CameraPosition);
+	output.Edges[1] = CalcTessFactor(0.5f * (inputPatch[1].Position + inputPatch[2].Position), CameraPosition);
+	output.Edges[2] = CalcTessFactor(0.5f * (inputPatch[2].Position + inputPatch[0].Position), CameraPosition);
 
 	// Set the tessellation factor for tessallating inside the triangle.
-	output.Inside = tessellationAmount;//CalcTessFactor(mid, CameraPosition);
+	output.Inside = CalcTessFactor(mid, CameraPosition);
 
 	return output;
 }
@@ -132,7 +133,7 @@ PSIn TerrainDomainShader(ConstantOutputType input, float3 uvwCoord : SV_DomainLo
 
 	// Calculate the position of the new vertex against the world, view, and projection matrices.
 	output.WorldPos = float4(VertPos, 1.f);// mul(float4(VertPos, 1.0f), Instances[patch[0].InstanceID].WorldMatrix);
-	output.WorldPos += float4((NoiseVal * 5) * Normal, 0);
+    output.WorldPos += float4((NoiseVal * 5) * Normal, 0);
 	output.Position = mul(output.WorldPos, CameraViewProjectionMatrix);
 	output.TexCoord = TexCoord;
 	output.CameraPos = CameraPosition;

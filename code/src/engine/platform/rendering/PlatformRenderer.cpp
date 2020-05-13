@@ -27,6 +27,8 @@ void renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	PlatformRenderer->Initialize(_Window, WindowWidth, WindowHeight);
 
 	// Default vertex shaders for are registered during platform init
+	RegisterShader("shader/DefaultShader.hlsl", "mainps", shader_type::PixelShader);
+
 	RegisterShader("shader/DefaultShader.hlsl", "GroundFromSpacePS", shader_type::PixelShader);
 	RegisterShader("shader/DefaultShader.hlsl", "SkyFromSpacePS", shader_type::PixelShader);
 	RegisterShader("shader/DefaultShader.hlsl", "GroundFromAtmospherePS", shader_type::PixelShader);
