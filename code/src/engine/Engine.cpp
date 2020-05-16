@@ -312,6 +312,41 @@ void UpdateVisibleChunks(planet_terrain_manager* TerrainManager, camera* MainCam
 	}
 }
 
+void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainCamera)
+{
+	if (!TerrainManager->UpdatingChunkData)
+	{
+		TerrainManager->UpdatingChunkData = true;
+		std::vector<vertex> BTVertices;
+
+		u32 VertexIndex = 0;
+		for (u32 n = 0; n < (u32)TerrainManager->Trees.size(); n++)
+		{
+			std::vector<int> OutInts = TerrainManager->Trees[n].Traverse(MainCamera->CameraInfo.Transform.Location, 5000.f);
+			BTVertices.resize(BTVertices.size() + OutInts.size() * 3);
+			for (u32 i = 0; i < (u32)OutInts.size(); i++)
+			{
+				const binary_terrain_chunk& Data = TerrainManager->Trees[n].ChunkData[OutInts[i]];
+
+				for (u32 d = 0; d < 3; d++)
+				{
+					BTVertices[VertexIndex] = Data.Vertices[d];
+					VertexIndex++;
+				}
+				//BTVertices.insert(BTVertices.end(), Data.Vertices, Data.Vertices + 3);
+			}
+			//Renderer.DrawIndexedTerrainChunk(BTVertices.data(), BTIndices.data(), (u32)BTVertices.size(), (u32)BTIndices.size());
+			//Renderer.Draw(BTVertices.data(), (u32)BTVertices.size(), draw_topology_type::TriangleList);
+		}
+
+		TerrainManager->VisibleChunkSwapMutex.lock();
+		std::swap(TerrainManager->LowLODVertices, BTVertices);
+		TerrainManager->VisibleChunkSwapMutex.unlock();
+
+		TerrainManager->UpdatingChunkData = false;
+	}
+}
+
 //always rendered first & has very specific rendering. move out of here later?
 void engine::RenderPlanet()
 {
@@ -387,33 +422,23 @@ void engine::RenderPlanet()
 	{
 		if (ChunkUpdateThread.joinable())
 			ChunkUpdateThread.join();
-		ChunkUpdateThread = std::thread(UpdateVisibleChunks, &TerrainManager, &MainCamera);
+		ChunkUpdateThread = std::thread(UpdateVisibleChunksBT, &TerrainManager, &MainCamera);
 	}
-
-	DebugData.ChunkDrawCalls = 1;
 
 	//binary tree test
-	pipeline_state BinaryTreeTest = pipeline_state();
-	BinaryTreeTest.VertexShaderID = GetShaderIDFromName("mainvs");
-	BinaryTreeTest.PixelShaderID = GetShaderIDFromName("mainps");
-	BinaryTreeTest.RasterizerState = (DebugData.EnableWireframe ? rasterizer_state::Wireframe : rasterizer_state::DefaultCullBackface);
-	BinaryTreeTest.UniqueIdentifier = "DefaultPBR";
-	Renderer.SetPipelineState(BinaryTreeTest);
+	//pipeline_state BinaryTreeTest = pipeline_state();
+	//BinaryTreeTest.VertexShaderID = GetShaderIDFromName("mainvs");
+	//BinaryTreeTest.PixelShaderID = GetShaderIDFromName("mainps");
+	//BinaryTreeTest.RasterizerState = (DebugData.EnableWireframe ? rasterizer_state::Wireframe : rasterizer_state::DefaultCullBackface);
+	//BinaryTreeTest.UniqueIdentifier = "DefaultPBR";
+	//Renderer.SetPipelineState(BinaryTreeTest);
 
-	std::vector<vertex> BTVertices;
-	std::vector<u32> BTIndices;
-	
-	for (u32 n = 0; n < (u32)TerrainManager.Trees.size(); n++)
-	{
-		std::vector<int> OutInts = TerrainManager.Trees[n].Traverse(MainCamera.CameraInfo.Transform.Location, 5000.f);
-		for (u32 i = 0; i < (u32)OutInts.size(); i++)
-		{
-			const binary_terrain_chunk& Data = TerrainManager.Trees[n].ChunkData[OutInts[i]];
-			BTVertices.insert(BTVertices.end(), Data.Vertices, Data.Vertices + 3);
-		}
-		//Renderer.DrawIndexedTerrainChunk(BTVertices.data(), BTIndices.data(), (u32)BTVertices.size(), (u32)BTIndices.size());
-		Renderer.Draw(BTVertices.data(), (u32)BTVertices.size(), draw_topology_type::TriangleList);
-	}
+	TerrainManager.VisibleChunkSwapMutex.lock();
+	if (TerrainManager.LowLODVertices.size() < 200000)
+		Renderer.Draw(TerrainManager.LowLODVertices.data(), (u32)TerrainManager.LowLODVertices.size(), draw_topology_type::TriangleList);
+	DebugData.NumTerrainVertices = (u32)TerrainManager.LowLODVertices.size();
+	TerrainManager.VisibleChunkSwapMutex.unlock();
+
 	//------
 
 	//TerrainManager.VisibleChunkSwapMutex.lock();
@@ -577,7 +602,7 @@ void engine::RenderDebugWidgets()
 	{
 		ImGui::Text("Player Position: (%f, %f, %f)", MainCamera.CameraInfo.Transform.Location.x, MainCamera.CameraInfo.Transform.Location.y, MainCamera.CameraInfo.Transform.Location.z);
 
-		ImGui::Text("Chunk Draw Calls: %d", DebugData.ChunkDrawCalls);
+		ImGui::Text("Num Terrain Verts: %d", DebugData.NumTerrainVertices);
 
 		ImGui::AlignTextToFramePadding();
 		ImGui::Text("Sun Angle:");

@@ -13,7 +13,7 @@ struct debug_data
 {
 	f32 SunAngle = 0.f;
 	f32 CameraSpeed = 0.08f;
-	u32 ChunkDrawCalls = 0;
+	u32 NumTerrainVertices = 0;
 	bool EnableWireframe = false;
 	bool VisibleChunkUpdates = true;
 };

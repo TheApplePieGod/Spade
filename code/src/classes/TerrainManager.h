@@ -27,19 +27,34 @@ struct binary_node
 	int FirstChildIndex = -1;
 	bool IsLeaf = true;
 	byte Depth = 0;
+
+	bool ForceSplit = false;
+
+	int LeftNeighbor = -1;
+	s8 LeftNeighborTree = -1;
+	int RightNeighbor = -1;
+	s8 RightNeighborTree = -1;
+	int BottomNeighbor = -1;
+	s8 BottomNeighborTree = -1;
 };
 
 struct binary_tree
 {
 	std::vector<binary_node> Nodes;
 	free_list<binary_terrain_chunk> ChunkData;
-	byte MaxDepth = 10;
+	byte MaxDepth = 24;
+	byte MinDepth = 7;
 	int FirstFreeNode = -1;
 
 	binary_tree(vertex InitialVertices[3]);
 
-	// returns index to first new child node
-	int SplitNode(binary_node Parent);
+	/* 
+	* parent passed as pointer for neighbor calculations but is not modified
+	* smart split accounts for neighboring LODs
+	*/
+	int SplitNode(int Parent);
+	void SmartSplitNode(int Parent, std::vector<int>& ToProcess);
+	void CombineNodes(int Parent);
 
 	// returns a list of indexes into the ChunkData array
 	std::vector<int> Traverse(v3 CameraPosition, f32 LodSwitchIncrement);
