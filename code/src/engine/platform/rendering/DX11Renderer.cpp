@@ -1149,9 +1149,24 @@ matrix4x4 dx11_renderer::InverseMatrix(const matrix4x4& Matrix, bool Transpose)
 {
 	DirectX::XMMATRIX Inverse = ToDXM(Matrix);
 	Inverse = DirectX::XMMatrixInverse(nullptr, Inverse);
-	if (true)
+	if (Transpose)
 		Inverse = DirectX::XMMatrixTranspose(Inverse);
 	return ToMatrix4x4(Inverse);
+}
+
+v3 dx11_renderer::GetWorldSpaceDirectionFromMouse(v2 MousePos, camera* Camera)
+{
+	float x = (2.0f * MousePos.x) / Engine->ScreenSize.x - 1.0f;
+	float y = 1.0f - (2.0f * MousePos.y) / Engine->ScreenSize.y;
+	float z = 1.0f;
+	v3 NDCRay = v3{ x, y, z }; // normalized device coordinates
+	v4 ClipRay = v4{ NDCRay, 1.f }; // homogeneous clip space (+z forward)
+	v4 EyeRay = InverseMatrix(Camera->ProjectionMatrix, true) * ClipRay; // camera coordinates
+	EyeRay.z = 1.0f;
+	EyeRay.w = 0.0f;
+	v4 WorldRay4 = InverseMatrix(Camera->ViewMatrix, true) * EyeRay; // world space
+	v3 WorldRay = Normalize(v3{ WorldRay4.x, WorldRay4.y, WorldRay4.z });
+	return WorldRay;
 }
 
 template<typename AssociatedStruct>

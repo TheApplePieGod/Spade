@@ -12,10 +12,11 @@
 struct debug_data
 {
 	f32 SunAngle = 0.f;
-	f32 CameraSpeed = 0.08f;
+	f32 CameraSpeed = 1.f;//0.08f;
 	u32 NumTerrainVertices = 0;
-	bool EnableWireframe = false;
+	bool EnableWireframe = true;
 	bool VisibleChunkUpdates = true;
+	int IntersectingIndex = -1;
 };
 
 class engine

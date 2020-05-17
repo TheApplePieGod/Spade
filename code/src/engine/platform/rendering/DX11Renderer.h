@@ -29,6 +29,7 @@ public:
 	static matrix4x4 GeneratePlanetaryViewMatrix(bool Transpose, camera_info CameraInfo, v2 MouseDelta, v3 ForwardVector, v3& OutLookAtVector, v3& OutUpVector, bool OrthoUseMovement = true);
 	static matrix4x4 GenerateWorldMatrix(transform Transform);
 	static matrix4x4 InverseMatrix(const matrix4x4& Matrix, bool Transpose);
+	static v3 GetWorldSpaceDirectionFromMouse(v2 MousePos, camera* Camera);
 
 	HWND Window;
 

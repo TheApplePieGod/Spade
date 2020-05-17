@@ -150,6 +150,11 @@ matrix4x4 renderer::InverseMatrix(const matrix4x4& Matrix, bool Transpose)
 	return PlatformRenderer->InverseMatrix(Matrix, Transpose);
 }
 
+v3 renderer::GetWorldSpaceDirectionFromMouse(v2 MousePos, camera* Camera)
+{
+	return PlatformRenderer->GetWorldSpaceDirectionFromMouse(MousePos, Camera);
+}
+
 void renderer::RegisterShader(std::string Filename, const char* Entrypoint, shader_type ShaderType)
 {
 	shader Shader = shader();

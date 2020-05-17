@@ -150,7 +150,7 @@ Midpoint(const v3& A, const v3& B, const v3& C)
 {
 	v3 Mid = 0.5f * (A + B);
 	Mid = 0.5f * (Mid + C);
-	return Mid * 998.f;
+	return Mid;
 }
 
 inline v3
@@ -200,8 +200,21 @@ operator*(matrix4x4 A, matrix4x4 B)
 	return Result;
 }
 
-inline matrix4x4
-Inverse(const matrix4x4& A)
+inline v4
+operator*(matrix4x4 A, v4 B)
 {
+	v4 Result;
 
+	Result.x = DotProduct(A.row1, B);
+	Result.y = DotProduct(A.row2, B);
+	Result.z = DotProduct(A.row3, B);
+	Result.w = DotProduct(A.row4, B);
+
+	return Result;
 }
+
+//inline matrix4x4
+//Inverse(const matrix4x4& A)
+//{
+//
+//}

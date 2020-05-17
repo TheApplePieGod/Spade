@@ -1,6 +1,7 @@
 #include "../engine/Engine.h"
 engine* Engine;
 #include <chrono>
+HWND Window;
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND Window, UINT Message, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM wParam, LPARAM lParam)
@@ -163,10 +164,18 @@ void ProcessPendingMessages()
 		}
 		}
 	}
-	Engine->UserInputs.MousePosX += MouseDeltaBufferX;
+	//Engine->UserInputs.MousePosX += MouseDeltaBufferX;
 	Engine->UserInputs.MouseDeltaX = (f32)MouseDeltaBufferX;
-	Engine->UserInputs.MousePosY += MouseDeltaBufferY;
+	//Engine->UserInputs.MousePosY += MouseDeltaBufferY;
 	Engine->UserInputs.MouseDeltaY = (f32)MouseDeltaBufferY;
+
+	POINT p;
+	if (GetCursorPos(&p))
+		if (ScreenToClient(Window, &p))
+		{
+			Engine->UserInputs.MousePosX = (f32)p.x;
+			Engine->UserInputs.MousePosY = (f32)p.y;
+		}
 }
 
 int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLine, int ShowFlag) // entrypoint
@@ -195,7 +204,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLin
 
 	if (RegisterClassA(&WindowClass))
 	{
-		HWND Window =
+		Window =
 			CreateWindowExA(
 				0,
 				WindowClass.lpszClassName,

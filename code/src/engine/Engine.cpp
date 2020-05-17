@@ -25,6 +25,8 @@ void engine::Tick()
 	v2 MouseDelta = v2{ UserInputs.MouseDeltaX * MainCamera.MouseInputScale, UserInputs.MouseDeltaY * MainCamera.MouseInputScale };
 	MainCamera.ViewMatrix = renderer::GenerateViewMatrix(true, MainCamera.CameraInfo, MainCamera.LookAtVector, MainCamera.UpVector);
 	//MainCamera.ViewMatrix = renderer::GeneratePlanetaryViewMatrix(true, MainCamera.CameraInfo, MouseDelta, MainCamera.ForwardVector, MainCamera.LookAtVector, MainCamera.UpVector);
+	UserInputs.MousePosWorldSpace = renderer::GetWorldSpaceDirectionFromMouse(v2{ UserInputs.MousePosX, UserInputs.MousePosY }, &MainCamera);
+
 	RenderScene();
 
 	UpdateComponents(); // before scene render?
@@ -320,7 +322,7 @@ void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainC
 		std::vector<vertex> BTVertices;
 
 		u32 VertexIndex = 0;
-		for (u32 n = 0; n < (u32)TerrainManager->Trees.size(); n++)
+		for (u32 n = 1; n < (u32)TerrainManager->Trees.size(); n++)
 		{
 			std::vector<int> OutInts = TerrainManager->Trees[n].Traverse(MainCamera->CameraInfo.Transform.Location, 5000.f);
 			BTVertices.resize(BTVertices.size() + OutInts.size() * 3);
@@ -338,6 +340,8 @@ void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainC
 			//Renderer.DrawIndexedTerrainChunk(BTVertices.data(), BTIndices.data(), (u32)BTVertices.size(), (u32)BTIndices.size());
 			//Renderer.Draw(BTVertices.data(), (u32)BTVertices.size(), draw_topology_type::TriangleList);
 		}
+
+		Engine->DebugData.IntersectingIndex = TerrainManager->Trees[1].RayIntersectsTriangle(Engine->UserInputs.MousePosWorldSpace, MainCamera->CameraInfo.Transform.Location);
 
 		TerrainManager->VisibleChunkSwapMutex.lock();
 		std::swap(TerrainManager->LowLODVertices, BTVertices);
@@ -418,12 +422,14 @@ void engine::RenderPlanet()
 	//Renderer.DrawIndexedInstanced((vertex*)PlanetMesh->Data, (u32*)((vertex*)PlanetMesh->Data + PlanetMesh->MeshData.NumVertices), PlanetMesh->MeshData.NumVertices, PlanetMesh->MeshData.NumIndices, 0, 1, draw_topology_type::TriangleList);
 	Renderer.BindMaterial(MaterialRegistry.GetComponent(0));
 
-	if ((DebugData.VisibleChunkUpdates && !TerrainManager.UpdatingChunkData) || ChunkUpdateThread.get_id() == std::thread::id())
-	{
-		if (ChunkUpdateThread.joinable())
-			ChunkUpdateThread.join();
-		ChunkUpdateThread = std::thread(UpdateVisibleChunksBT, &TerrainManager, &MainCamera);
-	}
+	//if ((DebugData.VisibleChunkUpdates && !TerrainManager.UpdatingChunkData) || ChunkUpdateThread.get_id() == std::thread::id())
+	//{
+	//	if (ChunkUpdateThread.joinable())
+	//		ChunkUpdateThread.join();
+	//	ChunkUpdateThread = std::thread(UpdateVisibleChunksBT, &TerrainManager, &MainCamera);
+	//}
+	
+	UpdateVisibleChunksBT(&TerrainManager, &MainCamera);
 
 	//binary tree test
 	//pipeline_state BinaryTreeTest = pipeline_state();
@@ -538,7 +544,7 @@ void engine::RenderScene()
 						transform FinalRenderTransform = ActorComp.GetTransform() + SortedRegistry[i]->GetTransform();
 						FinalRenderTransform.Scale = ActorComp.GetScale() * SortedRegistry[i]->GetScale();
 						ActorConstants.Instances[InstanceCount].WorldMatrix = renderer::GenerateWorldMatrix(FinalRenderTransform);
-						ActorConstants.Instances[InstanceCount].InverseTransposeWorldMatrix = renderer::InverseMatrix(ActorConstants.Instances[InstanceCount].WorldMatrix, false);
+						ActorConstants.Instances[InstanceCount].InverseTransposeWorldMatrix = renderer::InverseMatrix(ActorConstants.Instances[InstanceCount].WorldMatrix, false); // ?
 						SortedRegistry[i]->SetWorldMatrix(ActorConstants.Instances[InstanceCount].WorldMatrix);
 						SortedRegistry[i]->SetITPWorldMatrix(ActorConstants.Instances[InstanceCount].InverseTransposeWorldMatrix);
 					}
@@ -601,6 +607,52 @@ void engine::RenderDebugWidgets()
 	if (ImGui::Begin("Engine State"))
 	{
 		ImGui::Text("Player Position: (%f, %f, %f)", MainCamera.CameraInfo.Transform.Location.x, MainCamera.CameraInfo.Transform.Location.y, MainCamera.CameraInfo.Transform.Location.z);
+
+		ImGui::Text("MousePos: (%f, %f)", UserInputs.MousePosX, UserInputs.MousePosY);
+
+		if (ImGui::TreeNode("Terrain Info"))
+		{
+			ImGui::Indent();
+
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text("Picking Ray: (%f, %f, %f)", UserInputs.MousePosWorldSpace.x, UserInputs.MousePosWorldSpace.y, UserInputs.MousePosWorldSpace.z);
+
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text("IntersectingIndex: %d", DebugData.IntersectingIndex);
+
+			if (DebugData.IntersectingIndex != -1)
+			{
+				ImGui::Indent();
+
+				binary_node& Node = TerrainManager.Trees[1].Nodes[DebugData.IntersectingIndex];
+
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text("Depth: %d", Node.Depth);
+
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text("FirstChildIndex: %d", Node.FirstChildIndex);
+
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text("IsLeaf: %s", (Node.IsLeaf ? "true" : "false"));
+
+				//ImGui::AlignTextToFramePadding();
+				//ImGui::Text("ForceSplitBy: %d", Node.ForceSplitBy);
+
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text("LeftNeighbor: %d", Node.LeftNeighbor);
+
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text("RightNeighbor: %d", Node.RightNeighbor);
+
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text("BottomNeighbor: %d", Node.BottomNeighbor);
+
+				ImGui::Unindent();
+			}
+
+			ImGui::Unindent();
+			ImGui::TreePop();
+		}
 
 		ImGui::Text("Num Terrain Verts: %d", DebugData.NumTerrainVertices);
 

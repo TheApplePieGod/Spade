@@ -26,7 +26,7 @@ struct user_inputs // controller support later?
 	f32 MouseDeltaX;
 	f32 MousePosY;
 	f32 MouseDeltaY;
-	v2 MousePosWorldSpace;
+	v3 MousePosWorldSpace;
 
 	float DeltaTime = 0;
 };

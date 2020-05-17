@@ -17,37 +17,42 @@ binary_tree::binary_tree(vertex InitialVertices[3])
 
 void binary_tree::SmartSplitNode(int Parent, std::vector<int>& ToProcess)
 {
+	// 132
+	// 166
 	// recursive to make sure lods line up
 	if (Nodes[Parent].BottomNeighbor != -1)
 	{
-		if (Nodes[Nodes[Parent].BottomNeighbor].BottomNeighbor != Parent && Nodes[Nodes[Parent].BottomNeighbor].IsLeaf)
+		if (Nodes[Nodes[Parent].BottomNeighbor].BottomNeighbor != Parent)
 			SmartSplitNode(Nodes[Parent].BottomNeighbor, ToProcess);
 
 		int ChildIndex = SplitNode(Parent);
 		ToProcess.push_back(ChildIndex);
 		ToProcess.push_back(ChildIndex + 1);
-
-		if (Nodes[Nodes[Parent].BottomNeighbor].IsLeaf)
+		if (Nodes[Nodes[Parent].BottomNeighbor].ForceSplitBy == -1 && Nodes[Nodes[Parent].BottomNeighbor].IsLeaf) // not already split
 		{
 			ChildIndex = SplitNode(Nodes[Parent].BottomNeighbor);
-			Nodes[Nodes[Parent].BottomNeighbor].ForceSplit = true;
+
+			//if (Nodes[Nodes[Parent].BottomNeighbor].IsLeaf == true)
+			//	int d = 0;
+
+			Nodes[Nodes[Parent].BottomNeighbor].ForceSplitBy = Parent;
 			ToProcess.push_back(ChildIndex);
 			ToProcess.push_back(ChildIndex + 1);
 		}
 
-		if (!Nodes[Nodes[Parent].BottomNeighbor].IsLeaf)
+		int RightChild = Nodes[Parent].FirstChildIndex;
+		int LeftChild = Nodes[Parent].FirstChildIndex + 1;
+
+		if (Nodes[Nodes[Parent].BottomNeighbor].IsLeaf == false)
 		{
-			Nodes[Nodes[Parent].FirstChildIndex + 1].RightNeighbor = Nodes[Nodes[Parent].BottomNeighbor].FirstChildIndex;
-			Nodes[Nodes[Parent].FirstChildIndex].LeftNeighbor = Nodes[Nodes[Parent].BottomNeighbor].FirstChildIndex + 1;
+			Nodes[LeftChild].RightNeighbor = Nodes[Nodes[Parent].BottomNeighbor].FirstChildIndex;
+			Nodes[RightChild].LeftNeighbor = Nodes[Nodes[Parent].BottomNeighbor].FirstChildIndex + 1;
 		}
 		else
-		{
-			Nodes[Nodes[Parent].FirstChildIndex + 1].RightNeighbor = Nodes[Parent].BottomNeighbor;
-			Nodes[Nodes[Parent].FirstChildIndex].LeftNeighbor = Nodes[Parent].BottomNeighbor;
-		}
+			Assert(1 == 2); // something is bad
 
-		Nodes[Nodes[Nodes[Parent].BottomNeighbor].FirstChildIndex + 1].RightNeighbor = Nodes[Parent].FirstChildIndex;
-		Nodes[Nodes[Nodes[Parent].BottomNeighbor].FirstChildIndex].LeftNeighbor = Nodes[Parent].FirstChildIndex + 1;
+		Nodes[Nodes[Nodes[Parent].BottomNeighbor].FirstChildIndex + 1].RightNeighbor = RightChild;
+		Nodes[Nodes[Nodes[Parent].BottomNeighbor].FirstChildIndex].LeftNeighbor = LeftChild;
 	}
 	else
 	{
@@ -55,7 +60,7 @@ void binary_tree::SmartSplitNode(int Parent, std::vector<int>& ToProcess)
 		int ChildIndex = SplitNode(Parent);
 		Nodes[ChildIndex].LeftNeighbor = -1;
 		Nodes[ChildIndex + 1].RightNeighbor = -1;
-
+			
 		ToProcess.push_back(ChildIndex);
 		ToProcess.push_back(ChildIndex + 1);
 	}
@@ -73,8 +78,8 @@ int binary_tree::SplitNode(int Parent)
 	binary_node NewNode1 = { -1, true, static_cast<byte>(Nodes[Parent].Depth + 1) };
 	binary_node NewNode2 = { -1, true, static_cast<byte>(Nodes[Parent].Depth + 1) };
 
-	binary_terrain_chunk NewData1 = { { Data.Vertices[2], Data.Vertices[0], NewVertex }, Midpoint(Data.Vertices[0], Data.Vertices[2], NewVertex) };
-	binary_terrain_chunk NewData2 = { { Data.Vertices[1], Data.Vertices[2], NewVertex }, Midpoint(Data.Vertices[1], Data.Vertices[2], NewVertex) };
+	binary_terrain_chunk NewData1 = { { Data.Vertices[2], Data.Vertices[0], NewVertex }, Midpoint(Data.Vertices[0], Data.Vertices[2], NewVertex) * 998.f };
+	binary_terrain_chunk NewData2 = { { Data.Vertices[1], Data.Vertices[2], NewVertex }, Midpoint(Data.Vertices[1], Data.Vertices[2], NewVertex) * 998.f };
 
 	ChunkData.Erase(ParentNodeDataIndex);
 	NewNode1.FirstChildIndex = ChunkData.Insert(NewData1);
@@ -142,7 +147,7 @@ void binary_tree::CombineNodes(int Parent)
 
 	binary_terrain_chunk& NodeData1 = ChunkData[Nodes[RightChild].FirstChildIndex];
 	binary_terrain_chunk& NodeData2 = ChunkData[Nodes[LeftChild].FirstChildIndex];
-	binary_terrain_chunk CombinedData = { { NodeData1.Vertices[1], NodeData2.Vertices[0], NodeData1.Vertices[0] }, Midpoint(NodeData1.Vertices[1], NodeData2.Vertices[0], NodeData1.Vertices[0]) };
+	binary_terrain_chunk CombinedData = { { NodeData1.Vertices[1], NodeData2.Vertices[0], NodeData1.Vertices[0] }, Midpoint(NodeData1.Vertices[1], NodeData2.Vertices[0], NodeData1.Vertices[0]) * 998.f };
 
 	ChunkData.Erase(Nodes[RightChild].FirstChildIndex);
 	ChunkData.Erase(Nodes[LeftChild].FirstChildIndex);
@@ -151,6 +156,7 @@ void binary_tree::CombineNodes(int Parent)
 	FirstFreeNode = Nodes[Parent].FirstChildIndex;
 
 	Nodes[Parent].FirstChildIndex = ChunkData.Insert(CombinedData);
+	Nodes[Parent].ForceSplitBy = -1;
 	Nodes[Parent].IsLeaf = true;
 
 	// recalculate neighbors
@@ -162,36 +168,103 @@ void binary_tree::CombineNodes(int Parent)
 	Nodes[Parent].LeftNeighbor = Nodes[LeftChild].BottomNeighbor;
 	Nodes[Parent].RightNeighbor = Nodes[RightChild].BottomNeighbor;
 
-	if (Nodes[RightChild].LeftNeighbor != Nodes[LeftChild].RightNeighbor) // incompatible depths
-		Nodes[Parent].BottomNeighbor = -1;
-	else
-		Nodes[Parent].BottomNeighbor = Nodes[RightChild].LeftNeighbor;
+	//if (Nodes[RightChild].LeftNeighbor != Nodes[LeftChild].RightNeighbor) // incompatible depths
+	//	Nodes[Parent].BottomNeighbor = -1;
+	//else
+	//	Nodes[Parent].BottomNeighbor = Nodes[RightChild].LeftNeighbor;
 
 	for (int i = 0; i < 4; i++)
 	{
 		int Index = AllNeighbors[i];
 		if (Index != -1)
 		{
-			if (Nodes[Parent].Depth <= Nodes[Index].Depth)
-			{
+			//if (Nodes[Parent].Depth <= Nodes[Index].Depth)
+			//{
 				if (Nodes[Index].LeftNeighbor == LeftChild || Nodes[Index].LeftNeighbor == RightChild)
 					Nodes[Index].LeftNeighbor = Parent;
 				else if (Nodes[Index].RightNeighbor == LeftChild || Nodes[Index].RightNeighbor == RightChild)
 					Nodes[Index].RightNeighbor = Parent;
 				else
 					Nodes[Index].BottomNeighbor = Parent;
-			}
-			else
-			{
-				if (Nodes[Index].LeftNeighbor == LeftChild || Nodes[Index].LeftNeighbor == RightChild)
-					Nodes[Index].LeftNeighbor = -1;
-				else if (Nodes[Index].RightNeighbor == LeftChild || Nodes[Index].RightNeighbor == RightChild)
-					Nodes[Index].RightNeighbor = -1;
-				else
-					Nodes[Index].BottomNeighbor = -1;
-			}
+			//}
+			//else
+			//{
+			//	if (Nodes[Index].LeftNeighbor == LeftChild || Nodes[Index].LeftNeighbor == RightChild)
+			//		Nodes[Index].LeftNeighbor = -1;
+			//	else if (Nodes[Index].RightNeighbor == LeftChild || Nodes[Index].RightNeighbor == RightChild)
+			//		Nodes[Index].RightNeighbor = -1;
+			//	else
+			//		Nodes[Index].BottomNeighbor = -1;
+			//}
 		}
 	}
+}
+
+int binary_tree::RayIntersectsTriangle(v3 RayDirection, v3 RayOrigin)
+{
+	std::vector<int> ToProcess;
+	ToProcess.push_back(0); // root
+
+	while (ToProcess.size() > 0)
+	{
+		int NodeIndex = ToProcess[ToProcess.size() - 1];
+		ToProcess.pop_back();
+
+		if (Nodes[NodeIndex].IsLeaf)
+		{
+			binary_terrain_chunk& NodeData = ChunkData[Nodes[NodeIndex].FirstChildIndex];
+			v3 EdgeA = NodeData.Vertices[1].Position * 998.f - NodeData.Vertices[0].Position * 998.f;
+			v3 EdgeB = NodeData.Vertices[2].Position * 998.f - NodeData.Vertices[0].Position * 998.f;
+			v3 TriangleNormal = Normalize(CrossProduct(EdgeA, EdgeB));
+
+			//if (fabs(DotProduct(TriangleNormal, RayDirection)) > 0.01)
+			//{
+			//	float D = DotProduct(TriangleNormal, NodeData.Vertices[0].Position * 998.f);
+			//	float t = (DotProduct(TriangleNormal, RayOrigin) + D) / DotProduct(TriangleNormal, RayDirection);
+
+			//	if (t > 0)
+			//	{
+			//		v3 IntersectionPoint = RayOrigin + (t * RayDirection);\
+			//		v3 EdgeC = NodeData.Vertices[1].Position * 998.f - NodeData.Vertices[0].Position * 998.f;
+			//		v3 C0 = IntersectionPoint - EdgeA;
+			//		v3 C1 = IntersectionPoint - EdgeB;
+			//		v3 C2 = IntersectionPoint - EdgeC;
+
+			//		if (DotProduct(TriangleNormal, CrossProduct(EdgeA, C0)) > 0 &&
+			//			DotProduct(TriangleNormal, CrossProduct(EdgeB, C1)) > 0 &&
+			//			DotProduct(TriangleNormal, CrossProduct(EdgeC, C2)) > 0)
+			//			return NodeIndex; // inside triangle
+			//	}
+			//}
+
+			v3 pvec = CrossProduct(RayDirection, EdgeB);
+			f32 det = DotProduct(EdgeA, pvec);
+
+			if (fabs(det) > 0.01)
+			{
+				float invDet = 1.f / det;
+				v3 tvec = RayOrigin - NodeData.Vertices[0].Position * 998.f;
+				f32 u = DotProduct(tvec, pvec) * invDet;
+
+				if (u > 0 && u < 1)
+				{
+					v3 qvec = CrossProduct(tvec, EdgeA);
+					f32 v = DotProduct(RayDirection, qvec) * invDet;
+					if (v > 0 && u + v < 1)
+					{
+						f32 t = DotProduct(EdgeB, qvec) * invDet;
+						return NodeIndex;
+					}
+				}
+			}
+		}
+		else
+		{
+			ToProcess.push_back(Nodes[NodeIndex].FirstChildIndex);
+			ToProcess.push_back(Nodes[NodeIndex].FirstChildIndex + 1);
+		}
+	}
+	return -1;
 }
 
 std::vector<int> binary_tree::Traverse(v3 CameraPosition, f32 LodSwitchIncrement)
@@ -211,31 +284,51 @@ std::vector<int> binary_tree::Traverse(v3 CameraPosition, f32 LodSwitchIncrement
 		if (Nodes[NodeIndex].IsLeaf)
 		{
 			if (Nodes[NodeIndex].Depth < MinDepth || (Nodes[NodeIndex].Depth + 1 <= MaxDepth && Length(CameraPosition - ChunkData[Nodes[NodeIndex].FirstChildIndex].Midpoint) < LodDistance))
+			{
 				SmartSplitNode(NodeIndex, ToProcess);
+				//int ChildIndex = SplitNode(NodeIndex);
+				//ToProcess.push_back(ChildIndex);
+				//ToProcess.push_back(ChildIndex + 1);
+			}
 			else
 				OutIndexes.push_back(Nodes[NodeIndex].FirstChildIndex);
 		}
 		else
 		{
-			if (Nodes[NodeIndex].ForceSplit == false && Nodes[Nodes[NodeIndex].FirstChildIndex].IsLeaf && Nodes[Nodes[NodeIndex].FirstChildIndex + 1].IsLeaf) // if forcibly split to prevent seams, dont count as out of range
+			if (Nodes[NodeIndex].Depth + 1 > MinDepth && Nodes[Nodes[NodeIndex].FirstChildIndex].IsLeaf && Nodes[Nodes[NodeIndex].FirstChildIndex + 1].IsLeaf) // if forcibly split to prevent seams, dont count as out of range
 			{
-				f32 DistanceToLeaf1 = Length(CameraPosition - ChunkData[Nodes[Nodes[NodeIndex].FirstChildIndex].FirstChildIndex].Midpoint);
-				f32 DistanceToLeaf2 = Length(CameraPosition - ChunkData[Nodes[Nodes[NodeIndex].FirstChildIndex + 1].FirstChildIndex].Midpoint);
+				if (Nodes[NodeIndex].ForceSplitBy == -1)
+				{
+					f32 DistanceToLeaf1 = Length(CameraPosition - ChunkData[Nodes[Nodes[NodeIndex].FirstChildIndex].FirstChildIndex].Midpoint);
+					f32 DistanceToLeaf2 = Length(CameraPosition - ChunkData[Nodes[Nodes[NodeIndex].FirstChildIndex + 1].FirstChildIndex].Midpoint);
 
-				if (DistanceToLeaf1 > LodDistance&& DistanceToLeaf2 > LodDistance) // both leaves out of LOD range
-				{
-					CombineNodes(NodeIndex);
-					ToProcess.push_back(NodeIndex); // process the node again to get vertices for new leaf
+					if (DistanceToLeaf1 > LodDistance&& DistanceToLeaf2 > LodDistance) // both leaves out of LOD range
+					{
+						CombineNodes(NodeIndex);
+						ToProcess.push_back(NodeIndex); // process the node again to get vertices for new leaf
+					}
+					else // otherwise process both nodes as normal
+					{
+						ToProcess.push_back(Nodes[NodeIndex].FirstChildIndex);
+						ToProcess.push_back(Nodes[NodeIndex].FirstChildIndex + 1);
+					}
 				}
-				else // otherwise process both nodes as normal
+				else
 				{
-					ToProcess.push_back(Nodes[NodeIndex].FirstChildIndex);
-					ToProcess.push_back(Nodes[NodeIndex].FirstChildIndex + 1);
+					if (Nodes[Nodes[NodeIndex].ForceSplitBy].IsLeaf)
+					{
+						CombineNodes(NodeIndex);
+						ToProcess.push_back(NodeIndex); // process the node again to get vertices for new leaf
+					}
+					else
+					{
+						ToProcess.push_back(Nodes[NodeIndex].FirstChildIndex);
+						ToProcess.push_back(Nodes[NodeIndex].FirstChildIndex + 1);
+					}
 				}
 			}
 			else
 			{
-				Nodes[NodeIndex].ForceSplit = false;
 				ToProcess.push_back(Nodes[NodeIndex].FirstChildIndex);
 				ToProcess.push_back(Nodes[NodeIndex].FirstChildIndex + 1);
 			}
