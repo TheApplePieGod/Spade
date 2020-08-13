@@ -23,8 +23,8 @@ void engine::Tick()
 
 	MainCamera.UpdateProjectionType(projection_type::Perspective);
 	v2 MouseDelta = v2{ UserInputs.MouseDeltaX * MainCamera.MouseInputScale, UserInputs.MouseDeltaY * MainCamera.MouseInputScale };
-	MainCamera.ViewMatrix = renderer::GenerateViewMatrix(true, MainCamera.CameraInfo, MainCamera.LookAtVector, MainCamera.UpVector);
-	//MainCamera.ViewMatrix = renderer::GeneratePlanetaryViewMatrix(true, MainCamera.CameraInfo, MouseDelta, MainCamera.ForwardVector, MainCamera.LookAtVector, MainCamera.UpVector);
+	//MainCamera.ViewMatrix = renderer::GenerateViewMatrix(true, MainCamera.CameraInfo, MainCamera.LookAtVector, MainCamera.UpVector);
+	MainCamera.ViewMatrix = renderer::GeneratePlanetaryViewMatrix(true, MainCamera.CameraInfo, MouseDelta, MainCamera.ForwardVector, MainCamera.LookAtVector, MainCamera.UpVector);
 	UserInputs.MousePosWorldSpace = renderer::GetWorldSpaceDirectionFromMouse(v2{ UserInputs.MousePosX, UserInputs.MousePosY }, &MainCamera);
 
 	RenderScene();
@@ -34,6 +34,9 @@ void engine::Tick()
 	RenderDebugWidgets();
 
 	Renderer.FinishFrame();
+
+	if (DebugData.SlowMode)
+		Sleep(100);
 }
 
 void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
@@ -322,7 +325,7 @@ void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainC
 		std::vector<vertex> BTVertices;
 
 		u32 VertexIndex = 0;
-		for (u32 n = 1; n < (u32)TerrainManager->Trees.size(); n++)
+		for (u32 n = 0; n < (u32)TerrainManager->Trees.size(); n++)
 		{
 			std::vector<int> OutInts = TerrainManager->Trees[n].Traverse(MainCamera->CameraInfo.Transform.Location, 5000.f);
 			BTVertices.resize(BTVertices.size() + OutInts.size() * 3);
@@ -422,14 +425,15 @@ void engine::RenderPlanet()
 	//Renderer.DrawIndexedInstanced((vertex*)PlanetMesh->Data, (u32*)((vertex*)PlanetMesh->Data + PlanetMesh->MeshData.NumVertices), PlanetMesh->MeshData.NumVertices, PlanetMesh->MeshData.NumIndices, 0, 1, draw_topology_type::TriangleList);
 	Renderer.BindMaterial(MaterialRegistry.GetComponent(0));
 
-	//if ((DebugData.VisibleChunkUpdates && !TerrainManager.UpdatingChunkData) || ChunkUpdateThread.get_id() == std::thread::id())
-	//{
-	//	if (ChunkUpdateThread.joinable())
-	//		ChunkUpdateThread.join();
-	//	ChunkUpdateThread = std::thread(UpdateVisibleChunksBT, &TerrainManager, &MainCamera);
-	//}
+	if ((DebugData.VisibleChunkUpdates && !TerrainManager.UpdatingChunkData) || ChunkUpdateThread.get_id() == std::thread::id())
+	{
+		if (ChunkUpdateThread.joinable())
+			ChunkUpdateThread.join();
+		ChunkUpdateThread = std::thread(UpdateVisibleChunksBT, &TerrainManager, &MainCamera);
+	}
 	
-	UpdateVisibleChunksBT(&TerrainManager, &MainCamera);
+	//if (DebugData.VisibleChunkUpdates)
+		//UpdateVisibleChunksBT(&TerrainManager, &MainCamera);
 
 	//binary tree test
 	//pipeline_state BinaryTreeTest = pipeline_state();
@@ -681,6 +685,12 @@ void engine::RenderDebugWidgets()
 		ImGui::SameLine();
 		if (ImGui::Button((DebugData.VisibleChunkUpdates ? "true##1" : "false##1")))
 			DebugData.VisibleChunkUpdates = !DebugData.VisibleChunkUpdates;
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text("Enable Slow Mode:");
+		ImGui::SameLine();
+		if (ImGui::Button((DebugData.SlowMode ? "true##2" : "false##2")))
+			DebugData.SlowMode = !DebugData.SlowMode;
 
 		if (ImGui::CollapsingHeader("Rendering Components"))
 		{

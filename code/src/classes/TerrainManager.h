@@ -31,6 +31,10 @@ struct binary_node
 	// unloads with the node that it was force split by
 	int ForceSplitBy = -1;
 
+	bool JustSplit = false;
+
+	bool Free = false;
+
 	int LeftNeighbor = -1;
 	s8 LeftNeighborTree = -1;
 	int RightNeighbor = -1;
@@ -45,6 +49,7 @@ struct binary_tree
 	free_list<binary_terrain_chunk> ChunkData;
 	byte MaxDepth = 24;//24;
 	byte MinDepth = 5;//7;
+	byte CurrentDepth = MinDepth;
 	int FirstFreeNode = -1;
 
 	binary_tree(vertex InitialVertices[3]);
@@ -55,13 +60,14 @@ struct binary_tree
 	*/
 	int SplitNode(int Parent);
 	void SmartSplitNode(int Parent, std::vector<int>& ToProcess);
-	void CombineNodes(int Parent);
+	void CombineNodes(int Parent, bool Force);
 
 	// returns node index
 	int RayIntersectsTriangle(v3 RayDirection, v3 RayOrigin);
 
 	// returns a list of indexes into the ChunkData array
 	std::vector<int> Traverse(v3 CameraPosition, f32 LodSwitchIncrement);
+	void Cleanup(v3 CameraPosition, f32 LodSwitchIncrement);
 };
 
 class planet_terrain_manager

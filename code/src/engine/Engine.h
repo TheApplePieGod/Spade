@@ -16,6 +16,7 @@ struct debug_data
 	u32 NumTerrainVertices = 0;
 	bool EnableWireframe = true;
 	bool VisibleChunkUpdates = true;
+	bool SlowMode = false;
 	int IntersectingIndex = -1;
 };
 
