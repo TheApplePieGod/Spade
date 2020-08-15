@@ -50,11 +50,15 @@
 *.log
 *.idb
 *.tlog
+*.iobj
+*.ipdb
 
 # Paths
 local/*
 *.vs
 *.sln
+
+x64/Release/
 
 # Legacy
 spade_legacy/code/lib/fbxsdk/samples

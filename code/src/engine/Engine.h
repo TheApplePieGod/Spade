@@ -17,6 +17,7 @@ struct debug_data
 	bool EnableWireframe = true;
 	bool VisibleChunkUpdates = true;
 	bool SlowMode = false;
+	bool FreeCam = true;
 	int IntersectingIndex = -1;
 	int IntersectingTree = -1;
 };

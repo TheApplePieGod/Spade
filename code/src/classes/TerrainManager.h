@@ -48,9 +48,9 @@ struct binary_tree
 {
 	std::vector<binary_node> Nodes;
 	free_list<binary_terrain_chunk> ChunkData;
+	std::vector<int> NodesToRender;
 	byte MaxDepth = 24;//24;
 	byte MinDepth = 5;//7;
-	byte CurrentDepth = MinDepth;
 	int FirstFreeNode = -1;
 
 	binary_tree(vertex InitialVertices[3], s8 LeftTreeNeighbor, s8 RightTreeNeighbor, s8 BottomTreeNeighbor);
@@ -80,10 +80,10 @@ public:
 	void GenerateChunkVerticesAndIndices(int LOD, terrain_chunk& Chunk, bool Noise);
 
 	int SplitNode(int Parent, s8 TreeIndex);
-	void SmartSplitNode(int Parent, s8 TreeIndex, s8 ProcessingTreeIndex, std::vector<int>& ToProcess);
+	void SmartSplitNode(int Parent, s8 TreeIndex, std::vector<std::array<int, 2>>& ToProcess);
 	void CombineNodes(int Parent, s8 TreeIndex, bool Force);
 	// returns a list of indexes into the ChunkData array
-	std::vector<int> Traverse(v3 CameraPosition, s8 TreeIndex, f32 LodSwitchIncrement);
+	void Traverse(v3 CameraPosition, s8 TreeIndex, f32 LodSwitchIncrement);
 
 	static f32 GetTerrainNoise(v3 Location);
 
@@ -100,6 +100,8 @@ public:
 	bool CombiningLowLOD = false;
 
 	std::vector<binary_tree> Trees;
+	byte TreesCurrentDepth;
+	byte DeepestFoundDepth;
 
 	inline f32 GetPlanetRadius()
 	{

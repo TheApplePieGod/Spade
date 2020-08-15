@@ -23,8 +23,10 @@ void engine::Tick()
 
 	MainCamera.UpdateProjectionType(projection_type::Perspective);
 	v2 MouseDelta = v2{ UserInputs.MouseDeltaX * MainCamera.MouseInputScale, UserInputs.MouseDeltaY * MainCamera.MouseInputScale };
-	MainCamera.ViewMatrix = renderer::GenerateViewMatrix(true, MainCamera.CameraInfo, MainCamera.LookAtVector, MainCamera.UpVector);
-	//MainCamera.ViewMatrix = renderer::GeneratePlanetaryViewMatrix(true, MainCamera.CameraInfo, MouseDelta, MainCamera.ForwardVector, MainCamera.LookAtVector, MainCamera.UpVector);
+	if (DebugData.FreeCam)
+		MainCamera.ViewMatrix = renderer::GenerateViewMatrix(true, MainCamera.CameraInfo, MainCamera.LookAtVector, MainCamera.UpVector);
+	else
+		MainCamera.ViewMatrix = renderer::GeneratePlanetaryViewMatrix(true, MainCamera.CameraInfo, MouseDelta, MainCamera.ForwardVector, MainCamera.LookAtVector, MainCamera.UpVector);
 	UserInputs.MousePosWorldSpace = renderer::GetWorldSpaceDirectionFromMouse(v2{ UserInputs.MousePosX, UserInputs.MousePosY }, &MainCamera);
 
 	RenderScene();
@@ -324,6 +326,7 @@ void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainC
 		TerrainManager->UpdatingChunkData = true;
 		std::vector<vertex> BTVertices;
 
+		TerrainManager->DeepestFoundDepth = 0;
 		u32 VertexIndex = 0;
 		//for (u32 n = 0; n < (u32)TerrainManager->Trees.size(); n++)
 		//{
@@ -343,23 +346,19 @@ void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainC
 		//	//Renderer.DrawIndexedTerrainChunk(BTVertices.data(), BTIndices.data(), (u32)BTVertices.size(), (u32)BTIndices.size());
 		//	//Renderer.Draw(BTVertices.data(), (u32)BTVertices.size(), draw_topology_type::TriangleList);
 		//}
+		if (Engine->DebugData.VisibleChunkUpdates)
+		{
+			for (u32 n = 0; n < (u32)TerrainManager->Trees.size(); n++)
+			{
+				TerrainManager->Trees[n].NodesToRender.clear();
+			}
+		}
+
 		for (u32 n = 0; n < (u32)TerrainManager->Trees.size(); n++)
 		{
 			if (Engine->DebugData.VisibleChunkUpdates)
 			{
-				std::vector<int> OutInts = TerrainManager->Traverse(MainCamera->CameraInfo.Transform.Location, n, 5000.f);
-				BTVertices.resize(BTVertices.size() + OutInts.size() * 3);
-				for (u32 i = 0; i < (u32)OutInts.size(); i++)
-				{
-					const binary_terrain_chunk& Data = TerrainManager->Trees[n].ChunkData[OutInts[i]];
-
-					for (u32 d = 0; d < 3; d++)
-					{
-						BTVertices[VertexIndex] = Data.Vertices[d];
-						VertexIndex++;
-					}
-					//BTVertices.insert(BTVertices.end(), Data.Vertices, Data.Vertices + 3);
-				}
+				TerrainManager->Traverse(MainCamera->CameraInfo.Transform.Location, n, 5000.f);
 			}
 			//Renderer.DrawIndexedTerrainChunk(BTVertices.data(), BTIndices.data(), (u32)BTVertices.size(), (u32)BTIndices.size());
 			//Renderer.Draw(BTVertices.data(), (u32)BTVertices.size(), draw_topology_type::TriangleList);
@@ -369,6 +368,28 @@ void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainC
 				Engine->DebugData.IntersectingIndex = IntersectingIndex;
 				Engine->DebugData.IntersectingTree = n;
 			}
+		}
+
+		if (Engine->DebugData.VisibleChunkUpdates)
+		{
+			for (u32 n = 0; n < (u32)TerrainManager->Trees.size(); n++)
+			{
+				BTVertices.resize(BTVertices.size() + TerrainManager->Trees[n].NodesToRender.size() * 3);
+				for (u32 i = 0; i < (u32)TerrainManager->Trees[n].NodesToRender.size(); i++)
+				{
+					const binary_terrain_chunk& Data = TerrainManager->Trees[n].ChunkData[TerrainManager->Trees[n].NodesToRender[i]];
+
+					for (u32 d = 0; d < 3; d++)
+					{
+						BTVertices[VertexIndex] = Data.Vertices[d];
+						VertexIndex++;
+					}
+					//BTVertices.insert(BTVertices.end(), Data.Vertices, Data.Vertices + 3);
+				}
+			}
+
+			if (TerrainManager->DeepestFoundDepth < TerrainManager->TreesCurrentDepth)
+				TerrainManager->TreesCurrentDepth = TerrainManager->DeepestFoundDepth;
 		}
 
 		if (Engine->DebugData.VisibleChunkUpdates)
@@ -670,8 +691,11 @@ void engine::RenderDebugWidgets()
 				ImGui::AlignTextToFramePadding();
 				ImGui::Text("IsLeaf: %s", (Node.IsLeaf ? "true" : "false"));
 
-				//ImGui::AlignTextToFramePadding();
-				//ImGui::Text("ForceSplitBy: %d", Node.ForceSplitBy);
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text("ForceSplitBy: %d", Node.ForceSplitBy);
+
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text("ForceSplitByTree: %d", Node.ForceSplitByTree);
 
 				ImGui::AlignTextToFramePadding();
 				ImGui::Text("LeftNeighbor: %d", Node.LeftNeighbor);
@@ -731,6 +755,12 @@ void engine::RenderDebugWidgets()
 		ImGui::SameLine();
 		if (ImGui::Button((DebugData.SlowMode ? "true##2" : "false##2")))
 			DebugData.SlowMode = !DebugData.SlowMode;
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text("Enable Free Cam:");
+		ImGui::SameLine();
+		if (ImGui::Button((DebugData.FreeCam ? "true##3" : "false##3")))
+			DebugData.FreeCam = !DebugData.FreeCam;
 
 		if (ImGui::CollapsingHeader("Rendering Components"))
 		{
