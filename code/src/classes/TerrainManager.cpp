@@ -626,26 +626,93 @@ void planet_terrain_manager::Initialize(f32 _PlanetRadius)
 
 	float Scale = 2.f;
 	vertex Vert0 = Normalize(vertex(-0.5f * Scale, 0.5f * Scale, -0.5f * Scale, 0.f, 0.f));
-	//Vert0.Position += Vert0.Position * GetTerrainNoise(Vert0.Position);
-
 	vertex Vert1 = Normalize(vertex(0.5f * Scale, -0.5f * Scale, -0.5f * Scale, 1.f, 1.f));
-	//Vert1.Position += Vert1.Position * GetTerrainNoise(Vert1.Position);
-
 	vertex Vert2 = Normalize(vertex(-0.5f * Scale, -0.5f * Scale, -0.5f * Scale, 0.f, 1.f));
-	//Vert2.Position += Vert2.Position * GetTerrainNoise(Vert2.Position);
 
 	vertex Vert3 = Vert1;
 	vertex Vert4 = Vert0;
 	vertex Vert5 = Normalize(vertex(0.5f * Scale, 0.5f * Scale, -0.5f * Scale, 1.f, 0.f));
-	//Vert5.Position += Vert5.Position * GetTerrainNoise(Vert5.Position);
 
-	vertex Verts[3] = { Vert0, Vert1, Vert2 };
-	vertex Verts2[3] = { Vert3, Vert4, Vert5 };
+	vertex Vert6 = Normalize(vertex(-0.5f * Scale, 0.5f * Scale, 0.5f * Scale, 0.f, 0.f));
+	vertex Vert7 = Vert5;
+	vertex Vert8 = Vert0;
 
-	binary_tree Tree0 = binary_tree(Verts, -1, -1, 1);
-	binary_tree Tree1 = binary_tree(Verts2, -1, -1, 0);
+	vertex Vert9 = Vert7;
+	vertex Vert10 = Vert6;
+	vertex Vert11 = Normalize(vertex(0.5f * Scale, 0.5f * Scale, 0.5f * Scale, 1.f, 0.f));
+
+	vertex Vert12 = Vert7;
+	vertex Vert13 = Normalize(vertex(0.5f * Scale, -0.5f * Scale, 0.5f * Scale, 1.f, 0.f));
+	vertex Vert14 = Vert1;
+
+	vertex Vert15 = Vert13;
+	vertex Vert16 = Vert12;
+	vertex Vert17 = Vert11;
+
+	vertex Vert18 = Vert2;
+	vertex Vert19 = Vert15;
+	vertex Vert20 = Normalize(vertex(-0.5f * Scale, -0.5f * Scale, 0.5f * Scale, 1.f, 0.f));
+
+	vertex Vert21 = Vert19;
+	vertex Vert22 = Vert18;
+	vertex Vert23 = Vert14;
+
+	vertex Vert24 = Vert6;
+	vertex Vert25 = Vert2;
+	vertex Vert26 = Vert20;
+
+	vertex Vert27 = Vert25;
+	vertex Vert28 = Vert24;
+	vertex Vert29 = Vert0;
+
+	vertex Vert30 = Vert11;
+	vertex Vert31 = Vert26;
+	vertex Vert32 = Vert13;
+
+	vertex Vert33 = Vert31;
+	vertex Vert34 = Vert30;
+	vertex Vert35 = Vert6;
+
+	vertex Verts0[3] = { Vert0, Vert1, Vert2 };
+	vertex Verts1[3] = { Vert3, Vert4, Vert5 };
+	vertex Verts2[3] = { Vert6, Vert7, Vert8 };
+	vertex Verts3[3] = { Vert9, Vert10, Vert11 };
+	vertex Verts4[3] = { Vert12, Vert13, Vert14 };
+	vertex Verts5[3] = { Vert15, Vert16, Vert17 };
+	vertex Verts6[3] = { Vert18, Vert19, Vert20 };
+	vertex Verts7[3] = { Vert21, Vert22, Vert23 };
+	vertex Verts8[3] = { Vert24, Vert25, Vert26 };
+	vertex Verts9[3] = { Vert27, Vert28, Vert29 };
+	vertex Verts10[3] = { Vert30, Vert31, Vert32 };
+	vertex Verts11[3] = { Vert33, Vert34, Vert35 };
+
+	//binary_tree Tree0 = binary_tree(Verts0, -1, -1, 1);
+	//binary_tree Tree1 = binary_tree(Verts1, -1, -1, 0);
+	binary_tree Tree0 = binary_tree(Verts0, 7, 9, 1);
+	binary_tree Tree1 = binary_tree(Verts1, 2, 4, 0);
+	binary_tree Tree2 = binary_tree(Verts2, 1, 9, 3);
+	binary_tree Tree3 = binary_tree(Verts3, 11, 5, 2);
+	binary_tree Tree4 = binary_tree(Verts4, 7, 1, 5);
+	binary_tree Tree5 = binary_tree(Verts5, 3, 10, 4);
+	binary_tree Tree6 = binary_tree(Verts6, 10, 8, 7);
+	binary_tree Tree7 = binary_tree(Verts7, 0, 4, 6);
+	binary_tree Tree8 = binary_tree(Verts8, 6, 11, 9);
+	binary_tree Tree9 = binary_tree(Verts9, 2, 0, 8);
+	binary_tree Tree10 = binary_tree(Verts10, 6, 5, 11);
+	binary_tree Tree11 = binary_tree(Verts11, 3, 8, 10);
+
 	Trees.push_back(Tree0);
 	Trees.push_back(Tree1);
+	Trees.push_back(Tree2);
+	Trees.push_back(Tree3);
+	Trees.push_back(Tree4);
+	Trees.push_back(Tree5);
+	Trees.push_back(Tree6);
+	Trees.push_back(Tree7);
+	Trees.push_back(Tree8);
+	Trees.push_back(Tree9);
+	Trees.push_back(Tree10);
+	Trees.push_back(Tree11);
 }
 
 void planet_terrain_manager::SmartSplitNode(int Parent, s8 TreeIndex, s8 ProcessingTreeIndex, std::vector<int>& ToProcess)
@@ -866,9 +933,15 @@ void planet_terrain_manager::CombineNodes(int Parent, s8 TreeIndex, bool Force)
 								Nodes[LeftChild].RightNeighbor,
 								Nodes[RightChild].BottomNeighbor,
 								Nodes[LeftChild].BottomNeighbor };
+		int AllNeighborTrees[4] = { Nodes[RightChild].LeftNeighborTree,
+									Nodes[LeftChild].RightNeighborTree,
+									Nodes[RightChild].BottomNeighborTree,
+									Nodes[LeftChild].BottomNeighborTree };
 
 		Nodes[Parent].LeftNeighbor = Nodes[LeftChild].BottomNeighbor;
+		Nodes[Parent].LeftNeighborTree = Nodes[LeftChild].BottomNeighborTree;
 		Nodes[Parent].RightNeighbor = Nodes[RightChild].BottomNeighbor;
+		Nodes[Parent].RightNeighborTree = Nodes[RightChild].BottomNeighborTree;
 
 		//if (Nodes[RightChild].LeftNeighbor == Nodes[LeftChild].RightNeighbor) // incompatible depths
 		//	Nodes[Parent].BottomNeighbor = -1;
@@ -878,16 +951,20 @@ void planet_terrain_manager::CombineNodes(int Parent, s8 TreeIndex, bool Force)
 		for (int i = 0; i < 4; i++)
 		{
 			int Index = AllNeighbors[i];
+			int NTreeIndex = AllNeighborTrees[i];
 			if (Index != -1)
 			{
 				//if (Nodes[Parent].Depth <= Nodes[Index].Depth)
 				//{
-				if (Nodes[Index].LeftNeighbor == LeftChild || Nodes[Index].LeftNeighbor == RightChild)
-					Nodes[Index].LeftNeighbor = Parent;
-				else if (Nodes[Index].RightNeighbor == LeftChild || Nodes[Index].RightNeighbor == RightChild)
-					Nodes[Index].RightNeighbor = Parent;
+				if ((Trees[NTreeIndex].Nodes[Index].LeftNeighbor == LeftChild && Trees[NTreeIndex].Nodes[Index].LeftNeighborTree == TreeIndex) || (Trees[NTreeIndex].Nodes[Index].LeftNeighbor == RightChild && Trees[NTreeIndex].Nodes[Index].LeftNeighborTree == TreeIndex))
+					Trees[NTreeIndex].Nodes[Index].LeftNeighbor = Parent;
+				else if ((Trees[NTreeIndex].Nodes[Index].RightNeighbor == LeftChild && Trees[NTreeIndex].Nodes[Index].RightNeighborTree == TreeIndex)|| (Trees[NTreeIndex].Nodes[Index].RightNeighbor == RightChild && Trees[NTreeIndex].Nodes[Index].RightNeighborTree == TreeIndex))
+					Trees[NTreeIndex].Nodes[Index].RightNeighbor = Parent;
 				else
-					Nodes[Index].BottomNeighbor = Parent;
+				{
+					Trees[NTreeIndex].Nodes[Index].BottomNeighbor = Parent;
+					Trees[NTreeIndex].Nodes[Index].BottomNeighborTree = TreeIndex;
+				}
 				//}
 				//else
 				//{

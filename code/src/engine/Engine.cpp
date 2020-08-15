@@ -464,12 +464,12 @@ void engine::RenderPlanet()
 		//UpdateVisibleChunksBT(&TerrainManager, &MainCamera);
 
 	//binary tree test
-	//pipeline_state BinaryTreeTest = pipeline_state();
-	//BinaryTreeTest.VertexShaderID = GetShaderIDFromName("mainvs");
-	//BinaryTreeTest.PixelShaderID = GetShaderIDFromName("mainps");
-	//BinaryTreeTest.RasterizerState = (DebugData.EnableWireframe ? rasterizer_state::Wireframe : rasterizer_state::DefaultCullBackface);
-	//BinaryTreeTest.UniqueIdentifier = "DefaultPBR";
-	//Renderer.SetPipelineState(BinaryTreeTest);
+	pipeline_state BinaryTreeTest = pipeline_state();
+	BinaryTreeTest.VertexShaderID = GetShaderIDFromName("mainvs");
+	BinaryTreeTest.PixelShaderID = GetShaderIDFromName("mainps");
+	BinaryTreeTest.RasterizerState = (DebugData.EnableWireframe ? rasterizer_state::Wireframe : rasterizer_state::DefaultCullBackface);
+	BinaryTreeTest.UniqueIdentifier = "DefaultPBR";
+	Renderer.SetPipelineState(BinaryTreeTest);
 
 	TerrainManager.VisibleChunkSwapMutex.lock();
 	if (TerrainManager.LowLODVertices.size() < 200000)
