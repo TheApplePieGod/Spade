@@ -18,6 +18,7 @@ struct debug_data
 	bool VisibleChunkUpdates = true;
 	bool SlowMode = false;
 	int IntersectingIndex = -1;
+	int IntersectingTree = -1;
 };
 
 class engine

@@ -23,8 +23,8 @@ void engine::Tick()
 
 	MainCamera.UpdateProjectionType(projection_type::Perspective);
 	v2 MouseDelta = v2{ UserInputs.MouseDeltaX * MainCamera.MouseInputScale, UserInputs.MouseDeltaY * MainCamera.MouseInputScale };
-	//MainCamera.ViewMatrix = renderer::GenerateViewMatrix(true, MainCamera.CameraInfo, MainCamera.LookAtVector, MainCamera.UpVector);
-	MainCamera.ViewMatrix = renderer::GeneratePlanetaryViewMatrix(true, MainCamera.CameraInfo, MouseDelta, MainCamera.ForwardVector, MainCamera.LookAtVector, MainCamera.UpVector);
+	MainCamera.ViewMatrix = renderer::GenerateViewMatrix(true, MainCamera.CameraInfo, MainCamera.LookAtVector, MainCamera.UpVector);
+	//MainCamera.ViewMatrix = renderer::GeneratePlanetaryViewMatrix(true, MainCamera.CameraInfo, MouseDelta, MainCamera.ForwardVector, MainCamera.LookAtVector, MainCamera.UpVector);
 	UserInputs.MousePosWorldSpace = renderer::GetWorldSpaceDirectionFromMouse(v2{ UserInputs.MousePosX, UserInputs.MousePosY }, &MainCamera);
 
 	RenderScene();
@@ -325,30 +325,58 @@ void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainC
 		std::vector<vertex> BTVertices;
 
 		u32 VertexIndex = 0;
+		//for (u32 n = 0; n < (u32)TerrainManager->Trees.size(); n++)
+		//{
+		//	std::vector<int> OutInts = TerrainManager->Trees[n].Traverse(MainCamera->CameraInfo.Transform.Location, 5000.f);
+		//	BTVertices.resize(BTVertices.size() + OutInts.size() * 3);
+		//	for (u32 i = 0; i < (u32)OutInts.size(); i++)
+		//	{
+		//		const binary_terrain_chunk& Data = TerrainManager->Trees[n].ChunkData[OutInts[i]];
+
+		//		for (u32 d = 0; d < 3; d++)
+		//		{
+		//			BTVertices[VertexIndex] = Data.Vertices[d];
+		//			VertexIndex++;
+		//		}
+		//		//BTVertices.insert(BTVertices.end(), Data.Vertices, Data.Vertices + 3);
+		//	}
+		//	//Renderer.DrawIndexedTerrainChunk(BTVertices.data(), BTIndices.data(), (u32)BTVertices.size(), (u32)BTIndices.size());
+		//	//Renderer.Draw(BTVertices.data(), (u32)BTVertices.size(), draw_topology_type::TriangleList);
+		//}
 		for (u32 n = 0; n < (u32)TerrainManager->Trees.size(); n++)
 		{
-			std::vector<int> OutInts = TerrainManager->Trees[n].Traverse(MainCamera->CameraInfo.Transform.Location, 5000.f);
-			BTVertices.resize(BTVertices.size() + OutInts.size() * 3);
-			for (u32 i = 0; i < (u32)OutInts.size(); i++)
+			if (Engine->DebugData.VisibleChunkUpdates)
 			{
-				const binary_terrain_chunk& Data = TerrainManager->Trees[n].ChunkData[OutInts[i]];
-
-				for (u32 d = 0; d < 3; d++)
+				std::vector<int> OutInts = TerrainManager->Traverse(MainCamera->CameraInfo.Transform.Location, n, 5000.f);
+				BTVertices.resize(BTVertices.size() + OutInts.size() * 3);
+				for (u32 i = 0; i < (u32)OutInts.size(); i++)
 				{
-					BTVertices[VertexIndex] = Data.Vertices[d];
-					VertexIndex++;
+					const binary_terrain_chunk& Data = TerrainManager->Trees[n].ChunkData[OutInts[i]];
+
+					for (u32 d = 0; d < 3; d++)
+					{
+						BTVertices[VertexIndex] = Data.Vertices[d];
+						VertexIndex++;
+					}
+					//BTVertices.insert(BTVertices.end(), Data.Vertices, Data.Vertices + 3);
 				}
-				//BTVertices.insert(BTVertices.end(), Data.Vertices, Data.Vertices + 3);
 			}
 			//Renderer.DrawIndexedTerrainChunk(BTVertices.data(), BTIndices.data(), (u32)BTVertices.size(), (u32)BTIndices.size());
 			//Renderer.Draw(BTVertices.data(), (u32)BTVertices.size(), draw_topology_type::TriangleList);
+			int IntersectingIndex = TerrainManager->Trees[n].RayIntersectsTriangle(Engine->UserInputs.MousePosWorldSpace, MainCamera->CameraInfo.Transform.Location);
+			if (IntersectingIndex != -1)
+			{
+				Engine->DebugData.IntersectingIndex = IntersectingIndex;
+				Engine->DebugData.IntersectingTree = n;
+			}
 		}
 
-		Engine->DebugData.IntersectingIndex = TerrainManager->Trees[1].RayIntersectsTriangle(Engine->UserInputs.MousePosWorldSpace, MainCamera->CameraInfo.Transform.Location);
-
-		TerrainManager->VisibleChunkSwapMutex.lock();
-		std::swap(TerrainManager->LowLODVertices, BTVertices);
-		TerrainManager->VisibleChunkSwapMutex.unlock();
+		if (Engine->DebugData.VisibleChunkUpdates)
+		{
+			TerrainManager->VisibleChunkSwapMutex.lock();
+			std::swap(TerrainManager->LowLODVertices, BTVertices);
+			TerrainManager->VisibleChunkSwapMutex.unlock();
+		}
 
 		TerrainManager->UpdatingChunkData = false;
 	}
@@ -425,7 +453,7 @@ void engine::RenderPlanet()
 	//Renderer.DrawIndexedInstanced((vertex*)PlanetMesh->Data, (u32*)((vertex*)PlanetMesh->Data + PlanetMesh->MeshData.NumVertices), PlanetMesh->MeshData.NumVertices, PlanetMesh->MeshData.NumIndices, 0, 1, draw_topology_type::TriangleList);
 	Renderer.BindMaterial(MaterialRegistry.GetComponent(0));
 
-	if ((DebugData.VisibleChunkUpdates && !TerrainManager.UpdatingChunkData) || ChunkUpdateThread.get_id() == std::thread::id())
+	if ((!TerrainManager.UpdatingChunkData) || ChunkUpdateThread.get_id() == std::thread::id())
 	{
 		if (ChunkUpdateThread.joinable())
 			ChunkUpdateThread.join();
@@ -628,7 +656,10 @@ void engine::RenderDebugWidgets()
 			{
 				ImGui::Indent();
 
-				binary_node& Node = TerrainManager.Trees[1].Nodes[DebugData.IntersectingIndex];
+				binary_node& Node = TerrainManager.Trees[DebugData.IntersectingTree].Nodes[DebugData.IntersectingIndex];
+
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text("Tree: %d", DebugData.IntersectingTree);
 
 				ImGui::AlignTextToFramePadding();
 				ImGui::Text("Depth: %d", Node.Depth);
@@ -650,6 +681,15 @@ void engine::RenderDebugWidgets()
 
 				ImGui::AlignTextToFramePadding();
 				ImGui::Text("BottomNeighbor: %d", Node.BottomNeighbor);
+
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text("LeftNeighborTree: %d", Node.LeftNeighborTree);
+
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text("RightNeighborTree: %d", Node.RightNeighborTree);
+
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text("BottomNeighborTree: %d", Node.BottomNeighborTree);
 
 				ImGui::Unindent();
 			}
