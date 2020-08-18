@@ -38,7 +38,7 @@ void engine::Tick()
 	Renderer.FinishFrame();
 
 	if (DebugData.SlowMode)
-		Sleep(100);
+		Sleep(150);
 }
 
 void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
@@ -326,7 +326,6 @@ void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainC
 		TerrainManager->UpdatingChunkData = true;
 		std::vector<vertex> BTVertices;
 
-		TerrainManager->DeepestFoundDepth = 0;
 		u32 VertexIndex = 0;
 		//for (u32 n = 0; n < (u32)TerrainManager->Trees.size(); n++)
 		//{
@@ -387,9 +386,6 @@ void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainC
 					//BTVertices.insert(BTVertices.end(), Data.Vertices, Data.Vertices + 3);
 				}
 			}
-
-			if (TerrainManager->DeepestFoundDepth < TerrainManager->TreesCurrentDepth)
-				TerrainManager->TreesCurrentDepth = TerrainManager->DeepestFoundDepth;
 		}
 
 		if (Engine->DebugData.VisibleChunkUpdates)
@@ -673,7 +669,7 @@ void engine::RenderDebugWidgets()
 			ImGui::AlignTextToFramePadding();
 			ImGui::Text("IntersectingIndex: %d", DebugData.IntersectingIndex);
 
-			if (DebugData.IntersectingIndex != -1)
+			if (DebugData.IntersectingIndex != -1 && DebugData.IntersectingTree != -1)
 			{
 				ImGui::Indent();
 
@@ -681,6 +677,9 @@ void engine::RenderDebugWidgets()
 
 				ImGui::AlignTextToFramePadding();
 				ImGui::Text("Tree: %d", DebugData.IntersectingTree);
+
+				//ImGui::AlignTextToFramePadding();
+				//ImGui::Text("CurrentTreeDepth: %d", TerrainManager.TreesCurrentDepth);
 
 				ImGui::AlignTextToFramePadding();
 				ImGui::Text("Depth: %d", Node.Depth);

@@ -50,7 +50,7 @@ struct binary_tree
 	free_list<binary_terrain_chunk> ChunkData;
 	std::vector<int> NodesToRender;
 	byte MaxDepth = 24;//24;
-	byte MinDepth = 5;//7;
+	byte MinDepth = 7;//7;
 	int FirstFreeNode = -1;
 
 	binary_tree(vertex InitialVertices[3], s8 LeftTreeNeighbor, s8 RightTreeNeighbor, s8 BottomTreeNeighbor);
@@ -100,8 +100,6 @@ public:
 	bool CombiningLowLOD = false;
 
 	std::vector<binary_tree> Trees;
-	byte TreesCurrentDepth;
-	byte DeepestFoundDepth;
 
 	inline f32 GetPlanetRadius()
 	{
