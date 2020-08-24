@@ -146,9 +146,9 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 		RenderingComponents.CreateComponent(rcomp, true);
 	}
 
-	LightingConstants.AmbientColor = v3{ 0.05f, 0.05f, 0.05f };
+	LightingConstants.AmbientColor = v3{ 0.005f, 0.005f, 0.005f };
 	LightingConstants.SunColor = colors::White;
-	DebugData.SunAngle = 180.f;
+	//DebugData.SunAngle = 180.f;
 }
 
 void engine::Cleanup()
@@ -229,96 +229,6 @@ void engine::ProcessUserInput()
 	}		
 }
 
-void UpdateVisibleChunks(planet_terrain_manager* TerrainManager, camera* MainCamera)
-{
-	if (!TerrainManager->UpdatingChunkData)
-	{
-		TerrainManager->UpdatingChunkData = true;
-
-		std::vector<vertex> NewLowLODVertices;
-		std::vector<u32> NewLowLODIndices;
-		std::vector<u32> NewVisibleChunkIDs;
-
-		u32 CurrentOffset = 0;
-		u32 IndicesIndex = 0;
-
-		for (u32 i = 0; i < (u32)TerrainManager->ChunkArray.size(); i++)
-		{
-			terrain_chunk& Chunk = TerrainManager->ChunkArray[i];
-			if (TerrainManager->IsChunkVisible(Chunk, MainCamera->CameraInfo.Transform.Location))
-			{
-				f32 Distance = Length(MainCamera->CameraInfo.Transform.Location - TerrainManager->ChunkArray[i].Midpoint);
-				//if (Distance <= 400.f)
-				{
-					NewVisibleChunkIDs.push_back(i);
-
-
-					bool LowLOD = false;
-					//if (Distance <= 25.f)
-					//	TerrainManager->GenerateChunkVerticesAndIndices(0, Chunk, true);
-					//else if (Distance < 50.f)
-					//	TerrainManager->GenerateChunkVerticesAndIndices(1, Chunk, true);
-					//else if (Distance < 100.f)
-					//	TerrainManager->GenerateChunkVerticesAndIndices(2, Chunk, true);
-					//else if (Distance < 150.f)
-					//	TerrainManager->GenerateChunkVerticesAndIndices(4, Chunk, true);
-					//else
-					//{
-					//	if (Distance < 300)
-					//		Chunk.RenderSubChunk = true;
-						TerrainManager->GenerateChunkVerticesAndIndices(36, Chunk, true);
-					//}
-
-					Chunk.RenderSubChunk = false;
-
-					if (Chunk.RenderSubChunk || Chunk.CurrentLOD == 36)
-					{
-						terrain_chunk DummyChunk = Chunk;
-						terrain_chunk* ChunkToUse = nullptr;
-
-						if (Chunk.RenderSubChunk)
-						{
-							TerrainManager->GenerateChunkVerticesAndIndices(36, DummyChunk, true);
-							ChunkToUse = &DummyChunk;
-						}
-						else
-							ChunkToUse = &Chunk;
-
-						NewLowLODVertices.insert(NewLowLODVertices.end(), ChunkToUse->Vertices.begin(), ChunkToUse->Vertices.end());
-						NewLowLODIndices.resize(NewLowLODIndices.size() + ChunkToUse->Indices.size());
-						for (u32 n = 0; n < ChunkToUse->Indices.size(); n++)
-						{
-							NewLowLODIndices[IndicesIndex] = ChunkToUse->Indices[n] + CurrentOffset;
-							IndicesIndex++;
-						}
-						CurrentOffset += (u32)ChunkToUse->Vertices.size();
-					}
-
-					//if (LowLOD)
-					//{
-					//	NewLowLODVertices.insert(NewLowLODVertices.end(), Chunk.Vertices.begin(), Chunk.Vertices.end());
-					//	NewLowLODIndices.resize(NewLowLODIndices.size() + Chunk.Indices.size());
-					//	for (u32 n = 0; n < Chunk.Indices.size(); n++)
-					//	{
-					//		NewLowLODIndices[IndicesIndex] = Chunk.Indices[n] + CurrentOffset;
-					//		IndicesIndex++;
-					//	}
-					//	CurrentOffset += (u32)Chunk.Vertices.size();
-					//}
-				}
-			}
-		}
-
-		TerrainManager->VisibleChunkSwapMutex.lock();
-		std::swap(TerrainManager->VisibleChunkIDs, NewVisibleChunkIDs);
-		std::swap(TerrainManager->LowLODVertices, NewLowLODVertices);
-		std::swap(TerrainManager->LowLODIndices, NewLowLODIndices);
-		TerrainManager->VisibleChunkSwapMutex.unlock();
-
-		TerrainManager->UpdatingChunkData = false;
-	}
-}
-
 void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainCamera)
 {
 	if (!TerrainManager->UpdatingChunkData)
@@ -327,24 +237,6 @@ void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainC
 		std::vector<vertex> BTVertices;
 
 		u32 VertexIndex = 0;
-		//for (u32 n = 0; n < (u32)TerrainManager->Trees.size(); n++)
-		//{
-		//	std::vector<int> OutInts = TerrainManager->Trees[n].Traverse(MainCamera->CameraInfo.Transform.Location, 5000.f);
-		//	BTVertices.resize(BTVertices.size() + OutInts.size() * 3);
-		//	for (u32 i = 0; i < (u32)OutInts.size(); i++)
-		//	{
-		//		const binary_terrain_chunk& Data = TerrainManager->Trees[n].ChunkData[OutInts[i]];
-
-		//		for (u32 d = 0; d < 3; d++)
-		//		{
-		//			BTVertices[VertexIndex] = Data.Vertices[d];
-		//			VertexIndex++;
-		//		}
-		//		//BTVertices.insert(BTVertices.end(), Data.Vertices, Data.Vertices + 3);
-		//	}
-		//	//Renderer.DrawIndexedTerrainChunk(BTVertices.data(), BTIndices.data(), (u32)BTVertices.size(), (u32)BTIndices.size());
-		//	//Renderer.Draw(BTVertices.data(), (u32)BTVertices.size(), draw_topology_type::TriangleList);
-		//}
 		if (Engine->DebugData.VisibleChunkUpdates)
 		{
 			for (u32 n = 0; n < (u32)TerrainManager->Trees.size(); n++)
@@ -355,17 +247,25 @@ void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainC
 
 		for (u32 n = 0; n < (u32)TerrainManager->Trees.size(); n++)
 		{
-			if (Engine->DebugData.VisibleChunkUpdates)
+			v3 ChunkNormal = Normalize(TerrainManager->Trees[n].TreeMidpoint);
+			v3 PositionNormal = Normalize(MainCamera->CameraInfo.Transform.Location);
+			f32 DotProd = DotProduct(PositionNormal, ChunkNormal);
+			f32 Angle = acos(DotProd);
+			f32 MaxAngle = Pi32 * 0.75f;//min((Length(MainCamera->CameraInfo.Transform.Location) / TerrainManager->GetPlanetRadius()) * (Pi32 * 0.2f), Pi32 * 0.35f);
+			if (Angle < MaxAngle)
 			{
-				TerrainManager->Traverse(MainCamera->CameraInfo.Transform.Location, n, 5000.f);
-			}
-			//Renderer.DrawIndexedTerrainChunk(BTVertices.data(), BTIndices.data(), (u32)BTVertices.size(), (u32)BTIndices.size());
-			//Renderer.Draw(BTVertices.data(), (u32)BTVertices.size(), draw_topology_type::TriangleList);
-			int IntersectingIndex = TerrainManager->Trees[n].RayIntersectsTriangle(Engine->UserInputs.MousePosWorldSpace, MainCamera->CameraInfo.Transform.Location);
-			if (IntersectingIndex != -1)
-			{
-				Engine->DebugData.IntersectingIndex = IntersectingIndex;
-				Engine->DebugData.IntersectingTree = n;
+				if (Engine->DebugData.VisibleChunkUpdates)
+				{
+					TerrainManager->Traverse(MainCamera->CameraInfo.Transform.Location, n, 5000.f);
+				}
+				//Renderer.DrawIndexedTerrainChunk(BTVertices.data(), BTIndices.data(), (u32)BTVertices.size(), (u32)BTIndices.size());
+				//Renderer.Draw(BTVertices.data(), (u32)BTVertices.size(), draw_topology_type::TriangleList);
+				int IntersectingIndex = TerrainManager->Trees[n].RayIntersectsTriangle(Engine->UserInputs.MousePosWorldSpace, MainCamera->CameraInfo.Transform.Location, TerrainManager->GetPlanetRadius());
+				if (IntersectingIndex != -1)
+				{
+					Engine->DebugData.IntersectingIndex = IntersectingIndex;
+					Engine->DebugData.IntersectingTree = n;
+				}
 			}
 		}
 
@@ -390,9 +290,9 @@ void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainC
 
 		if (Engine->DebugData.VisibleChunkUpdates)
 		{
-			TerrainManager->VisibleChunkSwapMutex.lock();
-			std::swap(TerrainManager->LowLODVertices, BTVertices);
-			TerrainManager->VisibleChunkSwapMutex.unlock();
+			TerrainManager->TerrainVerticesSwapMutex.lock();
+			std::swap(TerrainManager->TerrainVertices, BTVertices);
+			TerrainManager->TerrainVerticesSwapMutex.unlock();
 		}
 
 		TerrainManager->UpdatingChunkData = false;
@@ -436,6 +336,25 @@ void engine::RenderPlanet()
 	if (Length(MainCamera.CameraInfo.Transform.Location) > 1025.f)
 		InAtmosphere = false;
 
+	if (InAtmosphere)
+	{
+		if (MainCamera.CameraInfo.NearPlane != 0.1f)
+		{
+			MainCamera.CameraInfo.NearPlane = 0.1f;
+			MainCamera.CameraInfo.FarPlane = 5000.f;
+			MainCamera.UpdateProjectionType(projection_type::Perspective, true);
+		}
+	}
+	else
+	{
+		if (MainCamera.CameraInfo.NearPlane != 10.f)
+		{
+			MainCamera.CameraInfo.NearPlane = 10.f;
+			MainCamera.CameraInfo.FarPlane = 50000.f;
+			MainCamera.UpdateProjectionType(projection_type::Perspective, true);
+		}
+	}
+
 	cMeshAsset* PlanetMesh = (cMeshAsset*)AssetRegistry[GetAssetIDFromName("sphere.fbx")];
 	v3 PlanetScale = v3{ PlanetRadius, PlanetRadius, PlanetRadius };
 
@@ -449,6 +368,22 @@ void engine::RenderPlanet()
 	else
 		Renderer.SetPipelineState(SkyFromSpace);
 
+	Renderer.DrawIndexedInstanced((vertex*)PlanetMesh->Data, (u32*)((vertex*)PlanetMesh->Data + PlanetMesh->MeshData.NumVertices), PlanetMesh->MeshData.NumVertices, PlanetMesh->MeshData.NumIndices, 0, 1, draw_topology_type::TriangleList);
+
+	if (InAtmosphere)
+		Renderer.SetPipelineState(GroundFromAtmosphere);
+	else
+		Renderer.SetPipelineState(GroundFromSpace);
+
+	//material WaterMat = material();
+	//WaterMat.DiffuseColor = colors::Blue;
+	//transform WaterTransform = transform();
+	//WaterTransform.Scale = PlanetScale * 0.999f;
+	//WaterTransform.Rotation = v3{ 0.f, 0.f, 0.f };
+	//ActorConstants.Instances[0].WorldMatrix = renderer::GenerateWorldMatrix(WaterTransform);
+	//Renderer.MapConstants(map_operation::Actor);
+	//Renderer.BindMaterial(WaterMat);
+
 	//Renderer.DrawIndexedInstanced((vertex*)PlanetMesh->Data, (u32*)((vertex*)PlanetMesh->Data + PlanetMesh->MeshData.NumVertices), PlanetMesh->MeshData.NumVertices, PlanetMesh->MeshData.NumIndices, 0, 1, draw_topology_type::TriangleList);
 
 	transform PlanetTransform = transform();
@@ -457,18 +392,14 @@ void engine::RenderPlanet()
 	ActorConstants.Instances[0].WorldMatrix = renderer::GenerateWorldMatrix(PlanetTransform);
 	Renderer.MapConstants(map_operation::Actor);
 
-	if (InAtmosphere)
-		Renderer.SetPipelineState(GroundFromAtmosphere);
-	else
-		Renderer.SetPipelineState(GroundFromSpace);
-
-	f32 CamX = MainCamera.CameraInfo.Transform.Location.x;
-	f32 CamY = MainCamera.CameraInfo.Transform.Location.y;
-	f32 CamZ = MainCamera.CameraInfo.Transform.Location.z;
-	v3 Direction = Normalize(MainCamera.CameraInfo.Transform.Location);
-
-	//Renderer.DrawIndexedInstanced((vertex*)PlanetMesh->Data, (u32*)((vertex*)PlanetMesh->Data + PlanetMesh->MeshData.NumVertices), PlanetMesh->MeshData.NumVertices, PlanetMesh->MeshData.NumIndices, 0, 1, draw_topology_type::TriangleList);
 	Renderer.BindMaterial(MaterialRegistry.GetComponent(0));
+
+	//pipeline_state Default = pipeline_state();
+	//Default.VertexShaderID = GetShaderIDFromName("mainvs");
+	//Default.PixelShaderID = GetShaderIDFromName("mainps");
+	//Default.RasterizerState = (DebugData.EnableWireframe ? rasterizer_state::Wireframe : rasterizer_state::DefaultCullBackface);
+	//Default.UniqueIdentifier = "DefaultPBR";
+	//Renderer.SetPipelineState(Default);
 
 	if ((!TerrainManager.UpdatingChunkData) || ChunkUpdateThread.get_id() == std::thread::id())
 	{
@@ -480,42 +411,11 @@ void engine::RenderPlanet()
 	//if (DebugData.VisibleChunkUpdates)
 		//UpdateVisibleChunksBT(&TerrainManager, &MainCamera);
 
-	//binary tree test
-	pipeline_state BinaryTreeTest = pipeline_state();
-	BinaryTreeTest.VertexShaderID = GetShaderIDFromName("mainvs");
-	BinaryTreeTest.PixelShaderID = GetShaderIDFromName("mainps");
-	BinaryTreeTest.RasterizerState = (DebugData.EnableWireframe ? rasterizer_state::Wireframe : rasterizer_state::DefaultCullBackface);
-	BinaryTreeTest.UniqueIdentifier = "DefaultPBR";
-	Renderer.SetPipelineState(BinaryTreeTest);
-
-	TerrainManager.VisibleChunkSwapMutex.lock();
-	if (TerrainManager.LowLODVertices.size() < 200000)
-		Renderer.Draw(TerrainManager.LowLODVertices.data(), (u32)TerrainManager.LowLODVertices.size(), draw_topology_type::TriangleList);
-	DebugData.NumTerrainVertices = (u32)TerrainManager.LowLODVertices.size();
-	TerrainManager.VisibleChunkSwapMutex.unlock();
-
-	//------
-
-	//TerrainManager.VisibleChunkSwapMutex.lock();
-	//TerrainManager.ChunkDataSwapMutex.lock();
-	//for (u32 i = 0; i < (u32)TerrainManager.VisibleChunkIDs.size(); i++)
-	//{
-	//	terrain_chunk& Chunk = TerrainManager.ChunkArray[TerrainManager.VisibleChunkIDs[i]];
-
-	//	if (Chunk.CurrentLOD <= 4)
-	//	{
-	//		Renderer.DrawIndexedTerrainChunk(Chunk.Vertices.data(), Chunk.Indices.data(), (u32)Chunk.Vertices.size(), (u32)Chunk.Indices.size());
-	//		DebugData.ChunkDrawCalls++;
-	//	}
-
-	//	if (Chunk.CurrentLOD == 0 || Chunk.CurrentLOD == 36)
-	//		Chunk.RenderSubChunk = false;
-	//	else
-	//		Chunk.RenderSubChunk = true;
-	//}
-	//Renderer.DrawIndexedTerrainChunk(TerrainManager.LowLODVertices.data(), TerrainManager.LowLODIndices.data(), (u32)TerrainManager.LowLODVertices.size(), (u32)TerrainManager.LowLODIndices.size());
-	//TerrainManager.VisibleChunkSwapMutex.unlock();
-	//TerrainManager.ChunkDataSwapMutex.unlock();
+	TerrainManager.TerrainVerticesSwapMutex.lock();
+	if (TerrainManager.TerrainVertices.size() < 200000)
+		Renderer.Draw(TerrainManager.TerrainVertices.data(), (u32)TerrainManager.TerrainVertices.size(), draw_topology_type::TriangleList);
+	DebugData.NumTerrainVertices = (u32)TerrainManager.TerrainVertices.size();
+	TerrainManager.TerrainVerticesSwapMutex.unlock();
 }
 
 inline bool CompareRenderComponents(rendering_component* Comp1, rendering_component* Comp2)

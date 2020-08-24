@@ -42,7 +42,7 @@ PSIn mainvs(VSIn input)
 
 	output.Normal = normalize(mul(float4(input.Normal, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Normal, (float3x3)Instances[input.InstanceID].WorldMatrix));
 	output.Tangent = normalize(mul(float4(input.Tangent, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Tangent, (float3x3)Instances[input.InstanceID].WorldMatrix));
-	output.Bitangent = normalize(mul(float4(cross(input.Normal, input.Tangent), 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Bitangent, (float3x3)Instances[input.InstanceID].WorldMatrix));
+	output.Bitangent = input.Bitangent;//normalize(mul(float4(cross(input.Normal, input.Tangent), 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Bitangent, (float3x3)Instances[input.InstanceID].WorldMatrix));
 	//output.Tangent = normalize(output.Tangent - dot(output.Tangent, output.Normal) * output.Normal);
 	//output.Bitangent = normalize(cross(output.Normal, output.Tangent));//normalize(mul(float4(cross(output.Normal, output.Tangent), 0.f), Instances[input.InstanceID].InverseTransposeWorldMatrix).xyz);
 	//output.Bitangent = input.Bitangent;
@@ -55,7 +55,7 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	float fCameraHeight = max(length(input.CameraPos), fInnerRadius);
 
 	// Get the ray from the camera to the vertex and its length (which is the far point of the ray passing through the atmosphere)
-	float3 v3Pos = input.WorldPos;
+	float3 v3Pos = input.WorldPos.xyz;
 	float3 v3Ray = v3Pos - input.CameraPos;
 	float fFar = length(v3Ray);
 	v3Ray /= fFar;
@@ -75,7 +75,7 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	float fCameraAngle = 1.f;// dot(-v3Ray, v3Pos);
 	//if (fCameraAngle == 0)
 	//	fCameraAngle = 0.1;
-	float fLightAngle = dot(SunDirection, v3Pos);
+	float fLightAngle = dot(-SunDirection, v3Pos);
 	float fCameraScale = scale(fCameraAngle, fScaleDepth);
 	float fLightScale = scale(fLightAngle, fScaleDepth);
 	float fCameraOffset = fDepth * fCameraScale;
@@ -101,16 +101,25 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	float3 c0 = v3FrontColor * (v3InvWavelength * fKrESun + fKmESun);
 	float3 c1 = v3Attenuate;
 
+	float3 LightVector = -SunDirection;
+	float nDotL = max(0.0, dot(input.Normal, LightVector));
 	float4 SampleColor = float4(0.f, 0.f, 0.f, 1.f);
-	if (TextureDiffuse)
-	{
-		SampleColor = DiffuseTex.Sample(Samp, input.TexCoord);  // Sample the color from the texture
-		SampleColor *= DiffuseColor;
-	}
-	else
-		SampleColor = DiffuseColor;
+	//if (TextureDiffuse)
+	//{
+	//	SampleColor = DiffuseTex.Sample(Samp, input.TexCoord * 1000);  // Sample the color from the texture
+	//	SampleColor *= DiffuseColor;
+	//}
+	//else
+	//	SampleColor = DiffuseColor;
+	SampleColor.xyz = input.Bitangent;
+	float3 Ambient = SampleColor * AmbientColor;
+	SampleColor *= nDotL;
+	//float angle = acos(dot(normalize(input.WorldPos.xyz), input.Normal) / (length(normalize(input.WorldPos.xyz)) * length(input.Normal)));
+/*	if (abs(angle) > 3.14159 * 0.05)
+		SampleColor = float4(0.4f, 0.26f, 0.13f, 1.f);*/ 
 
 	float3 color = c0 + SampleColor.xyz * c1;
+	color += Ambient;
 	return float4(color, 1);
 }
 
@@ -141,7 +150,7 @@ float4 SkyFromAtmospherePS(PSIn input) : SV_TARGET
 	{
 		float fHeight = length(v3SamplePoint);
 		float fDepth = exp(fScaleOverScaleDepth * (fInnerRadius - fHeight));
-		float fLightAngle = dot(SunDirection, v3SamplePoint) / fHeight;
+		float fLightAngle = dot(-SunDirection, v3SamplePoint) / fHeight;
 		float fCameraAngle = dot(v3Ray, v3SamplePoint) / fHeight;
 		float fScatter = (fStartOffset + fDepth * (scale(fLightAngle, fScaleDepth) - scale(fCameraAngle, fScaleDepth)));
 		float3 v3Attenuate = exp(-fScatter * (v3InvWavelength * fKr4PI + fKm4PI));
@@ -152,7 +161,7 @@ float4 SkyFromAtmospherePS(PSIn input) : SV_TARGET
 	float3 c0 = v3FrontColor * (v3InvWavelength * fKrESun * 1);
 	float3 c1 = v3FrontColor * fKmESun * 1;
 	float3 v3Direction = input.CameraPos - v3Pos;
-	float fCos = dot(SunDirection, v3Direction) / length(v3Direction);
+	float fCos = dot(-SunDirection, v3Direction) / length(v3Direction);
 	float fCos2 = fCos * fCos;
 	float3 color = getRayleighPhase(fCos2) * c0 + getMiePhase(fCos, fCos2) * c1;
 	color = 1.0 - exp(color * -fHdrExposure);
@@ -167,7 +176,7 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 	float fCameraHeight2 = fCameraHeight * fCameraHeight;
 
 	// Get the ray from the camera to the vertex and its length (which is the far point of the ray passing through the atmosphere)
-	float3 v3Pos = input.WorldPos;
+	float3 v3Pos = input.WorldPos.xyz;
 	float3 v3Ray = v3Pos - input.CameraPos;
 	v3Pos = normalize(v3Pos);
 	float fFar = length(v3Ray);
@@ -179,7 +188,7 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 	fFar -= fNear;
 	float fDepth = exp((fInnerRadius - fOuterRadius) * fInvScaleDepth);
 	float fCameraAngle = dot(-v3Ray, v3Pos) / length(v3Pos);
-	float fLightAngle = dot(SunDirection, v3Pos);
+	float fLightAngle = dot(-SunDirection, v3Pos);
 	float fCameraScale = scale(fCameraAngle, fScaleDepth);
 	float fLightScale = scale(fLightAngle, fScaleDepth);
 	float fCameraOffset = fDepth * fCameraScale;
@@ -206,16 +215,25 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 	float3 c1 = v3Attenuate;
 	
 	float4 SampleColor = float4(0.f, 0.f, 0.f, 1.f);
-	if (TextureDiffuse)
-	{
-		SampleColor = DiffuseTex.Sample(Samp, input.TexCoord);  // Sample the color from the texture
-		SampleColor *= DiffuseColor;
-	}
-	else
-		SampleColor = DiffuseColor;
+	float3 LightVector = -SunDirection;
+	float nDotL = max(0.0, dot(input.Normal, LightVector));
+	float angle = acos(dot(normalize(input.WorldPos.xyz), input.Normal) / (length(normalize(input.WorldPos.xyz)) * length(input.Normal)));
+	//if (abs(angle) > 30)
+	//	SampleColor = float4(1.f, 1.f, 1.f, 1.f);// * nDotL;
+	//if (TextureDiffuse)
+	//{
+	//	SampleColor = DiffuseTex.Sample(Samp, input.TexCoord * 1000);  // Sample the color from the texture
+	//	SampleColor *= DiffuseColor;
+	//}
+	//else
+	//	SampleColor = DiffuseColor;
+	SampleColor.xyz = input.Bitangent;
+	float3 Ambient = SampleColor * AmbientColor;
+	SampleColor *= nDotL;
 
 	//SampleColor = float4(0.2f,0.6f,1.f,1.f);
 	float3 color = c0 + SampleColor.xyz * c1;
+	color += Ambient;
 	return float4(color, 1);
 	//float3 color = c0 + 0.25 * c1;
 	//color = 1.0 - exp(color * -fHdrExposure);
@@ -252,7 +270,7 @@ float4 SkyFromSpacePS(PSIn input) : SV_TARGET
 	{
 		float fHeight = length(v3SamplePoint);
 		float fDepth = exp(fScaleOverScaleDepth * (fInnerRadius - fHeight));
-		float fLightAngle = dot(SunDirection, v3SamplePoint) / fHeight;
+		float fLightAngle = dot(-SunDirection, v3SamplePoint) / fHeight;
 		float fCameraAngle = dot(v3Ray, v3SamplePoint) / fHeight;
 		float fScatter = (fStartOffset + fDepth * (scale(fLightAngle, fScaleDepth) - scale(fCameraAngle, fScaleDepth)));
 		float3 v3Attenuate = exp(-fScatter * (v3InvWavelength * fKr4PI + fKm4PI));
@@ -263,7 +281,7 @@ float4 SkyFromSpacePS(PSIn input) : SV_TARGET
 	float3 c0 = v3FrontColor * (v3InvWavelength * fKrESun);
 	float3 c1 = v3FrontColor * fKmESun;
 	float3 v3Direction = input.CameraPos - v3Pos;
-	float fCos = dot(SunDirection, v3Direction) / length(v3Direction);
+	float fCos = dot(-SunDirection, v3Direction) / length(v3Direction);
 	float fCos2 = fCos * fCos;
 	float3 color = getRayleighPhase(fCos2) * c0 + getMiePhase(fCos, fCos2) * c1;
 	color = 1.0 - exp(color * -fHdrExposure);
@@ -276,12 +294,17 @@ float4 mainps(PSIn input) : SV_TARGET
 	float4 SampleColor = float4(0.f, 0.f, 0.f, 1.f);
 	if (TextureDiffuse)
 	{
-		SampleColor = DiffuseTex.Sample(Samp, input.TexCoord);  // Sample the color from the texture
+		SampleColor = DiffuseTex.Sample(Samp, input.TexCoord * 1000);  // Sample the color from the texture
 		SampleColor *= DiffuseColor;
 	}
 	else
 		SampleColor = DiffuseColor;
 
+	float3 LightVector = -SunDirection;
+	float nDotL = max(0.0, dot(input.Normal, LightVector));
+
+	SampleColor *= nDotL;
+	SampleColor.w = 1;
 	return SampleColor;
 }
 

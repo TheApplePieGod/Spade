@@ -21,9 +21,9 @@ void camera::UpdateFromInput()
 	}
 }
 
-void camera::UpdateProjectionType(projection_type NewType)
+void camera::UpdateProjectionType(projection_type NewType, bool Force)
 {
-	if (CameraInfo.ProjectionType != NewType)
+	if (CameraInfo.ProjectionType != NewType || Force)
 	{
 		CameraInfo.ProjectionType = NewType;
 

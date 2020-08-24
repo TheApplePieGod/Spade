@@ -14,7 +14,7 @@ struct debug_data
 	f32 SunAngle = 0.f;
 	f32 CameraSpeed = 1.f;//0.08f;
 	u32 NumTerrainVertices = 0;
-	bool EnableWireframe = true;
+	bool EnableWireframe = false;
 	bool VisibleChunkUpdates = true;
 	bool SlowMode = false;
 	bool FreeCam = true;

@@ -28,6 +28,6 @@ public:
 	matrix4x4 ProjectionMatrix;
 
 	// updates type & matrix;
-	void UpdateProjectionType(projection_type NewType);
+	void UpdateProjectionType(projection_type NewType, bool Force = false);
 	void UpdateFromInput();
 };

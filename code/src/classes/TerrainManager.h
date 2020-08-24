@@ -46,58 +46,39 @@ struct binary_node
 
 struct binary_tree
 {
+	v3 TreeMidpoint;
 	std::vector<binary_node> Nodes;
 	free_list<binary_terrain_chunk> ChunkData;
 	std::vector<int> NodesToRender;
-	byte MaxDepth = 24;//24;
-	byte MinDepth = 7;//7;
+	byte MaxDepth = 26;//24;
+	byte MinDepth = 12;//8;
 	int FirstFreeNode = -1;
 
 	binary_tree(vertex InitialVertices[3], s8 LeftTreeNeighbor, s8 RightTreeNeighbor, s8 BottomTreeNeighbor);
 
-	/* 
-	* parent passed as pointer for neighbor calculations but is not modified
-	* smart split accounts for neighboring LODs
-	*/
-	int SplitNode(int Parent);
-	void SmartSplitNode(int Parent, std::vector<int>& ToProcess);
-	void CombineNodes(int Parent, bool Force);
-
 	// returns node index
-	int RayIntersectsTriangle(v3 RayDirection, v3 RayOrigin);
-
-	// returns a list of indexes into the ChunkData array
-	std::vector<int> Traverse(v3 CameraPosition, f32 LodSwitchIncrement);
+	int RayIntersectsTriangle(v3 RayDirection, v3 RayOrigin, f32 PlanetRadius);
 };
 
 class planet_terrain_manager
 {
 public:
 
-	void Initialize(cMeshAsset* _PlanetMesh, f32 _PlanetRadius);
 	void Initialize(f32 _PlanetRadius);
-	void GenerateChunkIndices(int LOD, terrain_chunk& Chunk);
-	void GenerateChunkVerticesAndIndices(int LOD, terrain_chunk& Chunk, bool Noise);
 
 	int SplitNode(int Parent, s8 TreeIndex);
 	void SmartSplitNode(int Parent, s8 TreeIndex, std::vector<std::array<int, 2>>& ToProcess);
 	void CombineNodes(int Parent, s8 TreeIndex, bool Force);
-	// returns a list of indexes into the ChunkData array
 	void Traverse(v3 CameraPosition, s8 TreeIndex, f32 LodSwitchIncrement);
 
 	static f32 GetTerrainNoise(v3 Location);
+	static v3 GetTerrainColor(v3 Location);
 
-	std::vector<terrain_chunk> ChunkArray;
-	std::vector<u32> VisibleChunkIDs;
+	std::vector<vertex> TerrainVertices;
 
-	std::vector<vertex> LowLODVertices;
-	std::vector<u32> LowLODIndices;
-
-	std::mutex ChunkDataSwapMutex;
-	std::mutex VisibleChunkSwapMutex;
+	std::mutex TerrainVerticesSwapMutex;
 
 	bool UpdatingChunkData = false;
-	bool CombiningLowLOD = false;
 
 	std::vector<binary_tree> Trees;
 
@@ -106,14 +87,8 @@ public:
 		return PlanetRadius;
 	}
 
-	bool IsChunkVisible(const terrain_chunk& Chunk, v3 CameraPosition);
-
 private:
 
-	f32 PlanetRadius = 0.f;
-	static const int FaceDivision = 80;
-	static const int Resolution = 73;
 	static const int MapSeed = 1337;
-	cMeshAsset* PlanetMesh;
-
+	f32 PlanetRadius = 0.f;
 };
