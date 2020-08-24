@@ -106,7 +106,7 @@ v3 planet_terrain_manager::GetTerrainColor(v3 Location)
 	srand(MapSeed);
 	FastNoise BiomeNoise;
 	BiomeNoise.SetSeed(MapSeed);
-	BiomeNoise.SetFrequency(10.f);
+	BiomeNoise.SetFrequency(3.f);
 	BiomeNoise.SetFractalOctaves(4);
 	BiomeNoise.SetNoiseType(FastNoise::Perlin);
 
@@ -114,9 +114,9 @@ v3 planet_terrain_manager::GetTerrainColor(v3 Location)
 	NoiseValue = (NoiseValue + 1) / 2;
 
 	v3 FinalColor;
-	if (NoiseValue >= 0 && NoiseValue < 0.2)
+	if (NoiseValue >= 0 && NoiseValue < 0.5)
 		FinalColor = colors::Blue;
-	else if (NoiseValue >= 0.2 && NoiseValue < 0.5)
+	else if (NoiseValue >= 0.5 && NoiseValue < 0.65)
 		FinalColor = colors::Yellow;
 	else
 		FinalColor = colors::Green;
@@ -327,8 +327,20 @@ int planet_terrain_manager::SplitNode(int Parent, s8 TreeIndex)
 
 	vertex NewVertex = Normalize(Midpoint(Data.Vertices[0], Data.Vertices[1])); // becomes vertex 2 of the new nodes;
 	v3 HeightOffset = NewVertex.Position * planet_terrain_manager::GetTerrainNoise(NewVertex.Position);
+	NewVertex.Bitangent = planet_terrain_manager::GetTerrainColor(NewVertex.Position); // temp for color value
 	NewVertex.Position += HeightOffset;
-	NewVertex.Bitangent = planet_terrain_manager::GetTerrainColor(NewVertex.Position);
+
+	// calc vert normal
+	float theta = 0.00001f;
+	v3 vecTangent = Normalize(CrossProduct(NewVertex.Position, v3{ 1.0f, 0.0f, 0.0f }) + CrossProduct(NewVertex.Position, v3{ 0.0, 1.0, 0.0 }));
+	v3 vecBitangent = Normalize(CrossProduct(vecTangent, NewVertex.Position));
+	v3 ptTangentPos = Normalize(NewVertex.Position + theta * Normalize(vecTangent));
+	v3 ptBitangentPos = Normalize(NewVertex.Position + theta * Normalize(vecBitangent));
+	v3 ptTangentSample = ptTangentPos + (planet_terrain_manager::GetTerrainNoise(ptTangentPos) * ptTangentPos);
+	v3 ptBitangentSample = ptBitangentPos + (planet_terrain_manager::GetTerrainNoise(ptBitangentPos) * ptBitangentPos);
+
+	NewVertex.Normal = -1 * Normalize(CrossProduct(ptTangentSample - NewVertex.Position, ptBitangentSample - NewVertex.Position));
+	//----------------------
 
 	byte NewDepth = static_cast<byte>(Nodes[Parent].Depth + 1);
 
@@ -337,9 +349,9 @@ int planet_terrain_manager::SplitNode(int Parent, s8 TreeIndex)
 	binary_node NewNode2 = { -1, true, NewDepth, -1, -1, true };
 
 	binary_terrain_chunk NewData1 = { { Data.Vertices[2], Data.Vertices[0], NewVertex }, Midpoint(Data.Vertices[0], Data.Vertices[2], NewVertex) * PlanetRadius };
-	CalcNormal(NewData1);
+	//CalcNormal(NewData1);
 	binary_terrain_chunk NewData2 = { { Data.Vertices[1], Data.Vertices[2], NewVertex }, Midpoint(Data.Vertices[1], Data.Vertices[2], NewVertex) * PlanetRadius };
-	CalcNormal(NewData2);
+	//CalcNormal(NewData2);
 
 	ChunkData.Erase(ParentNodeDataIndex);
 	NewNode1.FirstChildIndex = ChunkData.Insert(NewData1);
