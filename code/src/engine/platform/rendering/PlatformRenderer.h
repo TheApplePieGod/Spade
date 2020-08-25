@@ -25,6 +25,7 @@ public:
 	void MapConstants(map_operation Type);
 	// 6 ids: left, right, up, down, front, back. Textures must be uniform size & channels
 	void UpdateSkybox(s32* TextureIDs);
+	void UpdateLandscapeTextures(s32* TextureIDs, int Count);
 	void SetPipelineState(const pipeline_state& InState);
 
 	static matrix4x4 GetPerspectiveProjectionLH(bool Transpose, camera_info CameraInfo);

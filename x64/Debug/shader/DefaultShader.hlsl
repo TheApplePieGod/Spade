@@ -1,8 +1,8 @@
 #include "Lighting.hlsl"
 #include "AtmosphericScattering.hlsl"
 
-Texture2D DiffuseTex : register(t1);
-Texture2D NormalTex : register(t2);
+Texture2D DiffuseTex : register(t2);
+Texture2D NormalTex : register(t3);
 
 struct VSIn
 {
@@ -60,12 +60,12 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	float fFar = length(v3Ray);
 	v3Ray /= fFar;
 
-	if (fCameraHeight < length(v3Pos)) { // ?
-		float3 t = v3Pos;
-		v3Pos = input.CameraPos;
-		input.CameraPos = t;
-		v3Ray = -v3Ray;
-	}
+	//if (fCameraHeight < length(v3Pos)) { // ?
+	//	float3 t = v3Pos;
+	//	v3Pos = input.CameraPos;
+	//	input.CameraPos = t;
+	//	v3Ray = -v3Ray;
+	//}
 
 	v3Pos = normalize(v3Pos);
 
@@ -112,11 +112,13 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	//else
 	//	SampleColor = DiffuseColor;
 	SampleColor.xyz = input.Bitangent;
+	SampleColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, input.Bitangent.x));
+	//float angle = acos(dot(normalize(input.WorldPos.xyz), input.Normal));
+	//if (abs(angle) > 3.14159 * 0.2)
+	//	SampleColor = float4(0.4f, 0.26f, 0.13f, 1.f);
+
 	float3 Ambient = SampleColor * AmbientColor;
 	SampleColor *= nDotL;
-	//float angle = acos(dot(normalize(input.WorldPos.xyz), input.Normal) / (length(normalize(input.WorldPos.xyz)) * length(input.Normal)));
-/*	if (abs(angle) > 3.14159 * 0.05)
-		SampleColor = float4(0.4f, 0.26f, 0.13f, 1.f);*/ 
 
 	float3 color = c0 + SampleColor.xyz * c1;
 	color += Ambient;
@@ -164,7 +166,7 @@ float4 SkyFromAtmospherePS(PSIn input) : SV_TARGET
 	float fCos = dot(-SunDirection, v3Direction) / length(v3Direction);
 	float fCos2 = fCos * fCos;
 	float3 color = getRayleighPhase(fCos2) * c0 + getMiePhase(fCos, fCos2) * c1;
-	color = 1.0 - exp(color * -fHdrExposure);
+	color = pow(color, 1.0 / 2.2);//1.0 - exp(color * -fHdrExposure);
 	float4 AtmoColor = float4(color, color.b);
 	//return float4(0,0,0,0);
 	return AtmoColor;
@@ -217,7 +219,7 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 	float4 SampleColor = float4(0.f, 0.f, 0.f, 1.f);
 	float3 LightVector = -SunDirection;
 	float nDotL = max(0.0, dot(input.Normal, LightVector));
-	float angle = acos(dot(normalize(input.WorldPos.xyz), input.Normal) / (length(normalize(input.WorldPos.xyz)) * length(input.Normal)));
+	//float angle = acos(dot(normalize(input.WorldPos.xyz), input.Normal) / (length(normalize(input.WorldPos.xyz)) * length(input.Normal)));
 	//if (abs(angle) > 30)
 	//	SampleColor = float4(1.f, 1.f, 1.f, 1.f);// * nDotL;
 	//if (TextureDiffuse)
@@ -228,6 +230,7 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 	//else
 	//	SampleColor = DiffuseColor;
 	SampleColor.xyz = input.Bitangent;
+	SampleColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, input.Bitangent.x));
 	float3 Ambient = SampleColor * AmbientColor;
 	SampleColor *= nDotL;
 

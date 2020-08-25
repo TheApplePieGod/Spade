@@ -2,6 +2,7 @@
 
 sampler Samp : register(s0);
 TextureCube EnvironmentMap : register(t0);
+Texture3D LandscapeTextures : register(t1);
 
 static const float Pi = 3.1415926535;
 

@@ -57,16 +57,23 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 	//TerrainManager.Initialize((cMeshAsset*)AssetRegistry[GetAssetIDFromName("sphere.fbx")], 998.f);
 	TerrainManager.Initialize(PlanetRadius);
 
-	s32 ids[6];
+	s32 SkyboxIDs[6];
 	s32 id = GetTextureIDFromName("stars.png");
-	ids[0] = id;
-	ids[1] = id;
-	ids[2] = id;
-	ids[3] = id;
-	ids[4] = id;
-	ids[5] = id;
+	SkyboxIDs[0] = id;
+	SkyboxIDs[1] = id;
+	SkyboxIDs[2] = id;
+	SkyboxIDs[3] = id;
+	SkyboxIDs[4] = id;
+	SkyboxIDs[5] = id;
 
-	Renderer.UpdateSkybox(ids);
+	Renderer.UpdateSkybox(SkyboxIDs);
+
+	s32 LandscapeTexIds[2];
+	//LandscapeTexIds[0] = GetTextureIDFromName("WaterTexture.jpg");
+	LandscapeTexIds[0] = GetTextureIDFromName("SandTexture.jpg");
+	LandscapeTexIds[1] = GetTextureIDFromName("DefaultTexture.jpg");
+
+	Renderer.UpdateLandscapeTextures(LandscapeTexIds, ArrayCount(LandscapeTexIds));
 
 	pipeline_state State = pipeline_state();
 	State.VertexShaderID = GetShaderIDFromName("skyboxvs");
@@ -415,6 +422,33 @@ void engine::RenderPlanet()
 	if (TerrainManager.TerrainVertices.size() < 200000)
 		Renderer.Draw(TerrainManager.TerrainVertices.data(), (u32)TerrainManager.TerrainVertices.size(), draw_topology_type::TriangleList);
 	DebugData.NumTerrainVertices = (u32)TerrainManager.TerrainVertices.size();
+
+	// debug draw normals
+	//pipeline_state Default = pipeline_state();
+	//Default.VertexShaderID = GetShaderIDFromName("mainvs");
+	//Default.PixelShaderID = GetShaderIDFromName("mainps");
+	//Default.RasterizerState = rasterizer_state::Wireframe;
+	//Default.UniqueIdentifier = "DefaultPBR";
+	//Renderer.SetPipelineState(Default);
+
+	//if (TerrainManager.TerrainVertices.size() < 200000)
+	//{
+	//	std::vector<vertex> NormalVertices;
+	//	NormalVertices.resize(TerrainManager.TerrainVertices.size());
+	//	for (u32 i = 0; i < (u32)TerrainManager.TerrainVertices.size(); i += 3)
+	//	{
+	//		if (Length((TerrainManager.TerrainVertices[i].Position * PlanetRadius) - MainCamera.CameraInfo.Transform.Location) < 200)
+	//		{
+	//			NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
+	//			NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
+
+	//			vertex NewVert = TerrainManager.TerrainVertices[i];
+	//			NewVert.Position += NewVert.Normal * 0.001;
+	//			NormalVertices.push_back(NewVert);
+	//		}
+	//	}
+	//	Renderer.Draw(NormalVertices.data(), (u32)NormalVertices.size(), draw_topology_type::TriangleList);
+	//}
 	TerrainManager.TerrainVerticesSwapMutex.unlock();
 }
 

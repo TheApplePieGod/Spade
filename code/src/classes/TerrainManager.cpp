@@ -82,47 +82,30 @@ int binary_tree::RayIntersectsTriangle(v3 RayDirection, v3 RayOrigin, f32 Planet
 	return -1;
 }
 
-f32 planet_terrain_manager::GetTerrainNoise(v3 Location)
+f32 planet_terrain_manager::GetBiomeIndex(v3 Location)
 {
-	srand(MapSeed);
-	FastNoise HeightNoise;
-	f32 NoiseScale = 0.0025f;
-	f32 WaterThreshold = -0.5f;
-	HeightNoise.SetSeed(MapSeed);
-	HeightNoise.SetFrequency(100.f);
-	HeightNoise.SetFractalOctaves(4);
-	HeightNoise.SetNoiseType(FastNoise::PerlinFractal);
-
-	f32 NoiseValue = HeightNoise.GetNoise(Location.x, Location.y, Location.z);
-	if (NoiseValue <= WaterThreshold)
-		NoiseValue = WaterThreshold;
-
-	srand((u32)time(NULL));
-	return NoiseValue * NoiseScale;
-}
-
-v3 planet_terrain_manager::GetTerrainColor(v3 Location)
-{
-	srand(MapSeed);
 	FastNoise BiomeNoise;
 	BiomeNoise.SetSeed(MapSeed);
 	BiomeNoise.SetFrequency(3.f);
-	BiomeNoise.SetFractalOctaves(4);
-	BiomeNoise.SetNoiseType(FastNoise::Perlin);
+	BiomeNoise.SetNoiseType(FastNoise::Cellular);
+	BiomeNoise.SetCellularDistanceFunction(FastNoise::CellularDistanceFunction::Natural);
 
 	f32 NoiseValue = BiomeNoise.GetNoise(Location.x, Location.y, Location.z);
 	NoiseValue = (NoiseValue + 1) / 2;
 
-	v3 FinalColor;
-	if (NoiseValue >= 0 && NoiseValue < 0.5)
-		FinalColor = colors::Blue;
-	else if (NoiseValue >= 0.5 && NoiseValue < 0.65)
-		FinalColor = colors::Yellow;
-	else
-		FinalColor = colors::Green;
+	f32 BiomeIndex = 0;
+	f32 BlendRange = 0.75 * 0.5f + 0.001f;
+	f32 HeightPercent = (Location.y + 1) * 0.5f;
 
-	srand((u32)time(NULL));
-	return FinalColor;
+	for (int i = 0; i < BiomeList.size(); i++)
+	{
+		f32 Distance = HeightPercent - BiomeList[i].StartHeight;
+		f32 Weight = (Distance - (-BlendRange)) / BlendRange - (-BlendRange); // inverse lerp
+		BiomeIndex *= (1 - Weight);
+		BiomeIndex += i * Weight;
+	}
+
+	return BiomeIndex;
 }
 
 void planet_terrain_manager::Initialize(f32 _PlanetRadius)
@@ -229,6 +212,42 @@ void planet_terrain_manager::Initialize(f32 _PlanetRadius)
 	Trees.push_back(Tree9);
 	Trees.push_back(Tree10);
 	Trees.push_back(Tree11);
+
+	InitializeBiomes();
+}
+
+void planet_terrain_manager::InitializeBiomes()
+{
+	//biome Ocean = biome();
+	//Ocean.LandscapeTextureID = 0;
+	//Ocean.StartHeight = v2{ 0.0f, 0.5f };
+	//Ocean.NoiseScale = 0.f;
+	//Ocean.Noise.SetSeed(MapSeed);
+	//Ocean.Noise.SetFrequency(100.f);
+	//Ocean.Noise.SetFractalOctaves(4);
+	//Ocean.Noise.SetNoiseType(FastNoise::PerlinFractal);
+
+	biome Desert = biome();
+	Desert.LandscapeTextureID = 1;
+	Desert.StartHeight = 0.0f;
+	Desert.NoiseScale = 0.001f;
+	Desert.Noise.SetSeed(MapSeed);
+	Desert.Noise.SetFrequency(75.f);
+	Desert.Noise.SetFractalOctaves(4);
+	Desert.Noise.SetNoiseType(FastNoise::PerlinFractal);
+
+	biome Forest = biome();
+	Forest.LandscapeTextureID = 2;
+	Forest.StartHeight = 0.5f;
+	Forest.NoiseScale = 0.0025f;
+	Forest.Noise.SetSeed(MapSeed);
+	Forest.Noise.SetFrequency(100.f);
+	Forest.Noise.SetFractalOctaves(4);
+	Forest.Noise.SetNoiseType(FastNoise::PerlinFractal);
+
+	//BiomeList.push_back(Ocean);
+	BiomeList.push_back(Desert);
+	BiomeList.push_back(Forest);
 }
 
 void planet_terrain_manager::SmartSplitNode(int Parent, s8 TreeIndex, std::vector<std::array<int, 2>>& ToProcess)
@@ -326,20 +345,23 @@ int planet_terrain_manager::SplitNode(int Parent, s8 TreeIndex)
 	const binary_terrain_chunk& Data = ChunkData[ParentNodeDataIndex];
 
 	vertex NewVertex = Normalize(Midpoint(Data.Vertices[0], Data.Vertices[1])); // becomes vertex 2 of the new nodes;
-	v3 HeightOffset = NewVertex.Position * planet_terrain_manager::GetTerrainNoise(NewVertex.Position);
-	NewVertex.Bitangent = planet_terrain_manager::GetTerrainColor(NewVertex.Position); // temp for color value
-	NewVertex.Position += HeightOffset;
+
+	// get biome & noise
+	f32 BiomeIndex = GetBiomeIndex(NewVertex.Position);
+	//v3 HeightOffset = NewVertex.Position * BiomeList[BiomeIndex].GetNoise(NewVertex.Position);
+	//NewVertex.Position += HeightOffset;
+	NewVertex.Bitangent.x = 1;
 
 	// calc vert normal
-	float theta = 0.00001f;
-	v3 vecTangent = Normalize(CrossProduct(NewVertex.Position, v3{ 1.0f, 0.0f, 0.0f }) + CrossProduct(NewVertex.Position, v3{ 0.0, 1.0, 0.0 }));
-	v3 vecBitangent = Normalize(CrossProduct(vecTangent, NewVertex.Position));
-	v3 ptTangentPos = Normalize(NewVertex.Position + theta * Normalize(vecTangent));
-	v3 ptBitangentPos = Normalize(NewVertex.Position + theta * Normalize(vecBitangent));
-	v3 ptTangentSample = ptTangentPos + (planet_terrain_manager::GetTerrainNoise(ptTangentPos) * ptTangentPos);
-	v3 ptBitangentSample = ptBitangentPos + (planet_terrain_manager::GetTerrainNoise(ptBitangentPos) * ptBitangentPos);
+	//float theta = 0.00001f;
+	//v3 vecTangent = Normalize(CrossProduct(NewVertex.Position, v3{ 1.0f, 0.0f, 0.0f }) + CrossProduct(NewVertex.Position, v3{ 0.0, 1.0, 0.0 }));
+	//v3 vecBitangent = Normalize(CrossProduct(vecTangent, NewVertex.Position));
+	//v3 ptTangentPos = Normalize(NewVertex.Position + theta * Normalize(vecTangent));
+	//v3 ptBitangentPos = Normalize(NewVertex.Position + theta * Normalize(vecBitangent));
+	//v3 ptTangentSample = ptTangentPos + (BiomeList[BiomeIndex].GetNoise(ptTangentPos) * ptTangentPos);
+	//v3 ptBitangentSample = ptBitangentPos + (BiomeList[BiomeIndex].GetNoise(ptBitangentPos) * ptBitangentPos);
 
-	NewVertex.Normal = -1 * Normalize(CrossProduct(ptTangentSample - NewVertex.Position, ptBitangentSample - NewVertex.Position));
+	//NewVertex.Normal = -1 * Normalize(CrossProduct(ptTangentSample - NewVertex.Position, ptBitangentSample - NewVertex.Position));
 	//----------------------
 
 	byte NewDepth = static_cast<byte>(Nodes[Parent].Depth + 1);

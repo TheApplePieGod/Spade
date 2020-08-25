@@ -115,6 +115,11 @@ void renderer::UpdateSkybox(s32* TextureIDs)
 	PlatformRenderer->UpdateSkybox(TextureIDs);
 }
 
+void renderer::UpdateLandscapeTextures(s32* TextureIDs, int Count)
+{
+	PlatformRenderer->UpdateLandscapeTextures(TextureIDs, Count);
+}
+
 void renderer::SetPipelineState(const pipeline_state& InState)
 {
 	PlatformRenderer->SetPipelineState(InState);

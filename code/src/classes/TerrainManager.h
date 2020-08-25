@@ -13,6 +13,19 @@ struct terrain_chunk
 	byte CurrentLOD = 255;
 };
 
+struct biome
+{
+	FastNoise Noise;
+	f32 NoiseScale;
+	f32 StartHeight; // 0 - 1;
+	int LandscapeTextureID;
+
+	inline f32 GetNoise(v3 Position)
+	{
+		return Noise.GetNoise(Position.x, Position.y, Position.z) * NoiseScale;
+	}
+};
+
 struct binary_terrain_chunk
 {
 	// 0 
@@ -71,13 +84,12 @@ public:
 	void CombineNodes(int Parent, s8 TreeIndex, bool Force);
 	void Traverse(v3 CameraPosition, s8 TreeIndex, f32 LodSwitchIncrement);
 
-	static f32 GetTerrainNoise(v3 Location);
-	static v3 GetTerrainColor(v3 Location);
+	f32 GetBiomeIndex(v3 Location);
+
+	std::vector<biome> BiomeList;
 
 	std::vector<vertex> TerrainVertices;
-
 	std::mutex TerrainVerticesSwapMutex;
-
 	bool UpdatingChunkData = false;
 
 	std::vector<binary_tree> Trees;
@@ -88,6 +100,8 @@ public:
 	}
 
 private:
+
+	void InitializeBiomes();
 
 	static const int MapSeed = 1337;
 	f32 PlanetRadius = 0.f;
