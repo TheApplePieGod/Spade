@@ -68,10 +68,14 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 
 	Renderer.UpdateSkybox(SkyboxIDs);
 
-	s32 LandscapeTexIds[2];
-	//LandscapeTexIds[0] = GetTextureIDFromName("WaterTexture.jpg");
-	LandscapeTexIds[0] = GetTextureIDFromName("SandTexture.jpg");
-	LandscapeTexIds[1] = GetTextureIDFromName("DefaultTexture.jpg");
+	s32 LandscapeTexIds[7];
+	LandscapeTexIds[0] = GetTextureIDFromName("WaterTexture.jpg");
+	LandscapeTexIds[1] = GetTextureIDFromName("BeachSandTexture.jpg");
+	LandscapeTexIds[2] = GetTextureIDFromName("DefaultTexture.jpg");
+	LandscapeTexIds[3] = GetTextureIDFromName("DirtTexture.jpg");
+	LandscapeTexIds[4] = GetTextureIDFromName("SandTexture.jpg");
+	LandscapeTexIds[5] = GetTextureIDFromName("RockTexture.jpg");
+	LandscapeTexIds[6] = GetTextureIDFromName("IceTexture.jpg");
 
 	Renderer.UpdateLandscapeTextures(LandscapeTexIds, ArrayCount(LandscapeTexIds));
 
@@ -195,6 +199,7 @@ void engine::ProcessUserInput()
 	UserInputs.GuiMouseFocus = io.WantCaptureMouse;
 	UserInputs.GuiKeyboardFocus = io.WantCaptureKeyboard;
 
+	DebugData.CameraSpeed = (Length(MainCamera.CameraInfo.Transform.Location) / PlanetRadius) - 0.9999f;
 	f32 speed = DebugData.CameraSpeed * UserInputs.DeltaTime;
 	v3 OldLocation = MainCamera.CameraInfo.Transform.Location;
 
@@ -295,7 +300,7 @@ void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainC
 			}
 		}
 
-		if (Engine->DebugData.VisibleChunkUpdates)
+		if (Engine->DebugData.VisibleChunkUpdates && BTVertices.size() < 200000)
 		{
 			TerrainManager->TerrainVerticesSwapMutex.lock();
 			std::swap(TerrainManager->TerrainVertices, BTVertices);
@@ -423,32 +428,32 @@ void engine::RenderPlanet()
 		Renderer.Draw(TerrainManager.TerrainVertices.data(), (u32)TerrainManager.TerrainVertices.size(), draw_topology_type::TriangleList);
 	DebugData.NumTerrainVertices = (u32)TerrainManager.TerrainVertices.size();
 
-	// debug draw normals
-	//pipeline_state Default = pipeline_state();
-	//Default.VertexShaderID = GetShaderIDFromName("mainvs");
-	//Default.PixelShaderID = GetShaderIDFromName("mainps");
-	//Default.RasterizerState = rasterizer_state::Wireframe;
-	//Default.UniqueIdentifier = "DefaultPBR";
-	//Renderer.SetPipelineState(Default);
+	//debug draw normals
+	pipeline_state Default = pipeline_state();
+	Default.VertexShaderID = GetShaderIDFromName("mainvs");
+	Default.PixelShaderID = GetShaderIDFromName("mainps");
+	Default.RasterizerState = rasterizer_state::Wireframe;
+	Default.UniqueIdentifier = "DefaultPBR";
+	Renderer.SetPipelineState(Default);
 
-	//if (TerrainManager.TerrainVertices.size() < 200000)
-	//{
-	//	std::vector<vertex> NormalVertices;
-	//	NormalVertices.resize(TerrainManager.TerrainVertices.size());
-	//	for (u32 i = 0; i < (u32)TerrainManager.TerrainVertices.size(); i += 3)
-	//	{
-	//		if (Length((TerrainManager.TerrainVertices[i].Position * PlanetRadius) - MainCamera.CameraInfo.Transform.Location) < 200)
-	//		{
-	//			NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
-	//			NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
+	if (TerrainManager.TerrainVertices.size() < 200000 && DebugData.DrawNormals)
+	{
+		std::vector<vertex> NormalVertices;
+		NormalVertices.resize(TerrainManager.TerrainVertices.size());
+		for (u32 i = 0; i < (u32)TerrainManager.TerrainVertices.size(); i += 3)
+		{
+			if (Length((TerrainManager.TerrainVertices[i].Position * PlanetRadius) - MainCamera.CameraInfo.Transform.Location) < 8)
+			{
+				NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
+				NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
 
-	//			vertex NewVert = TerrainManager.TerrainVertices[i];
-	//			NewVert.Position += NewVert.Normal * 0.001;
-	//			NormalVertices.push_back(NewVert);
-	//		}
-	//	}
-	//	Renderer.Draw(NormalVertices.data(), (u32)NormalVertices.size(), draw_topology_type::TriangleList);
-	//}
+				vertex NewVert = TerrainManager.TerrainVertices[i];
+				NewVert.Position += NewVert.Normal * 0.0002;
+				NormalVertices.push_back(NewVert);
+			}
+		}
+		Renderer.Draw(NormalVertices.data(), (u32)NormalVertices.size(), draw_topology_type::TriangleList);
+	}
 	TerrainManager.TerrainVerticesSwapMutex.unlock();
 }
 
@@ -605,10 +610,24 @@ void engine::RenderDebugWidgets()
 
 			if (DebugData.IntersectingIndex != -1 && DebugData.IntersectingTree != -1)
 			{
-				ImGui::Indent();
-
 				binary_node& Node = TerrainManager.Trees[DebugData.IntersectingTree].Nodes[DebugData.IntersectingIndex];
 
+				if (Node.IsLeaf && !Node.Free)
+				{
+					if (ImGui::TreeNode("Vertex[0] Info"))
+					{
+						ImGui::Indent();
+
+						vertex& Vert = TerrainManager.Trees[DebugData.IntersectingTree].ChunkData[Node.FirstChildIndex].Vertices[0];
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text("Bitangent: %f, %f, %f", Vert.Bitangent.x, Vert.Bitangent.y, Vert.Bitangent.z);
+
+						ImGui::Unindent();
+						ImGui::TreePop();
+					}
+				}
+
+				ImGui::Indent();
 				ImGui::AlignTextToFramePadding();
 				ImGui::Text("Tree: %d", DebugData.IntersectingTree);
 
@@ -676,6 +695,12 @@ void engine::RenderDebugWidgets()
 		ImGui::SameLine();
 		if (ImGui::Button((DebugData.EnableWireframe ? "true##0" : "false##0")))
 			DebugData.EnableWireframe = !DebugData.EnableWireframe;
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text("Draw Normals:");
+		ImGui::SameLine();
+		if (ImGui::Button((DebugData.DrawNormals ? "true##a" : "false##a")))
+			DebugData.DrawNormals = !DebugData.DrawNormals;
 
 		ImGui::AlignTextToFramePadding();
 		ImGui::Text("Visible Chunk Updates:");

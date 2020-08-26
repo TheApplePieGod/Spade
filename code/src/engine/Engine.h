@@ -15,6 +15,7 @@ struct debug_data
 	f32 CameraSpeed = 1.f;//0.08f;
 	u32 NumTerrainVertices = 0;
 	bool EnableWireframe = false;
+	bool DrawNormals = false;
 	bool VisibleChunkUpdates = true;
 	bool SlowMode = false;
 	bool FreeCam = true;

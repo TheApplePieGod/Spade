@@ -6,6 +6,17 @@ inline f32 Length(v3 A)
 	return sqrt((A.x * A.x) + (A.y * A.y) + (A.z * A.z));
 }
 
+inline f32 Lerp(f32 Min, f32 Max, f32 Alpha)
+{
+	return Min + (Max - Min) * Alpha;
+}
+
+inline f32 InverseLerp(f32 Min, f32 Max, f32 Value)
+{
+	if (abs(Max - Min) < 0.00001) return Min;
+	return (Value - Min) / (Max - Min);
+}
+
 inline v3 Normalize(v3 A)
 {
 	v3 Result;

@@ -505,7 +505,7 @@ void dx11_renderer::Cleanup()
 	SAFE_RELEASE(LightingConstantBuffer);
 
 	SAFE_RELEASE(SkyboxCube);
-	SAFE_RELEASE(LandscapeTexture3D);
+	SAFE_RELEASE(LandscapeTextureArray);
 
 	//layouts
 	SAFE_RELEASE(DefaultVertexLayout);
@@ -764,7 +764,8 @@ void dx11_renderer::RegisterTexture(cAsset* Asset, bool GenerateMIPs)
 void dx11_renderer::BindMaterial(const material& InMaterial)
 {
 	DeviceContext->PSSetShaderResources(0, 1, &SkyboxCube);
-	DeviceContext->PSSetShaderResources(1, 1, &LandscapeTexture3D);
+	DeviceContext->PSSetShaderResources(1, 1, &LandscapeTextureArray);
+	DeviceContext->VSSetShaderResources(1, 1, &LandscapeTextureArray);
 	if (CurrentState.UniqueIdentifier == "DefaultPBR")
 	{
 		MaterialConstants.TextureDiffuse = InMaterial.DiffuseTextureID == -1 ? false : true;
@@ -856,68 +857,49 @@ void dx11_renderer::UpdateSkybox(s32* TextureIDs)
 
 void dx11_renderer::UpdateLandscapeTextures(s32* TextureIDs, int Count)
 {
-	SAFE_RELEASE(LandscapeTexture3D);
+	SAFE_RELEASE(LandscapeTextureArray);
 	s32 Width = Engine->TextureRegistry[TextureIDs[0]]->ImageData.Width;
 	s32 Channels = Engine->TextureRegistry[TextureIDs[0]]->ImageData.Channels;
 
-	u32 MipLevels = 1;
+	u32 MipLevels = 10;
 
-	D3D11_TEXTURE3D_DESC descDepth1;
+	D3D11_TEXTURE2D_DESC descDepth1;
 	ZeroMemory(&descDepth1, sizeof(descDepth1));
 	descDepth1.Width = Width;
 	descDepth1.Height = Width;
-	descDepth1.Depth = Count;
 	descDepth1.MipLevels = MipLevels;
+	descDepth1.ArraySize = Count;
 	descDepth1.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	descDepth1.SampleDesc.Count = 1;
+	descDepth1.SampleDesc.Quality = 0;
 	descDepth1.Usage = D3D11_USAGE_DEFAULT;
 	descDepth1.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	descDepth1.CPUAccessFlags = 0;
 	descDepth1.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
-	//D3D11_SUBRESOURCE_DATA* InitialData = new D3D11_SUBRESOURCE_DATA[Count];
-	//for (u32 i = 0; i < Count; i++)
-	//{
-	//	D3D11_SUBRESOURCE_DATA LayerData;
-	//	LayerData.pSysMem = Engine->TextureRegistry[TextureIDs[i]]->Data;
-	//	LayerData.SysMemPitch = Width * Channels;
-	//	LayerData.SysMemSlicePitch = Width * Width * Channels;
-	//	InitialData[i] = LayerData;
-	//}
-
-	ID3D11Texture3D* tex;
-	HRESULT hr = Device->CreateTexture3D(&descDepth1, NULL, &tex);
+	ID3D11Texture2D* tex;
+	HRESULT hr = Device->CreateTexture2D(&descDepth1, NULL, &tex);
 	if (FAILED(hr))
 		Assert(1 == 2);
 
-	char* Data = new char[Width * Width * Channels * 2];
-	int Index = 0;
-	for (u32 i = 0; i < Width * Width * Channels; i++)
+	for (int i = 0; i < Count; i++)
 	{
-		Data[Index] = ((char*)Engine->TextureRegistry[TextureIDs[0]]->Data)[i];
-		Index++;
+		DeviceContext->UpdateSubresource(tex, D3D11CalcSubresource(0, i, MipLevels), NULL, Engine->TextureRegistry[TextureIDs[i]]->Data, Width * Channels, 0);
 	}
-	for (u32 i = 0; i < Width * Width * Channels; i++)
-	{
-		Data[Index] = ((char*)Engine->TextureRegistry[TextureIDs[1]]->Data)[i];
-		Index++;
-	}
-
-	//for (int i = 0; i < Count; i++)
-	//{
-		DeviceContext->UpdateSubresource(tex, D3D11CalcSubresource(0, 0, MipLevels), NULL, Data, Width * Channels, Width * Width * Channels);
-	//}
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
-	srvDesc.Texture3D.MipLevels = MipLevels;
-	srvDesc.Texture3D.MostDetailedMip = 0;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+	srvDesc.Texture2DArray.MipLevels = MipLevels;
+	srvDesc.Texture2DArray.MostDetailedMip = 0;
+	srvDesc.Texture2DArray.FirstArraySlice = 0;
+	srvDesc.Texture2DArray.ArraySize = Count;
 
-	hr = Device->CreateShaderResourceView((ID3D11Resource*)tex, &srvDesc, &LandscapeTexture3D);
+	hr = Device->CreateShaderResourceView((ID3D11Resource*)tex, &srvDesc, &LandscapeTextureArray);
 	if (FAILED(hr))
 		Assert(1 == 2);
 
-	//DeviceContext->GenerateMips(LandscapeTexture3D);
+	DeviceContext->GenerateMips(LandscapeTextureArray);
 
 	SAFE_RELEASE(tex);
 }

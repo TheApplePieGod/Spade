@@ -17,7 +17,7 @@ struct biome
 {
 	FastNoise Noise;
 	f32 NoiseScale;
-	f32 StartHeight; // 0 - 1;
+	v2 Range;
 	int LandscapeTextureID;
 
 	inline f32 GetNoise(v3 Position)
@@ -84,7 +84,8 @@ public:
 	void CombineNodes(int Parent, s8 TreeIndex, bool Force);
 	void Traverse(v3 CameraPosition, s8 TreeIndex, f32 LodSwitchIncrement);
 
-	f32 GetBiomeIndex(v3 Location);
+	f32 GetTerrainInfo(v3 Location, f32* OutPrimaryTextureIndex, f32* OutSecondaryTextureIndex, f32* OutAlpha);
+	v3 GetVertexNormal(v3 Location);
 
 	std::vector<biome> BiomeList;
 

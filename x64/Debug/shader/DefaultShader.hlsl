@@ -42,10 +42,10 @@ PSIn mainvs(VSIn input)
 
 	output.Normal = normalize(mul(float4(input.Normal, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Normal, (float3x3)Instances[input.InstanceID].WorldMatrix));
 	output.Tangent = normalize(mul(float4(input.Tangent, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Tangent, (float3x3)Instances[input.InstanceID].WorldMatrix));
-	output.Bitangent = input.Bitangent;//normalize(mul(float4(cross(input.Normal, input.Tangent), 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Bitangent, (float3x3)Instances[input.InstanceID].WorldMatrix));
+	//output.Bitangent = //normalize(mul(float4(cross(input.Normal, input.Tangent), 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Bitangent, (float3x3)Instances[input.InstanceID].WorldMatrix));
 	//output.Tangent = normalize(output.Tangent - dot(output.Tangent, output.Normal) * output.Normal);
 	//output.Bitangent = normalize(cross(output.Normal, output.Tangent));//normalize(mul(float4(cross(output.Normal, output.Tangent), 0.f), Instances[input.InstanceID].InverseTransposeWorldMatrix).xyz);
-	//output.Bitangent = input.Bitangent;
+	output.Bitangent = input.Bitangent;
 
     return output;
 }
@@ -112,7 +112,16 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	//else
 	//	SampleColor = DiffuseColor;
 	SampleColor.xyz = input.Bitangent;
-	SampleColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, input.Bitangent.x));
+
+	float4 FirstTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, round(input.Bitangent.x)));
+	SampleColor.xyz = FirstTerrainColor.xyz;
+	if (input.Bitangent.x != input.Bitangent.y)
+	{
+		float4 SecondTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, round(input.Bitangent.y)));
+		SampleColor.xyz = lerp(FirstTerrainColor.xyz, SecondTerrainColor.xyz, 1.0 - input.Bitangent.z);
+	}
+
+	//SampleColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, input.Bitangent.x));
 	//float angle = acos(dot(normalize(input.WorldPos.xyz), input.Normal));
 	//if (abs(angle) > 3.14159 * 0.2)
 	//	SampleColor = float4(0.4f, 0.26f, 0.13f, 1.f);
@@ -230,7 +239,15 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 	//else
 	//	SampleColor = DiffuseColor;
 	SampleColor.xyz = input.Bitangent;
-	SampleColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, input.Bitangent.x));
+	float4 FirstTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, round(input.Bitangent.x)));
+	SampleColor.xyz = FirstTerrainColor.xyz;
+	if (input.Bitangent.x != input.Bitangent.y)
+	{
+		float4 SecondTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, round(input.Bitangent.y)));
+		SampleColor.xyz = lerp(FirstTerrainColor.xyz, SecondTerrainColor.xyz, 1.0 - input.Bitangent.z);
+	}
+	//SampleColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, input.Bitangent.x));
+
 	float3 Ambient = SampleColor * AmbientColor;
 	SampleColor *= nDotL;
 

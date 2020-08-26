@@ -70,7 +70,7 @@ public:
 	ID3D11Buffer* LightingConstantBuffer = NULL;
 
 	ID3D11ShaderResourceView* SkyboxCube = NULL;
-	ID3D11ShaderResourceView* LandscapeTexture3D = NULL;
+	ID3D11ShaderResourceView* LandscapeTextureArray = NULL;
 
 private:
 
