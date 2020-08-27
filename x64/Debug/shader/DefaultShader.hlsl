@@ -4,6 +4,8 @@
 Texture2D DiffuseTex : register(t2);
 Texture2D NormalTex : register(t3);
 
+static const float TexcoordScalar = 5000;
+
 struct VSIn
 {
     float3 Position : POSITION;
@@ -20,15 +22,18 @@ struct PSIn
     float4 WorldPos : POSITION;
     float2 TexCoord : TEXCOORD;
     float3 Normal : NORMAL;
-	float3 Tangent : TANGENT;
-	float3 Bitangent : BITANGENT;
+	/*float3 Tangent : TANGENT;
+	float3 Bitangent : BITANGENT;*/
+	float3x3 TBN : TBN;
+	float3 TerrainInfo : TERRAININFO;
 	float3 CameraPos : TEXCOORD1;
 };
 
 float3 FetchNormalVector(float2 TexCoord)
 {
-	float2 m = NormalTex.Sample(Samp, TexCoord).xy;
-	return (float3(m, sqrt(1.0 - m.x * m.x - m.y * m.y)));
+	float3 Color = NormalTex.Sample(Samp, TexCoord * TexcoordScalar);
+	Color *= 2.f;
+	return normalize(float3(Color.x - 1.f, Color.y - 1.f, Color.z - 1.f));
 }
 
 PSIn mainvs(VSIn input)
@@ -40,12 +45,16 @@ PSIn mainvs(VSIn input)
 	output.TexCoord = input.TexCoord;
 	output.CameraPos = CameraPosition;
 
-	output.Normal = normalize(mul(float4(input.Normal, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Normal, (float3x3)Instances[input.InstanceID].WorldMatrix));
-	output.Tangent = normalize(mul(float4(input.Tangent, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Tangent, (float3x3)Instances[input.InstanceID].WorldMatrix));
+	output.Normal = /*normalize(mul(float4(input.Normal, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);*/normalize(mul(input.Normal, (float3x3)Instances[input.InstanceID].WorldMatrix));
+	float3 Tangent = /*normalize(mul(float4(input.Tangent, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);*/normalize(mul(input.Tangent, (float3x3)Instances[input.InstanceID].WorldMatrix));
 	//output.Bitangent = //normalize(mul(float4(cross(input.Normal, input.Tangent), 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Bitangent, (float3x3)Instances[input.InstanceID].WorldMatrix));
 	//output.Tangent = normalize(output.Tangent - dot(output.Tangent, output.Normal) * output.Normal);
-	//output.Bitangent = normalize(cross(output.Normal, output.Tangent));//normalize(mul(float4(cross(output.Normal, output.Tangent), 0.f), Instances[input.InstanceID].InverseTransposeWorldMatrix).xyz);
-	output.Bitangent = input.Bitangent;
+	float3 Bitangent = normalize(cross(output.Normal, Tangent));//normalize(mul(float4(cross(output.Normal, output.Tangent), 0.f), Instances[input.InstanceID].InverseTransposeWorldMatrix).xyz);
+	//if (dot(cross(output.Normal, Tangent), Bitangent) < 0.0f)
+	//	Tangent *= -1.f;
+	output.TerrainInfo = input.Bitangent;
+
+	output.TBN = transpose(float3x3(Tangent, Bitangent, output.Normal));
 
     return output;
 }
@@ -102,8 +111,11 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	float3 c1 = v3Attenuate;
 
 	float3 LightVector = -SunDirection;
-	float nDotL = max(0.0, dot(input.Normal, LightVector));
-	float4 SampleColor = float4(0.f, 0.f, 0.f, 1.f);
+	float3 TexNormal = FetchNormalVector(input.TexCoord);
+	float3 WorldNormal = normalize(mul(input.TBN, TexNormal));
+	float nDotL = max(0.0, dot(WorldNormal, LightVector));
+	//float nDotL = max(0.0, dot(input.Normal, LightVector));
+	float4 SampleColor = float4(1.f, 1.f, 1.f, 1.f);
 	//if (TextureDiffuse)
 	//{
 	//	SampleColor = DiffuseTex.Sample(Samp, input.TexCoord * 1000);  // Sample the color from the texture
@@ -111,17 +123,16 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	//}
 	//else
 	//	SampleColor = DiffuseColor;
-	SampleColor.xyz = input.Bitangent;
 
-	float4 FirstTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, round(input.Bitangent.x)));
-	SampleColor.xyz = FirstTerrainColor.xyz;
-	if (input.Bitangent.x != input.Bitangent.y)
-	{
-		float4 SecondTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, round(input.Bitangent.y)));
-		SampleColor.xyz = lerp(FirstTerrainColor.xyz, SecondTerrainColor.xyz, 1.0 - input.Bitangent.z);
-	}
+	//float4 FirstTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.x)));
+	//SampleColor.xyz = FirstTerrainColor.xyz;
+	//if (input.TerrainInfo.x != input.TerrainInfo.y)
+	//{
+	//	float4 SecondTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.y)));
+	//	SampleColor.xyz = lerp(FirstTerrainColor.xyz, SecondTerrainColor.xyz, 1.0 - input.TerrainInfo.z);
+	//}
 
-	//SampleColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, input.Bitangent.x));
+	//SampleColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, input.TerrainInfo.x));
 	//float angle = acos(dot(normalize(input.WorldPos.xyz), input.Normal));
 	//if (abs(angle) > 3.14159 * 0.2)
 	//	SampleColor = float4(0.4f, 0.26f, 0.13f, 1.f);
@@ -129,9 +140,11 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	float3 Ambient = SampleColor * AmbientColor;
 	SampleColor *= nDotL;
 
-	float3 color = c0 + SampleColor.xyz * c1;
-	color += Ambient;
-	return float4(color, 1);
+	return float4(SampleColor.xyz, 1.f);
+
+	//float3 color = c0 + SampleColor.xyz * c1;
+	//color += Ambient;
+	//return float4(color, 1);
 }
 
 float4 SkyFromAtmospherePS(PSIn input) : SV_TARGET
@@ -238,15 +251,15 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 	//}
 	//else
 	//	SampleColor = DiffuseColor;
-	SampleColor.xyz = input.Bitangent;
-	float4 FirstTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, round(input.Bitangent.x)));
+	SampleColor.xyz = input.TerrainInfo;
+	float4 FirstTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.x)));
 	SampleColor.xyz = FirstTerrainColor.xyz;
-	if (input.Bitangent.x != input.Bitangent.y)
+	if (input.TerrainInfo.x != input.TerrainInfo.y)
 	{
-		float4 SecondTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, round(input.Bitangent.y)));
-		SampleColor.xyz = lerp(FirstTerrainColor.xyz, SecondTerrainColor.xyz, 1.0 - input.Bitangent.z);
+		float4 SecondTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.y)));
+		SampleColor.xyz = lerp(FirstTerrainColor.xyz, SecondTerrainColor.xyz, 1.0 - input.TerrainInfo.z);
 	}
-	//SampleColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, input.Bitangent.x));
+	//SampleColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, input.TerrainInfo.x));
 
 	float3 Ambient = SampleColor * AmbientColor;
 	SampleColor *= nDotL;

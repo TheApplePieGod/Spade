@@ -73,7 +73,7 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 	LandscapeTexIds[1] = GetTextureIDFromName("BeachSandTexture.jpg");
 	LandscapeTexIds[2] = GetTextureIDFromName("DefaultTexture.jpg");
 	LandscapeTexIds[3] = GetTextureIDFromName("DirtTexture.jpg");
-	LandscapeTexIds[4] = GetTextureIDFromName("SandTexture.jpg");
+	LandscapeTexIds[4] = GetTextureIDFromName("PebblesTexture.jpg");
 	LandscapeTexIds[5] = GetTextureIDFromName("RockTexture.jpg");
 	LandscapeTexIds[6] = GetTextureIDFromName("IceTexture.jpg");
 
@@ -101,6 +101,7 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 		{
 			default:
 			{ Mat.DiffuseTextureID = GetTextureIDFromName("DefaultTexture.jpg");
+			  Mat.NormalTextureID = GetTextureIDFromName("snowpath_normal.png");
 			  Mat.Reflectivity = 1.f;
 			  /*Mat.DiffuseColor = colors::Blue;*/ } break;
 
@@ -147,7 +148,7 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 		else
 		{
 			rcomp.SetLocation(v3{ 0.f, 0.f, -1000.f });
-			rcomp.SetScale(v3{ 100.f, 100.f, 100.f });
+			rcomp.SetScale(v3{ 10.f, 10.f, 10.f });
 			rcomp.RenderResources.MaterialID = 0;
 			rcomp.RenderResources.PipelineStateID = 1;
 			rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("cube_t.fbx");
@@ -428,31 +429,46 @@ void engine::RenderPlanet()
 		Renderer.Draw(TerrainManager.TerrainVertices.data(), (u32)TerrainManager.TerrainVertices.size(), draw_topology_type::TriangleList);
 	DebugData.NumTerrainVertices = (u32)TerrainManager.TerrainVertices.size();
 
-	//debug draw normals
-	pipeline_state Default = pipeline_state();
-	Default.VertexShaderID = GetShaderIDFromName("mainvs");
-	Default.PixelShaderID = GetShaderIDFromName("mainps");
-	Default.RasterizerState = rasterizer_state::Wireframe;
-	Default.UniqueIdentifier = "DefaultPBR";
-	Renderer.SetPipelineState(Default);
-
 	if (TerrainManager.TerrainVertices.size() < 200000 && DebugData.DrawNormals)
 	{
+		//debug draw normals
+		pipeline_state Default = pipeline_state();
+		Default.VertexShaderID = GetShaderIDFromName("mainvs");
+		Default.PixelShaderID = GetShaderIDFromName("mainps");
+		Default.RasterizerState = rasterizer_state::Wireframe;
+		Default.UniqueIdentifier = "DefaultPBR";
+		Renderer.SetPipelineState(Default);
 		std::vector<vertex> NormalVertices;
 		NormalVertices.resize(TerrainManager.TerrainVertices.size());
 		for (u32 i = 0; i < (u32)TerrainManager.TerrainVertices.size(); i += 3)
 		{
-			if (Length((TerrainManager.TerrainVertices[i].Position * PlanetRadius) - MainCamera.CameraInfo.Transform.Location) < 8)
+			if (Length((TerrainManager.TerrainVertices[i].Position * PlanetRadius) - MainCamera.CameraInfo.Transform.Location) < 6)
 			{
 				NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
 				NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
 
 				vertex NewVert = TerrainManager.TerrainVertices[i];
-				NewVert.Position += NewVert.Normal * 0.0002;
+				NewVert.Position += NewVert.Normal * 0.0002f;
+				NormalVertices.push_back(NewVert);
+
+				NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
+				NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
+
+				NewVert = TerrainManager.TerrainVertices[i];
+				NewVert.Position += NewVert.Tangent * 0.0002f;
+				NormalVertices.push_back(NewVert);
+
+				NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
+				NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
+
+				NewVert = TerrainManager.TerrainVertices[i];
+				NewVert.Position += Normalize(CrossProduct(NewVert.Normal, NewVert.Tangent)) * 0.0002f;
 				NormalVertices.push_back(NewVert);
 			}
 		}
-		Renderer.Draw(NormalVertices.data(), (u32)NormalVertices.size(), draw_topology_type::TriangleList);
+
+		if (NormalVertices.size() < 200000)
+			Renderer.Draw(NormalVertices.data(), (u32)NormalVertices.size(), draw_topology_type::TriangleList);
 	}
 	TerrainManager.TerrainVerticesSwapMutex.unlock();
 }
@@ -620,7 +636,10 @@ void engine::RenderDebugWidgets()
 
 						vertex& Vert = TerrainManager.Trees[DebugData.IntersectingTree].ChunkData[Node.FirstChildIndex].Vertices[0];
 						ImGui::AlignTextToFramePadding();
-						ImGui::Text("Bitangent: %f, %f, %f", Vert.Bitangent.x, Vert.Bitangent.y, Vert.Bitangent.z);
+						ImGui::Text("TerrainInfo: %f, %f, %f", Vert.Bitangent.x, Vert.Bitangent.y, Vert.Bitangent.z);
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text("UV: %f, %f", Vert.u, Vert.v);
 
 						ImGui::Unindent();
 						ImGui::TreePop();
