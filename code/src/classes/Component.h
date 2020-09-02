@@ -21,7 +21,7 @@ public:
 };
 
 template <class T> //, typename... Args>
-class component_registry
+class component_registry // todo: replace with free_list ?
 {
 	// Compile-time check
 	static_assert(std::is_base_of<component, T>::value, "Cannot create registry of non-component based class");
@@ -79,10 +79,10 @@ public:
 		return Registry;
 	}
 
-	inline void ClearRegistry()
-	{
+	//inline void ClearRegistry()
+	//{
 
-	}
+	//}
 
 private:
 

@@ -52,7 +52,18 @@ public:
 		return Data[Index].Element;
 	}
 
+	inline int GetFirstFree()
+	{
+		return FirstFree;
+	}
+
+	inline void* GetHead()
+	{
+		return &Data[0];
+	}
+
 private:
+
 	struct free_element
 	{
 		T Element;

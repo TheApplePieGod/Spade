@@ -6,6 +6,11 @@ inline f32 Length(v3 A)
 	return sqrt((A.x * A.x) + (A.y * A.y) + (A.z * A.z));
 }
 
+inline f32 Length(v2 A)
+{
+	return sqrt((A.x * A.x) + (A.y * A.y));
+}
+
 inline f32 Lerp(f32 Min, f32 Max, f32 Alpha)
 {
 	return Min + (Max - Min) * Alpha;
@@ -24,6 +29,15 @@ inline v3 Normalize(v3 A)
 	Result.x = A.x / length;
 	Result.y = A.y / length;
 	Result.z = A.z / length;
+	return(Result);
+}
+
+inline v2 Normalize(v2 A)
+{
+	v2 Result;
+	f32 length = Length(A);
+	Result.x = A.x / length;
+	Result.y = A.y / length;
 	return(Result);
 }
 

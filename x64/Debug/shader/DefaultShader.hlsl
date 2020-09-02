@@ -33,7 +33,7 @@ float3 FetchNormalVector(float2 TexCoord)
 {
 	float3 Color = NormalTex.Sample(Samp, TexCoord * TexcoordScalar);
 	Color *= 2.f;
-	return normalize(float3(Color.x - 1.f, Color.y - 1.f, Color.z - 1.f));
+	return float3(Color.x - 1.f, Color.y - 1.f, Color.z - 1.f);
 }
 
 PSIn mainvs(VSIn input)
@@ -45,11 +45,12 @@ PSIn mainvs(VSIn input)
 	output.TexCoord = input.TexCoord;
 	output.CameraPos = CameraPosition;
 
-	output.Normal = /*normalize(mul(float4(input.Normal, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);*/normalize(mul(input.Normal, (float3x3)Instances[input.InstanceID].WorldMatrix));
-	float3 Tangent = /*normalize(mul(float4(input.Tangent, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);*/normalize(mul(input.Tangent, (float3x3)Instances[input.InstanceID].WorldMatrix));
+	output.Normal = /*normalize(mul(float4(input.Normal, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);*/normalize(mul(input.Normal, (float3x3)Instances[input.InstanceID].InverseTransposeWorldMatrix));
+	float3 Tangent = /*normalize(mul(float4(input.Tangent, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);*/normalize(mul(input.Tangent, (float3x3)Instances[input.InstanceID].InverseTransposeWorldMatrix));
 	//output.Bitangent = //normalize(mul(float4(cross(input.Normal, input.Tangent), 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Bitangent, (float3x3)Instances[input.InstanceID].WorldMatrix));
 	//output.Tangent = normalize(output.Tangent - dot(output.Tangent, output.Normal) * output.Normal);
-	float3 Bitangent = normalize(cross(output.Normal, Tangent));//normalize(mul(float4(cross(output.Normal, output.Tangent), 0.f), Instances[input.InstanceID].InverseTransposeWorldMatrix).xyz);
+	float3 Bitangent = normalize(cross(output.Normal, Tangent));
+	//float3 Bitangent = normalize(mul(cross(output.Normal, Tangent), (float3x3)Instances[input.InstanceID].WorldMatrix));
 	//if (dot(cross(output.Normal, Tangent), Bitangent) < 0.0f)
 	//	Tangent *= -1.f;
 	output.TerrainInfo = input.Bitangent;
@@ -238,9 +239,12 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 	float3 c0 = v3FrontColor * (v3InvWavelength * fKrESun + fKmESun);
 	float3 c1 = v3Attenuate;
 	
-	float4 SampleColor = float4(0.f, 0.f, 0.f, 1.f);
+	float4 SampleColor = float4(1.f, 1.f, 1.f, 1.f);
 	float3 LightVector = -SunDirection;
-	float nDotL = max(0.0, dot(input.Normal, LightVector));
+	float3 TexNormal = FetchNormalVector(input.TexCoord);
+	float3 WorldNormal = normalize(mul(input.TBN, TexNormal));
+	float nDotL = max(0.0, dot(WorldNormal, LightVector));
+	//float nDotL = max(0.0, dot(input.Normal, LightVector));
 	//float angle = acos(dot(normalize(input.WorldPos.xyz), input.Normal) / (length(normalize(input.WorldPos.xyz)) * length(input.Normal)));
 	//if (abs(angle) > 30)
 	//	SampleColor = float4(1.f, 1.f, 1.f, 1.f);// * nDotL;
@@ -251,18 +255,19 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 	//}
 	//else
 	//	SampleColor = DiffuseColor;
-	SampleColor.xyz = input.TerrainInfo;
-	float4 FirstTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.x)));
-	SampleColor.xyz = FirstTerrainColor.xyz;
-	if (input.TerrainInfo.x != input.TerrainInfo.y)
-	{
-		float4 SecondTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.y)));
-		SampleColor.xyz = lerp(FirstTerrainColor.xyz, SecondTerrainColor.xyz, 1.0 - input.TerrainInfo.z);
-	}
+	//SampleColor.xyz = input.TerrainInfo;
+	//float4 FirstTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.x)));
+	//SampleColor.xyz = FirstTerrainColor.xyz;
+	//if (input.TerrainInfo.x != input.TerrainInfo.y)
+	//{
+	//	float4 SecondTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.y)));
+	//	SampleColor.xyz = lerp(FirstTerrainColor.xyz, SecondTerrainColor.xyz, 1.0 - input.TerrainInfo.z);
+	//}
 	//SampleColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, input.TerrainInfo.x));
 
 	float3 Ambient = SampleColor * AmbientColor;
 	SampleColor *= nDotL;
+	return float4(SampleColor.xyz, 1.f);
 
 	//SampleColor = float4(0.2f,0.6f,1.f,1.f);
 	float3 color = c0 + SampleColor.xyz * c1;

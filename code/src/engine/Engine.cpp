@@ -56,6 +56,7 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 
 	//TerrainManager.Initialize((cMeshAsset*)AssetRegistry[GetAssetIDFromName("sphere.fbx")], 998.f);
 	TerrainManager.Initialize(PlanetRadius);
+	FoliageManager.Initialize();
 
 	s32 SkyboxIDs[6];
 	s32 id = GetTextureIDFromName("stars.png");
@@ -403,6 +404,7 @@ void engine::RenderPlanet()
 	PlanetTransform.Scale = PlanetScale;
 	PlanetTransform.Rotation = v3{ 0.f, 0.f, 0.f };
 	ActorConstants.Instances[0].WorldMatrix = renderer::GenerateWorldMatrix(PlanetTransform);
+	ActorConstants.Instances[0].InverseTransposeWorldMatrix = renderer::InverseMatrix(ActorConstants.Instances[0].WorldMatrix, true);
 	Renderer.MapConstants(map_operation::Actor);
 
 	Renderer.BindMaterial(MaterialRegistry.GetComponent(0));

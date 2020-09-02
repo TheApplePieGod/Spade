@@ -7,6 +7,7 @@
 #include "../classes/Actor.h"
 #include "../classes/Pipeline.h"
 #include "../classes/TerrainManager.h"
+#include "../classes/Foliage.h"
 #include "MemoryManager.h"
 
 struct debug_data
@@ -38,6 +39,7 @@ public:
 	level MainLevel;
 	user_inputs UserInputs;
 	planet_terrain_manager TerrainManager;
+	foliage_manager FoliageManager;
 
 	std::thread ChunkUpdateThread;
 
