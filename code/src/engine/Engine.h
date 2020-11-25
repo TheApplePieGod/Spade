@@ -20,6 +20,7 @@ struct debug_data
 	bool VisibleChunkUpdates = true;
 	bool SlowMode = false;
 	bool FreeCam = true;
+	bool SpawnCube = false;
 	int IntersectingIndex = -1;
 	int IntersectingTree = -1;
 };
@@ -52,6 +53,8 @@ public:
 	void ProcessUserInput();
 	void RenderPlanet();
 	void RenderScene();
+	void RenderGeometry();
+	void RenderPlanetGeometry();
 	void UpdateComponents();
 	void RenderDebugWidgets();
 

@@ -12,6 +12,8 @@ public:
 	void Initialize(void* Window, int WindowWidth, int WindowHeight);
 	void Cleanup();
 	void FinishFrame();
+	void SetRendererState(render_state State);
+	void* GetShaderResource();
 	void Draw(vertex* InVertexArray, u32 NumVertices, draw_topology_type TopologyType);
 	void Draw(v3* InPositionArray, u32 NumVertices, draw_topology_type TopologyType);
 	void DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 NumInstances, draw_topology_type TopologyType);

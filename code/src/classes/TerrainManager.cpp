@@ -271,8 +271,8 @@ void planet_terrain_manager::Initialize(f32 _PlanetRadius)
 
 	//binary_tree Tree0 = binary_tree(Verts0, -1, -1, -1);
 
-	//binary_tree Tree0 = binary_tree(Verts0, -1, -1, 1);
-	//binary_tree Tree1 = binary_tree(Verts1, -1, -1, 0);
+	binary_tree Tree0 = binary_tree(Verts0, -1, -1, 1);
+	binary_tree Tree1 = binary_tree(Verts1, -1, -1, 0);
 
 	//binary_tree Tree0 = binary_tree(Verts0, -1, -1, 1);
 	//binary_tree Tree1 = binary_tree(Verts1, 2, 4, 0);
@@ -281,31 +281,31 @@ void planet_terrain_manager::Initialize(f32 _PlanetRadius)
 	//binary_tree Tree4 = binary_tree(Verts4, -1, 1, 5);
 	//binary_tree Tree5 = binary_tree(Verts5, 3, -1, 4);
 
-	binary_tree Tree0 = binary_tree(Verts0, 7, 9, 1);
-	binary_tree Tree1 = binary_tree(Verts1, 2, 4, 0);
-	binary_tree Tree2 = binary_tree(Verts2, 1, 9, 3);
-	binary_tree Tree3 = binary_tree(Verts3, 11, 5, 2);
-	binary_tree Tree4 = binary_tree(Verts4, 7, 1, 5);
-	binary_tree Tree5 = binary_tree(Verts5, 3, 10, 4);
-	binary_tree Tree6 = binary_tree(Verts6, 10, 8, 7);
-	binary_tree Tree7 = binary_tree(Verts7, 0, 4, 6);
-	binary_tree Tree8 = binary_tree(Verts8, 6, 11, 9);
-	binary_tree Tree9 = binary_tree(Verts9, 2, 0, 8);
-	binary_tree Tree10 = binary_tree(Verts10, 6, 5, 11);
-	binary_tree Tree11 = binary_tree(Verts11, 3, 8, 10);
+	//binary_tree Tree0 = binary_tree(Verts0, 7, 9, 1);
+	//binary_tree Tree1 = binary_tree(Verts1, 2, 4, 0);
+	//binary_tree Tree2 = binary_tree(Verts2, 1, 9, 3);
+	//binary_tree Tree3 = binary_tree(Verts3, 11, 5, 2);
+	//binary_tree Tree4 = binary_tree(Verts4, 7, 1, 5);
+	//binary_tree Tree5 = binary_tree(Verts5, 3, 10, 4);
+	//binary_tree Tree6 = binary_tree(Verts6, 10, 8, 7);
+	//binary_tree Tree7 = binary_tree(Verts7, 0, 4, 6);
+	//binary_tree Tree8 = binary_tree(Verts8, 6, 11, 9);
+	//binary_tree Tree9 = binary_tree(Verts9, 2, 0, 8);
+	//binary_tree Tree10 = binary_tree(Verts10, 6, 5, 11);
+	//binary_tree Tree11 = binary_tree(Verts11, 3, 8, 10);
 
 	Trees.push_back(Tree0);
 	Trees.push_back(Tree1);
-	Trees.push_back(Tree2);
-	Trees.push_back(Tree3);
-	Trees.push_back(Tree4);
-	Trees.push_back(Tree5);
-	Trees.push_back(Tree6);
-	Trees.push_back(Tree7);
-	Trees.push_back(Tree8);
-	Trees.push_back(Tree9);
-	Trees.push_back(Tree10);
-	Trees.push_back(Tree11);
+	//Trees.push_back(Tree2);
+	//Trees.push_back(Tree3);
+	//Trees.push_back(Tree4);
+	//Trees.push_back(Tree5);
+	//Trees.push_back(Tree6);
+	//Trees.push_back(Tree7);
+	//Trees.push_back(Tree8);
+	//Trees.push_back(Tree9);
+	//Trees.push_back(Tree10);
+	//Trees.push_back(Tree11);
 }
 
 void planet_terrain_manager::InitializeBiomes()
@@ -745,7 +745,18 @@ void planet_terrain_manager::Traverse(v3 CameraPosition, s8 TreeIndex, f32 LodSw
 
 			if (DistanceToCamera < 100 || Angle < MaxAngle)
 			{
-				if ((Nodes[NodeIndex].JustSplit == false && Nodes[NodeIndex].Depth < MinDepth) || (Nodes[NodeIndex].Depth + 1 <= MaxDepth && DistanceToCamera < LodDistance))
+				bool DetailSplit = false;
+				//f32 out = 0;
+				//v3 MidpointNormalized = Normalize(ChunkData[Nodes[NodeIndex].FirstChildIndex].Midpoint);
+				//f32 MidpointHeight = Length(MidpointNormalized + MidpointNormalized * GetTerrainInfo(MidpointNormalized, &out, &out, &out));
+				//f32 HeightVal1 = Length(ChunkData[Nodes[NodeIndex].FirstChildIndex].Vertices[0].Position);
+				//f32 HeightVal2 = Length(ChunkData[Nodes[NodeIndex].FirstChildIndex].Vertices[1].Position);
+				//f32 HeightVal3 = Length(ChunkData[Nodes[NodeIndex].FirstChildIndex].Vertices[2].Position);
+				//DetailSplit = 1.f - (min(HeightVal1, MidpointHeight) / max(HeightVal1, MidpointHeight)) > 0.005f ||
+				//			  1.f - (min(HeightVal2, MidpointHeight) / max(HeightVal2, MidpointHeight)) > 0.005f ||
+				//			  1.f - (min(HeightVal3, MidpointHeight) / max(HeightVal3, MidpointHeight)) > 0.005f;
+
+				if (Nodes[NodeIndex].JustSplit == false && Nodes[NodeIndex].Depth + 1 <= MaxDepth && (Nodes[NodeIndex].Depth < MinDepth || DistanceToCamera < LodDistance || DetailSplit))
 				{
 					SmartSplitNode(NodeIndex, ProcessingTree, ToProcess);
 					//int ChildIndex = SplitNode(NodeIndex, TreeIndex);

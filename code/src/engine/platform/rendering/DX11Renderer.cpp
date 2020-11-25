@@ -132,7 +132,6 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 
 	//DeviceContext->OMSetRenderTargets(1, &RenderTargetView, NULL); //set after depth stencil initialization
 
-
 	RECT rc;
 	GetClientRect(Window, &rc);
 	D3D11_VIEWPORT vp;
@@ -145,6 +144,40 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	vp.TopLeftY = 0;
 	DeviceContext->RSSetViewports(1, &vp);
 
+
+	// Shadow mapping
+	// setup tex
+	D3D11_TEXTURE2D_DESC shadowTexDesc = {};
+	shadowTexDesc.Width = 2560;
+	shadowTexDesc.Height = 1440;
+	shadowTexDesc.MipLevels = 1;
+	shadowTexDesc.ArraySize = 1;
+	shadowTexDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+	shadowTexDesc.SampleDesc.Count = 1;
+	shadowTexDesc.SampleDesc.Quality = 0;
+	shadowTexDesc.Usage = D3D11_USAGE_DEFAULT;
+	shadowTexDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+	shadowTexDesc.CPUAccessFlags = 0;
+	shadowTexDesc.MiscFlags = 0;
+	hr = Device->CreateTexture2D(&shadowTexDesc, NULL, &ShadowMapTex);
+	Assert(!FAILED(hr));
+
+	// create depth stencil
+	D3D11_DEPTH_STENCIL_VIEW_DESC shadowStencilDesc = {};
+	shadowStencilDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	shadowStencilDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	shadowStencilDesc.Texture2D.MipSlice = 0;
+	hr = Device->CreateDepthStencilView(ShadowMapTex, &shadowStencilDesc, &ShadowMapView);
+	Assert(!FAILED(hr));
+
+	// create srv
+	D3D11_SHADER_RESOURCE_VIEW_DESC shadowSRVDesc = {};
+	shadowSRVDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	shadowSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	shadowSRVDesc.Texture2D.MipLevels = shadowTexDesc.MipLevels;
+	shadowSRVDesc.Texture2D.MostDetailedMip = 0;
+	hr = Device->CreateShaderResourceView(ShadowMapTex, &shadowSRVDesc, &ShadowMapResource);
+	Assert(!FAILED(hr));
 
 	//
 	// Rasterizer state
@@ -373,11 +406,11 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	descDepth.Height = WindowHeight;
 	descDepth.MipLevels = 1;
 	descDepth.ArraySize = 1;
-	descDepth.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	descDepth.Format = DXGI_FORMAT_R32_TYPELESS;//DXGI_FORMAT_D24_UNORM_S8_UINT;
 	descDepth.SampleDesc.Count = MultiSamplingCount;
 	descDepth.SampleDesc.Quality = 0;
 	descDepth.Usage = D3D11_USAGE_DEFAULT;
-	descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 	descDepth.CPUAccessFlags = 0;
 	descDepth.MiscFlags = 0;
 
@@ -391,13 +424,23 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV;
 	ZeroMemory(&descDSV, sizeof(descDSV));
 
-	descDSV.Format = descDepth.Format;
+	descDSV.Format = DXGI_FORMAT_D32_FLOAT;
 	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
 	descDSV.Texture2D.MipSlice = 0;
 
 	hr = Device->CreateDepthStencilView(DepthStencilTex, &descDSV, &DepthStencilView);
 	if (FAILED(hr))
 		Assert(1 == 2);
+
+	// create srv
+	D3D11_SHADER_RESOURCE_VIEW_DESC depthSRVDesc = {};
+	depthSRVDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	depthSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
+	depthSRVDesc.Texture2D.MipLevels = descDepth.MipLevels;
+	depthSRVDesc.Texture2D.MostDetailedMip = 0;
+	hr = Device->CreateShaderResourceView(DepthStencilTex, &depthSRVDesc, &DepthStencilResource);
+	Assert(!FAILED(hr));
+
 
 	DeviceContext->OMSetRenderTargets(1, &RenderTargetView, DepthStencilView);
 
@@ -510,6 +553,11 @@ void dx11_renderer::Cleanup()
 	//layouts
 	SAFE_RELEASE(DefaultVertexLayout);
 
+	// shadow mapping
+	SAFE_RELEASE(ShadowMapTex);
+	SAFE_RELEASE(ShadowMapResource);
+	SAFE_RELEASE(ShadowMapView);
+
 	SAFE_RELEASE(BlendState);
 	SAFE_RELEASE(DefaultCullBackface);
 	SAFE_RELEASE(DefaultCullFrontface);
@@ -518,6 +566,7 @@ void dx11_renderer::Cleanup()
 	SAFE_RELEASE(DepthStencilEnabled);
 	SAFE_RELEASE(DepthStencilDisabled);
 	SAFE_RELEASE(DepthStencilTex);
+	SAFE_RELEASE(DepthStencilResource);
 	SAFE_RELEASE(DepthStencilView);
 	SAFE_RELEASE(RenderTargetView);
 	SAFE_RELEASE(DefaultSampler);
@@ -532,6 +581,28 @@ void dx11_renderer::Cleanup()
 	SAFE_RELEASE(Device);
 }
 
+void dx11_renderer::SetRendererState(render_state State)
+{
+	switch (State)
+	{
+		default:
+			break;
+		case render_state::Main:
+		{
+			DeviceContext->OMSetRenderTargets(1, &RenderTargetView, DepthStencilView);
+		} break;
+		case render_state::ShadowMap:
+		{
+			DeviceContext->OMSetRenderTargets(0, NULL, ShadowMapView);
+		} break;
+	}
+}
+
+void* dx11_renderer::GetShaderResource()
+{
+	return ShadowMapResource;
+}
+
 void dx11_renderer::FinishFrame()
 {
 	ImGui::Render();
@@ -541,9 +612,12 @@ void dx11_renderer::FinishFrame()
 	ImGui_ImplDX11_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 
-	DeviceContext->OMSetRenderTargets(1, &RenderTargetView, DepthStencilView);
+	ID3D11ShaderResourceView* const pSRV[6] = { NULL, NULL, NULL, NULL, NULL, NULL };
+	DeviceContext->PSSetShaderResources(0, 6, pSRV);
+
 	DeviceContext->ClearRenderTargetView(RenderTargetView, VoidColor);
 	DeviceContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	DeviceContext->ClearDepthStencilView(ShadowMapView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 }
 
 /*
@@ -776,11 +850,11 @@ void dx11_renderer::BindMaterial(const material& InMaterial)
 
 		MapBuffer(MaterialConstantBuffer, MaterialConstants);
 
-		ID3D11ShaderResourceView* const Views[2] = { MaterialConstants.TextureDiffuse ? Engine->TextureRegistry[InMaterial.DiffuseTextureID]->ShaderHandle : NULL,
-													 MaterialConstants.TextureNormal ? Engine->TextureRegistry[InMaterial.NormalTextureID]->ShaderHandle : NULL };
+		ID3D11ShaderResourceView* const Views[3] = { MaterialConstants.TextureDiffuse ? Engine->TextureRegistry[InMaterial.DiffuseTextureID]->ShaderHandle : NULL,
+													 MaterialConstants.TextureNormal ? Engine->TextureRegistry[InMaterial.NormalTextureID]->ShaderHandle : NULL,
+													 ShadowMapResource };
 
-		DeviceContext->PSSetShaderResources(2, 2, Views);
-		DeviceContext->DSSetShaderResources(2, 2, Views);
+		DeviceContext->PSSetShaderResources(2, 3, Views);
 	}
 	//else if (CurrentState.UniqueIdentifier == "Skybox")
 	//{
@@ -1079,7 +1153,7 @@ matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraIn
 			camPosition = DirectX::XMVectorSet(CameraInfo.Transform.Location.x, CameraInfo.Transform.Location.y, CameraInfo.Transform.Location.z, 0.0f);
 		else
 			camPosition = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-		camTarget = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+		camTarget = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 
 		CameraView = DirectX::XMMatrixTranspose(DirectX::XMMatrixLookAtLH(camPosition, camTarget, camUp));
 	}

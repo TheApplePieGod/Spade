@@ -29,7 +29,30 @@ void engine::Tick()
 		MainCamera.ViewMatrix = renderer::GeneratePlanetaryViewMatrix(true, MainCamera.CameraInfo, MouseDelta, MainCamera.ForwardVector, MainCamera.LookAtVector, MainCamera.UpVector);
 	UserInputs.MousePosWorldSpace = renderer::GetWorldSpaceDirectionFromMouse(v2{ UserInputs.MousePosX, UserInputs.MousePosY }, &MainCamera);
 
+	if (DebugData.SpawnCube)
+	{
+		DebugData.SpawnCube = false;
+		actor_component acomp = actor_component(&MainLevel);
+		s32 actorid = ActorComponents.CreateComponent(acomp, true);
+		u32 ScaleMod = 1;
+		rendering_component rcomp = rendering_component(actorid);
+
+		rcomp.SetLocation(MainCamera.CameraInfo.Transform.Location);
+		rcomp.SetScale(v3{ 5.f, 5.f, 5.f });
+		rcomp.RenderResources.MaterialID = 0;
+		rcomp.RenderResources.PipelineStateID = 1;
+		rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("cube_t.fbx");
+
+		rcomp.ActorComponentID = actorid;
+		RenderingComponents.CreateComponent(rcomp, false);
+	}
+
+	Renderer.SetRendererState(render_state::ShadowMap);
+	RenderGeometry();
+
+	Renderer.SetRendererState(render_state::Main);
 	RenderScene();
+	//RenderGeometry();
 
 	UpdateComponents(); // before scene render?
 
@@ -148,8 +171,8 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 		}
 		else
 		{
-			rcomp.SetLocation(v3{ 0.f, 0.f, -1000.f });
-			rcomp.SetScale(v3{ 10.f, 10.f, 10.f });
+			rcomp.SetLocation(v3{ 0.f, 0.f, -2000.f });
+			rcomp.SetScale(v3{ 1000.f, 1000.f, 50.f });
 			rcomp.RenderResources.MaterialID = 0;
 			rcomp.RenderResources.PipelineStateID = 1;
 			rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("cube_t.fbx");
@@ -159,7 +182,7 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 		RenderingComponents.CreateComponent(rcomp, true);
 	}
 
-	LightingConstants.AmbientColor = v3{ 0.005f, 0.005f, 0.005f };
+	LightingConstants.AmbientColor = v3{ 0.01f, 0.01f, 0.01f };//v3{ 0.005f, 0.005f, 0.005f };
 	LightingConstants.SunColor = colors::White;
 	//DebugData.SunAngle = 180.f;
 }
@@ -446,25 +469,26 @@ void engine::RenderPlanet()
 		{
 			if (Length((TerrainManager.TerrainVertices[i].Position * PlanetRadius) - MainCamera.CameraInfo.Transform.Location) < 6)
 			{
+				f32 Scalar = 0.0002f;
 				NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
 				NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
 
 				vertex NewVert = TerrainManager.TerrainVertices[i];
-				NewVert.Position += NewVert.Normal * 0.0002f;
+				NewVert.Position += NewVert.Normal * Scalar;
 				NormalVertices.push_back(NewVert);
 
 				NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
 				NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
 
 				NewVert = TerrainManager.TerrainVertices[i];
-				NewVert.Position += NewVert.Tangent * 0.0002f;
+				NewVert.Position += NewVert.Tangent * Scalar;
 				NormalVertices.push_back(NewVert);
 
 				NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
 				NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
 
 				NewVert = TerrainManager.TerrainVertices[i];
-				NewVert.Position += Normalize(CrossProduct(NewVert.Normal, NewVert.Tangent)) * 0.0002f;
+				NewVert.Position += Normalize(CrossProduct(NewVert.Normal, NewVert.Tangent)) * Scalar;
 				NormalVertices.push_back(NewVert);
 			}
 		}
@@ -472,6 +496,21 @@ void engine::RenderPlanet()
 		if (NormalVertices.size() < 200000)
 			Renderer.Draw(NormalVertices.data(), (u32)NormalVertices.size(), draw_topology_type::TriangleList);
 	}
+	TerrainManager.TerrainVerticesSwapMutex.unlock();
+}
+
+void engine::RenderPlanetGeometry()
+{
+	if ((!TerrainManager.UpdatingChunkData) || ChunkUpdateThread.get_id() == std::thread::id())
+	{
+		if (ChunkUpdateThread.joinable())
+			ChunkUpdateThread.join();
+		ChunkUpdateThread = std::thread(UpdateVisibleChunksBT, &TerrainManager, &MainCamera);
+	}
+
+	TerrainManager.TerrainVerticesSwapMutex.lock();
+	if (TerrainManager.TerrainVertices.size() < 200000)
+		Renderer.Draw(TerrainManager.TerrainVertices.data(), (u32)TerrainManager.TerrainVertices.size(), draw_topology_type::TriangleList);
 	TerrainManager.TerrainVerticesSwapMutex.unlock();
 }
 
@@ -485,6 +524,11 @@ inline bool CompareRenderComponents(rendering_component* Comp1, rendering_compon
 			Comp1->RenderResources.PipelineStateID < Comp2->RenderResources.PipelineStateID);
 }
 
+inline bool CompareRenderComponentsGeometry(rendering_component* Comp1, rendering_component* Comp2)
+{
+	return (Comp1->RenderResources.MeshAssetID < Comp2->RenderResources.MeshAssetID);
+}
+
 // todo: multithreading
 void engine::RenderScene()
 {
@@ -492,7 +536,7 @@ void engine::RenderScene()
 	transform CamTransform = transform(MainCamera.CameraInfo.Transform.Location);
 	FrameConstants.CameraViewProjectionMatrix = MainCamera.ProjectionMatrix * MainCamera.ViewMatrix;
 	FrameConstants.CameraWorldMatrix = renderer::GenerateWorldMatrix(CamTransform); // cache camera matrix?
-	FrameConstants.CameraWorldViewMatrix = MainCamera.ViewMatrix * FrameConstants.CameraWorldMatrix;
+	//FrameConstants.CameraWorldViewMatrix = MainCamera.ViewMatrix * FrameConstants.CameraWorldMatrix;
 	FrameConstants.CameraPosition = MainCamera.CameraInfo.Transform.Location;
 	Renderer.MapConstants(map_operation::Frame);
 
@@ -586,6 +630,110 @@ void engine::RenderScene()
 	RenderPlanet();
 }
 
+void engine::RenderGeometry()
+{
+	camera_info SunCamera;
+	SunCamera.Width = 3000;
+	SunCamera.Height = 3000;
+	SunCamera.ProjectionType = projection_type::Orthographic;
+	SunCamera.Transform.Location = LightingConstants.SunDirection * -10000;
+
+	v3 _out;
+	matrix4x4 SunProjMatrix = Renderer.GetOrthographicProjectionLH(true, SunCamera);
+	matrix4x4 SunViewMatrix = Renderer.GenerateViewMatrix(true, SunCamera, _out, _out);
+	FrameConstants.SunViewProjectionMatrix = SunProjMatrix * SunViewMatrix;
+	//FrameConstants.SunViewProjectionMatrix = MainCamera.ProjectionMatrix * MainCamera.ViewMatrix;
+	Renderer.MapConstants(map_operation::Frame);
+
+	pipeline_state Shadowmapping = pipeline_state();
+	Shadowmapping.VertexShaderID = GetShaderIDFromName("shadowvs");
+	Shadowmapping.PixelShaderID = GetShaderIDFromName("shadowps");
+	Shadowmapping.RasterizerState = rasterizer_state::DefaultCullBackface;
+	Shadowmapping.UniqueIdentifier = "Geometry";
+
+	Renderer.SetPipelineState(Shadowmapping);
+
+	std::vector<rendering_component>& RCRegistry = RenderingComponents.GetRegistry();
+	std::vector<rendering_component*> SortedRegistry;
+	u32 NumRenderComponents = (u32)RCRegistry.size();
+	for (u32 i = 0; i < NumRenderComponents; i++)
+		SortedRegistry.push_back(&RCRegistry[i]);
+
+	if (NumRenderComponents > 0) // first component is skybox
+	{
+		// Sort by material ID then by meshid (optimize?)
+		std::sort(SortedRegistry.begin(), SortedRegistry.end(), CompareRenderComponentsGeometry); //todo: dont sort every time
+		s32 AssetID = SortedRegistry[0]->RenderResources.MeshAssetID;
+		cMeshAsset* Asset = (cMeshAsset*)AssetRegistry[AssetID];
+
+		// Render loop
+		u32 InstanceCount = 0;
+		bool Draw = false;
+		for (u32 i = 0; i < NumRenderComponents; i++)
+		{
+			if (i < SortedRegistry.size() - 1)
+			{
+				if (SortedRegistry[i + 1]->RenderResources.MeshAssetID != AssetID) // mesh will change
+				{
+					Draw = true;
+					AssetID = SortedRegistry[i + 1]->RenderResources.MeshAssetID;
+				}
+			}
+			else
+				Draw = true;
+
+			if (SortedRegistry[i]->IsActive() && SortedRegistry[i]->ActorComponentID != -1 && SortedRegistry[i]->RenderResources.MeshAssetID != -1)
+			{
+				actor_component& ActorComp = ActorComponents.GetComponent(SortedRegistry[i]->ActorComponentID);
+				if (ActorComp.Active)
+				{
+					if (ActorComp.Flag == actor_flag::PositionUpdated) //todo: this probably doesnt work
+					{
+						transform FinalRenderTransform = ActorComp.GetTransform() + SortedRegistry[i]->GetTransform();
+						FinalRenderTransform.Scale = ActorComp.GetScale() * SortedRegistry[i]->GetScale();
+						ActorConstants.Instances[InstanceCount].WorldMatrix = renderer::GenerateWorldMatrix(FinalRenderTransform);
+						ActorConstants.Instances[InstanceCount].InverseTransposeWorldMatrix = renderer::InverseMatrix(ActorConstants.Instances[InstanceCount].WorldMatrix, false); // ?
+						SortedRegistry[i]->SetWorldMatrix(ActorConstants.Instances[InstanceCount].WorldMatrix);
+						SortedRegistry[i]->SetITPWorldMatrix(ActorConstants.Instances[InstanceCount].InverseTransposeWorldMatrix);
+					}
+					else
+					{
+						ActorConstants.Instances[InstanceCount].WorldMatrix = SortedRegistry[i]->GetWorldMatrix();
+						ActorConstants.Instances[InstanceCount].InverseTransposeWorldMatrix = SortedRegistry[i]->GetInverseWorldMatrix();
+					}
+					InstanceCount++;
+				}
+
+				if (Draw || InstanceCount >= MAX_INSTANCES) // draw all previous instances and update state for new batch
+				{
+					if (InstanceCount > 0)
+					{
+						Renderer.MapConstants(map_operation::Actor);
+						//Renderer.DrawInstanced((vertex*)Asset->Data, Asset->MeshData.NumVertices, InstanceCount, draw_topology_type::TriangleList);
+						Renderer.DrawIndexedInstanced((vertex*)Asset->Data, (u32*)((vertex*)Asset->Data + Asset->MeshData.NumVertices), Asset->MeshData.NumVertices, Asset->MeshData.NumIndices, 0, InstanceCount, draw_topology_type::TriangleList);
+						InstanceCount = 0;
+					}
+				}
+			}
+			if (Draw) // no need to update state if drawing bc of batching
+			{
+				Asset = (cMeshAsset*)AssetRegistry[AssetID];
+			}
+			Draw = false;
+		}
+	}
+
+	v3 PlanetScale = v3{ PlanetRadius, PlanetRadius, PlanetRadius };
+	transform PlanetTransform = transform();
+	PlanetTransform.Scale = PlanetScale;
+	PlanetTransform.Rotation = v3{ 0.f, 0.f, 0.f };
+	ActorConstants.Instances[0].WorldMatrix = renderer::GenerateWorldMatrix(PlanetTransform);
+	ActorConstants.Instances[0].InverseTransposeWorldMatrix = renderer::InverseMatrix(ActorConstants.Instances[0].WorldMatrix, true);
+	Renderer.MapConstants(map_operation::Actor);
+
+	RenderPlanetGeometry();
+}
+
 void engine::UpdateComponents()
 {
 	std::vector<actor_component>& ARegistry = ActorComponents.GetRegistry();
@@ -615,6 +763,8 @@ void engine::RenderDebugWidgets()
 		ImGui::Text("Player Position: (%f, %f, %f)", MainCamera.CameraInfo.Transform.Location.x, MainCamera.CameraInfo.Transform.Location.y, MainCamera.CameraInfo.Transform.Location.z);
 
 		ImGui::Text("MousePos: (%f, %f)", UserInputs.MousePosX, UserInputs.MousePosY);
+
+		ImGui::Image(Renderer.GetShaderResource(), ImVec2(512.f, 512.f)/*ImVec2(Tex->ImageData.Width * PreviewScale, Tex->ImageData.Height * PreviewScale)*/, ImVec2(0, 0), ImVec2(1, 1), ImVec4(1.0f, 1.0f, 1.0f, 1.0f), ImVec4(1.0f, 1.0f, 1.0f, 0.5f));
 
 		if (ImGui::TreeNode("Terrain Info"))
 		{
@@ -705,6 +855,10 @@ void engine::RenderDebugWidgets()
 		ImGui::DragScalar("##SunAngle", ImGuiDataType_Float, &DebugData.SunAngle, 0.5f, &Min, &Max, "%f", 1.0f);
 
 		ImGui::AlignTextToFramePadding();
+		ImGui::Text("Sun Direction: %f, %f, %f", LightingConstants.SunDirection.x, LightingConstants.SunDirection.y, LightingConstants.SunDirection.z);
+		// ImGui::SameLine();
+
+		ImGui::AlignTextToFramePadding();
 		ImGui::Text("Camera Speed:");
 		ImGui::SameLine();
 		Min = 0.f;
@@ -722,6 +876,10 @@ void engine::RenderDebugWidgets()
 		ImGui::SameLine();
 		if (ImGui::Button((DebugData.DrawNormals ? "true##a" : "false##a")))
 			DebugData.DrawNormals = !DebugData.DrawNormals;
+
+		ImGui::AlignTextToFramePadding();
+		if (ImGui::Button("Spawn Cube"))
+			DebugData.SpawnCube = true;
 
 		ImGui::AlignTextToFramePadding();
 		ImGui::Text("Visible Chunk Updates:");

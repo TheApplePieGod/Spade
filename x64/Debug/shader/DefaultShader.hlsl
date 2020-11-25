@@ -3,6 +3,7 @@
 
 Texture2D DiffuseTex : register(t2);
 Texture2D NormalTex : register(t3);
+Texture2D ShadowMap : register(t4);
 
 static const float TexcoordScalar = 5000;
 
@@ -20,6 +21,7 @@ struct PSIn
 {
     float4 Position : SV_POSITION;
     float4 WorldPos : POSITION;
+	float4 LightPos : POSITION1; // sun space
     float2 TexCoord : TEXCOORD;
     float3 Normal : NORMAL;
 	/*float3 Tangent : TANGENT;
@@ -42,11 +44,12 @@ PSIn mainvs(VSIn input)
 
 	output.WorldPos = mul(float4(input.Position, 1.f), Instances[input.InstanceID].WorldMatrix); // pass pixel world position as opposed to screen space position for lighitng calculations
 	output.Position = mul(output.WorldPos, CameraViewProjectionMatrix);
+	output.LightPos = mul(output.WorldPos, SunViewProjectionMatrix);
 	output.TexCoord = input.TexCoord;
 	output.CameraPos = CameraPosition;
 
-	output.Normal = /*normalize(mul(float4(input.Normal, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);*/normalize(mul(input.Normal, (float3x3)Instances[input.InstanceID].InverseTransposeWorldMatrix));
-	float3 Tangent = /*normalize(mul(float4(input.Tangent, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);*/normalize(mul(input.Tangent, (float3x3)Instances[input.InstanceID].InverseTransposeWorldMatrix));
+	output.Normal = normalize(mul(float4(input.Normal, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Normal, (float3x3)Instances[input.InstanceID].InverseTransposeWorldMatrix));
+	float3 Tangent = normalize(mul(float4(input.Tangent, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Tangent, (float3x3)Instances[input.InstanceID].InverseTransposeWorldMatrix));
 	//output.Bitangent = //normalize(mul(float4(cross(input.Normal, input.Tangent), 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Bitangent, (float3x3)Instances[input.InstanceID].WorldMatrix));
 	//output.Tangent = normalize(output.Tangent - dot(output.Tangent, output.Normal) * output.Normal);
 	float3 Bitangent = normalize(cross(output.Normal, Tangent));
@@ -114,8 +117,8 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	float3 LightVector = -SunDirection;
 	float3 TexNormal = FetchNormalVector(input.TexCoord);
 	float3 WorldNormal = normalize(mul(input.TBN, TexNormal));
-	float nDotL = max(0.0, dot(WorldNormal, LightVector));
-	//float nDotL = max(0.0, dot(input.Normal, LightVector));
+	float nDotL2 = max(0.0, dot(input.Normal, LightVector));
+	float nDotL = max(0.0, dot(WorldNormal, LightVector)) * nDotL2;
 	float4 SampleColor = float4(1.f, 1.f, 1.f, 1.f);
 	//if (TextureDiffuse)
 	//{
@@ -125,23 +128,45 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	//else
 	//	SampleColor = DiffuseColor;
 
-	//float4 FirstTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.x)));
-	//SampleColor.xyz = FirstTerrainColor.xyz;
-	//if (input.TerrainInfo.x != input.TerrainInfo.y)
-	//{
-	//	float4 SecondTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.y)));
-	//	SampleColor.xyz = lerp(FirstTerrainColor.xyz, SecondTerrainColor.xyz, 1.0 - input.TerrainInfo.z);
-	//}
+	float4 FirstTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.x)));
+	SampleColor.xyz = FirstTerrainColor.xyz;
+	if (input.TerrainInfo.x != input.TerrainInfo.y)
+	{
+		float4 SecondTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.y)));
+		SampleColor.xyz = lerp(FirstTerrainColor.xyz, SecondTerrainColor.xyz, 1.0 - input.TerrainInfo.z);
+	}
 
-	//SampleColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, input.TerrainInfo.x));
-	//float angle = acos(dot(normalize(input.WorldPos.xyz), input.Normal));
-	//if (abs(angle) > 3.14159 * 0.2)
-	//	SampleColor = float4(0.4f, 0.26f, 0.13f, 1.f);
+	SampleColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, input.TerrainInfo.x));
+	float angle = acos(dot(normalize(input.WorldPos.xyz), input.Normal));
+	if (abs(angle) > 3.14159 * 0.2)
+		SampleColor = float4(0.4f, 0.26f, 0.13f, 1.f);
 
 	float3 Ambient = SampleColor * AmbientColor;
+
+	// Shadowing
+
+	//re-homogenize position after interpolation
+	input.LightPos.xyz /= input.LightPos.w;
+	if (input.LightPos.x < -1.0f || input.LightPos.x > 1.0f ||
+		input.LightPos.y < -1.0f || input.LightPos.y > 1.0f ||
+		input.LightPos.z < 0.0f || input.LightPos.z > 1.0f) return float4(Ambient, 1.f); // dont illuminate if pixel is out of light's view
+
+	//transform clip space coords to texture space coords (-1:1 to 0:1)
+	input.LightPos.x = input.LightPos.x / 2 + 0.5;
+	input.LightPos.y = input.LightPos.y / -2 + 0.5;
+
+	float shadowDepth = ShadowMap.Sample(Samp, input.LightPos.xy).r;
+
+	//if clip space z value greater than shadow map value then pixel is in shadow
+	if (shadowDepth < input.LightPos.z) return float4(0.f, 0.f, 0.f, 1.f);
+
+	//otherwise continue with lighting calculation
+
+	//------------
+
 	SampleColor *= nDotL;
 
-	return float4(SampleColor.xyz, 1.f);
+	return float4(SampleColor.xyz + Ambient.xyz, 1.f);
 
 	//float3 color = c0 + SampleColor.xyz * c1;
 	//color += Ambient;
@@ -239,12 +264,12 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 	float3 c0 = v3FrontColor * (v3InvWavelength * fKrESun + fKmESun);
 	float3 c1 = v3Attenuate;
 	
-	float4 SampleColor = float4(1.f, 1.f, 1.f, 1.f);
 	float3 LightVector = -SunDirection;
 	float3 TexNormal = FetchNormalVector(input.TexCoord);
 	float3 WorldNormal = normalize(mul(input.TBN, TexNormal));
-	float nDotL = max(0.0, dot(WorldNormal, LightVector));
-	//float nDotL = max(0.0, dot(input.Normal, LightVector));
+	float nDotL2 = max(0.0, dot(input.Normal, LightVector));
+	float nDotL = max(0.0, dot(WorldNormal, LightVector)) * nDotL2;
+	float4 SampleColor = float4(1.f, 1.f, 1.f, 1.f);
 	//float angle = acos(dot(normalize(input.WorldPos.xyz), input.Normal) / (length(normalize(input.WorldPos.xyz)) * length(input.Normal)));
 	//if (abs(angle) > 30)
 	//	SampleColor = float4(1.f, 1.f, 1.f, 1.f);// * nDotL;
@@ -256,23 +281,46 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 	//else
 	//	SampleColor = DiffuseColor;
 	//SampleColor.xyz = input.TerrainInfo;
-	//float4 FirstTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.x)));
-	//SampleColor.xyz = FirstTerrainColor.xyz;
-	//if (input.TerrainInfo.x != input.TerrainInfo.y)
-	//{
-	//	float4 SecondTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.y)));
-	//	SampleColor.xyz = lerp(FirstTerrainColor.xyz, SecondTerrainColor.xyz, 1.0 - input.TerrainInfo.z);
-	//}
-	//SampleColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, input.TerrainInfo.x));
+
+	float4 FirstTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.x)));
+	SampleColor.xyz = FirstTerrainColor.xyz;
+	if (input.TerrainInfo.x != input.TerrainInfo.y)
+	{
+		float4 SecondTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.y)));
+		SampleColor.xyz = lerp(FirstTerrainColor.xyz, SecondTerrainColor.xyz, 1.0 - input.TerrainInfo.z);
+	}
+	SampleColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * 5000, input.TerrainInfo.x));
 
 	float3 Ambient = SampleColor * AmbientColor;
+
+	// Shadowing
+
+	//re-homogenize position after interpolation
+	input.LightPos.xyz /= input.LightPos.w;
+	if (input.LightPos.x < -1.0f || input.LightPos.x > 1.0f ||
+		input.LightPos.y < -1.0f || input.LightPos.y > 1.0f ||
+		input.LightPos.z < 0.0f || input.LightPos.z > 1.0f) return float4(Ambient, 1.f); // dont illuminate if pixel is out of light's view
+
+	//transform clip space coords to texture space coords (-1:1 to 0:1)
+	input.LightPos.x = input.LightPos.x / 2 + 0.5;
+	input.LightPos.y = input.LightPos.y / -2 + 0.5;
+
+	float shadowDepth = ShadowMap.Sample(Samp, input.LightPos.xy).r;
+
+	//if clip space z value greater than shadow map value then pixel is in shadow
+	if (shadowDepth < input.LightPos.z) return float4(0.f,0.f,0.f, 1.f);
+
+	//otherwise continue with lighting calculation
+
+	//------------
+
 	SampleColor *= nDotL;
-	return float4(SampleColor.xyz, 1.f);
+	return float4(SampleColor.xyz + Ambient.xyz, 1.f);
 
 	//SampleColor = float4(0.2f,0.6f,1.f,1.f);
-	float3 color = c0 + SampleColor.xyz * c1;
-	color += Ambient;
-	return float4(color, 1);
+	//float3 color = c0 + SampleColor.xyz * c1;
+	//color += Ambient;
+	//return float4(color, 1);
 	//float3 color = c0 + 0.25 * c1;
 	//color = 1.0 - exp(color * -fHdrExposure);
 	//SampleColor *= color.b;

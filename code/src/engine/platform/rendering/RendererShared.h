@@ -10,6 +10,12 @@ enum class shader_type
 	DomainShader
 };
 
+enum class render_state
+{
+	ShadowMap,
+	Main,
+};
+
 enum class shader_presets : u32
 {
 	Default,
@@ -77,7 +83,7 @@ struct shader_constants_frame
 {
 	matrix4x4 CameraViewProjectionMatrix;
 	matrix4x4 CameraWorldMatrix;
-	matrix4x4 CameraWorldViewMatrix;
+	matrix4x4 SunViewProjectionMatrix;
 	v3 CameraPosition;
 	f32 padding;
 };

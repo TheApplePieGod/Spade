@@ -40,6 +40,9 @@ void renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 
 	RegisterShader("shader/SkyboxShader.hlsl", "skyboxvs", shader_type::VertexShader);
 	RegisterShader("shader/SkyboxShader.hlsl", "skyboxps", shader_type::PixelShader);
+
+	RegisterShader("shader/Shadow.hlsl", "shadowvs", shader_type::VertexShader);
+	RegisterShader("shader/Shadow.hlsl", "shadowps", shader_type::PixelShader);
 	
 	ImGui::NewFrame();
 }
@@ -53,6 +56,16 @@ void renderer::FinishFrame()
 {
 	PlatformRenderer->FinishFrame();
 	ImGui::NewFrame();
+}
+
+void renderer::SetRendererState(render_state State)
+{
+	PlatformRenderer->SetRendererState(State);
+}
+
+void* renderer::GetShaderResource()
+{
+	return PlatformRenderer->GetShaderResource();
 }
 
 void renderer::Draw(vertex* InVertexArray, u32 NumVertices, draw_topology_type TopologyType)

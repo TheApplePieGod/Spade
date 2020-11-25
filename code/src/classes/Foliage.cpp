@@ -5,6 +5,7 @@
 #include "../engine/Engine.h"
 
 extern engine* Engine;
+extern shader_constants_actor ActorConstants;
 
 void foliage_manager::Initialize()
 {
@@ -36,7 +37,7 @@ int foliage_manager::AddInstance(transform& Transform, int FoliageTypeID)
 		int FreeIndex;
 		if (FirstFree == -1)
 		{
-			FreeIndex = Instances.size();
+			FreeIndex = (int)Instances.size();
 			Instances.push_back(NewInstance);
 		}
 		else
@@ -79,8 +80,34 @@ void foliage_manager::RemoveInstance(int InstanceID)
 void foliage_manager::Render()
 {
 	int Index = Head;
-	while (Instances[Index].Next != -1)
+	int CurrentFoliageType = -1;
+	int InstanceCount = 0;
+	while (Index != -1)
 	{
-		//Index
+		bool Draw = false;
+		foliage_instance& Instance = Instances[Index].Element;
+
+		if (Instances[Index].Next != -1)
+		{
+			if (Instances[Instances[Index].Next].Element.FoliageTypeID != CurrentFoliageType)
+			{
+				CurrentFoliageType = Instances[Instances[Index].Next].Element.FoliageTypeID;
+				Draw = true;
+			}
+		}
+		else
+			Draw = true;
+
+		ActorConstants.Instances[InstanceCount].WorldMatrix = Instance.WorldMatrix;
+		InstanceCount++;
+
+		if (Draw || InstanceCount >= MAX_INSTANCES)
+		{
+			//Engine->Renderer.DrawInstanced();
+			InstanceCount = 0;
+		}
+		//if ((Instance.FoliageTypeID != CurrentFoliageType || Instances[Index].Next == -1) && InstanceCount > 0 )
+
+		Index = Instances[Index].Next;
 	}
 }

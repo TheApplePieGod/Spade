@@ -8,6 +8,8 @@ public:
 	void Initialize(void* Window, int WindowWidth, int WindowHeight);
 	void Cleanup();
 	void FinishFrame();
+	void SetRendererState(render_state State);
+	void* GetShaderResource();
 	void Draw(vertex* InVertexArray, u32 NumVertices, draw_topology_type TopologyType);
 	void Draw(v3* InPositionArray, u32 NumVertices, draw_topology_type TopologyType);
 	void DrawInstanced(vertex* InVertexArray, u32 NumVertices, u32 NumInstances, draw_topology_type TopologyType);
@@ -45,6 +47,7 @@ public:
 	ID3D11RenderTargetView* RenderTargetView = NULL;
 	ID3D11SamplerState* DefaultSampler = NULL;
 	ID3D11Texture2D* DepthStencilTex = NULL;
+	ID3D11ShaderResourceView* DepthStencilResource = NULL;
 	ID3D11DepthStencilView* DepthStencilView = NULL;
 	ID3D11DepthStencilState* DepthStencilEnabled = NULL;
 	ID3D11DepthStencilState* DepthStencilDisabled = NULL;
@@ -71,6 +74,11 @@ public:
 
 	ID3D11ShaderResourceView* SkyboxCube = NULL;
 	ID3D11ShaderResourceView* LandscapeTextureArray = NULL;
+
+	// Shadow mapping
+	ID3D11Texture2D* ShadowMapTex = NULL;
+	ID3D11DepthStencilView* ShadowMapView = NULL;
+	ID3D11ShaderResourceView* ShadowMapResource = NULL;
 
 private:
 

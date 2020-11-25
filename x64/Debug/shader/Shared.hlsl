@@ -24,7 +24,7 @@ cbuffer FrameConstantBuffer : register(b0) // v0
 
 	matrix CameraWorldMatrix;
 
-	matrix CameraWorldViewMatrix;
+	matrix SunViewProjectionMatrix;
 
 	float3 CameraPosition;
 	float padding3;
