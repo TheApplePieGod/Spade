@@ -27,12 +27,12 @@ PSIn shadowvs(VSIn input)
     return output;
 }
 
-//void shadowps(PSIn input)
-//{}
+void shadowps(PSIn input)
+{}
 
-float4 shadowps(PSIn input) : SV_TARGET
-{
-    //input.Position.z /= input.Position.w;
-    //return float4(input.Position.z, input.Position.z, input.Position.z, 1.f);
-    return float4(0.f, 1.f, 0.f, 1.f);
-}
+//float4 shadowps(PSIn input) : SV_TARGET
+//{
+//    //input.Position.z /= input.Position.w;
+//    //return float4(input.Position.z, input.Position.z, input.Position.z, 1.f);
+//    return float4(0.f, 1.f, 0.f, 1.f);
+//}

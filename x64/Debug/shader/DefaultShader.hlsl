@@ -44,11 +44,11 @@ PSIn mainvs(VSIn input)
 
 	output.WorldPos = mul(float4(input.Position, 1.f), Instances[input.InstanceID].WorldMatrix); // pass pixel world position as opposed to screen space position for lighitng calculations
 	output.Position = mul(output.WorldPos, CameraViewProjectionMatrix);
-	output.LightPos = mul(output.WorldPos, SunViewProjectionMatrix);
 	output.TexCoord = input.TexCoord;
 	output.CameraPos = CameraPosition;
 
 	output.Normal = normalize(mul(float4(input.Normal, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Normal, (float3x3)Instances[input.InstanceID].InverseTransposeWorldMatrix));
+	output.LightPos = mul(output.WorldPos + float4(output.Normal.xyz * 0.4f, 0), SunViewProjectionMatrix);
 	float3 Tangent = normalize(mul(float4(input.Tangent, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Tangent, (float3x3)Instances[input.InstanceID].InverseTransposeWorldMatrix));
 	//output.Bitangent = //normalize(mul(float4(cross(input.Normal, input.Tangent), 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Bitangent, (float3x3)Instances[input.InstanceID].WorldMatrix));
 	//output.Tangent = normalize(output.Tangent - dot(output.Tangent, output.Normal) * output.Normal);
@@ -145,20 +145,25 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 
 	// Shadowing
 
-	//re-homogenize position after interpolation
-	input.LightPos.xyz /= input.LightPos.w;
-	if (input.LightPos.x < -1.0f || input.LightPos.x > 1.0f ||
-		input.LightPos.y < -1.0f || input.LightPos.y > 1.0f ||
-		input.LightPos.z < 0.0f || input.LightPos.z > 1.0f) return float4(Ambient, 1.f); // dont illuminate if pixel is out of light's view
+	float bias = 0.001f;
+	float2 shadowTexCoord;
+	shadowTexCoord.x = input.LightPos.x / input.LightPos.w / 2.f + 0.5f;
+	shadowTexCoord.y = -input.LightPos.y / input.LightPos.w / 2.f + 0.5f;
 
-	//transform clip space coords to texture space coords (-1:1 to 0:1)
-	input.LightPos.x = input.LightPos.x / 2 + 0.5;
-	input.LightPos.y = input.LightPos.y / -2 + 0.5;
+	float lightDepthValue = (input.LightPos.z / input.LightPos.w) - bias;
 
-	float shadowDepth = ShadowMap.Sample(Samp, input.LightPos.xy).r;
+	if (saturate(shadowTexCoord.x) != shadowTexCoord.x || saturate(shadowTexCoord.y) != shadowTexCoord.y || lightDepthValue <= 0)
+		return float4(0.f, 0.f, 0.f, 1.f);
 
-	//if clip space z value greater than shadow map value then pixel is in shadow
-	if (shadowDepth < input.LightPos.z) return float4(0.f, 0.f, 0.f, 1.f);
+	//float shadowDepth = ShadowMap.Sample(ClampSamp, shadowTexCoord).r;
+	//float shadowDepth = ShadowMap.SampleCmpLevelZero(ClampSamp, shadowTexCoord, lightDepthValue).r;
+
+	float shadowCoeff = CalcShadowFactor(ClampSamp, ShadowMap, input.LightPos);
+
+	return float4(Ambient + (shadowCoeff * SampleColor * nDotL), 1.f);
+
+	//if (lightDepthValue > shadowDepth)
+	//	return float4(Ambient, 1.f);
 
 	//otherwise continue with lighting calculation
 
@@ -295,20 +300,21 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 
 	// Shadowing
 
-	//re-homogenize position after interpolation
-	input.LightPos.xyz /= input.LightPos.w;
-	if (input.LightPos.x < -1.0f || input.LightPos.x > 1.0f ||
-		input.LightPos.y < -1.0f || input.LightPos.y > 1.0f ||
-		input.LightPos.z < 0.0f || input.LightPos.z > 1.0f) return float4(Ambient, 1.f); // dont illuminate if pixel is out of light's view
+	float bias = 0.001f;
+	float2 shadowTexCoord;
+	shadowTexCoord.x = input.LightPos.x / input.LightPos.w / 2.f + 0.5f;
+	shadowTexCoord.y = -input.LightPos.y / input.LightPos.w / 2.f + 0.5f;
 
-	//transform clip space coords to texture space coords (-1:1 to 0:1)
-	input.LightPos.x = input.LightPos.x / 2 + 0.5;
-	input.LightPos.y = input.LightPos.y / -2 + 0.5;
+	float lightDepthValue = (input.LightPos.z / input.LightPos.w) - bias;
 
-	float shadowDepth = ShadowMap.Sample(Samp, input.LightPos.xy).r;
+	if (saturate(shadowTexCoord.x) != shadowTexCoord.x || saturate(shadowTexCoord.y) != shadowTexCoord.y || lightDepthValue <= 0)
+		return float4(0.f, 0.f, 0.f, 1.f);
 
-	//if clip space z value greater than shadow map value then pixel is in shadow
-	if (shadowDepth < input.LightPos.z) return float4(0.f,0.f,0.f, 1.f);
+	//float shadowDepth = ShadowMap.Sample(ClampSamp, shadowTexCoord).r;
+	float shadowDepth = ShadowMap.SampleCmpLevelZero(ClampSamp, shadowTexCoord, lightDepthValue).r;
+
+	if (lightDepthValue > shadowDepth)
+		return float4(0.f, 0.f, 1.f, 1.f);
 
 	//otherwise continue with lighting calculation
 

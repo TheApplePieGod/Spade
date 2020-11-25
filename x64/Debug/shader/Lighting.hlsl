@@ -66,3 +66,33 @@ float3 ndfGGX(float NdotH, float Roughness)
 	float denom = (NdotH * NdotH) * (alphaSq - 1.0) + 1.0;
 	return alphaSq / (Pi * denom * denom);
 }
+
+float CalcShadowFactor(SamplerComparisonState samp, Texture2D tex, float4 shadowPos)
+{
+	shadowPos.xyz /= shadowPos.w;
+	shadowPos.x = shadowPos.x * 0.5 + 0.5;
+	shadowPos.y = -shadowPos.y * 0.5 + 0.5;
+
+	float bias = 0.001f;
+	float depth = shadowPos.z - bias;
+
+	// Texel size.
+	const float dx = 1.f / 2048.f;
+
+	float percentLit = 0.0f;
+	const float2 offsets[9] =
+	{
+		float2(-dx,  -dx), float2(0.0f,  -dx), float2(dx,  -dx),
+		float2(-dx, 0.0f), float2(0.0f, 0.0f), float2(dx, 0.0f),
+		float2(-dx,  +dx), float2(0.0f,  +dx), float2(dx,  +dx)
+	};
+
+	[unroll]
+	for (int i = 0; i < 9; ++i)
+	{
+		float filteredDepth = tex.SampleCmpLevelZero(samp, shadowPos.xy + offsets[i], depth).r;
+		percentLit += filteredDepth;
+	}
+
+	return percentLit /= 9.0f;
+}

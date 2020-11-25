@@ -148,9 +148,9 @@ matrix4x4 renderer::GetOrthographicProjectionLH(bool Transpose, camera_info Came
 	return PlatformRenderer->GetOrthographicProjectionLH(Transpose, CameraInfo);
 }
 
-matrix4x4 renderer::GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtVector, v3& OutUpVector, bool OrthoUseMovement)
+matrix4x4 renderer::GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtVector, v3& OutUpVector, bool OrthoUseMovement, v3 InLookAtVector)
 {
-	return PlatformRenderer->GenerateViewMatrix(Transpose, CameraInfo, OutLookAtVector, OutUpVector, OrthoUseMovement);
+	return PlatformRenderer->GenerateViewMatrix(Transpose, CameraInfo, OutLookAtVector, OutUpVector, OrthoUseMovement, InLookAtVector);
 }
 
 matrix4x4 renderer::GeneratePlanetaryViewMatrix(bool Transpose, camera_info CameraInfo, v2 MouseDelta, v3 ForwardVector, v3& OutLookAtVector, v3& OutUpVector, bool OrthoUseMovement)

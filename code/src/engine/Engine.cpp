@@ -633,14 +633,21 @@ void engine::RenderScene()
 void engine::RenderGeometry()
 {
 	camera_info SunCamera;
-	SunCamera.Width = 3000;
-	SunCamera.Height = 3000;
+	SunCamera.NearPlane = 1.f;
+	SunCamera.FarPlane = 3000.f;
+	SunCamera.Width = 100;
+	SunCamera.Height = 100;
+
+	f32 IncrementX = 100.f / 2048.f;
+
 	SunCamera.ProjectionType = projection_type::Orthographic;
-	SunCamera.Transform.Location = LightingConstants.SunDirection * -10000;
+	v3 CamLoc = MainCamera.CameraInfo.Transform.Location;
+	v3 ModifiedLocation = v3{ floor(CamLoc.x / IncrementX) * IncrementX, floor(CamLoc.y / IncrementX) * IncrementX, floor(CamLoc.z / IncrementX) * IncrementX };
+	SunCamera.Transform.Location = (LightingConstants.SunDirection * -1000) + ModifiedLocation;
 
 	v3 _out;
 	matrix4x4 SunProjMatrix = Renderer.GetOrthographicProjectionLH(true, SunCamera);
-	matrix4x4 SunViewMatrix = Renderer.GenerateViewMatrix(true, SunCamera, _out, _out);
+	matrix4x4 SunViewMatrix = Renderer.GenerateViewMatrix(true, SunCamera, _out, _out, true, ModifiedLocation);
 	FrameConstants.SunViewProjectionMatrix = SunProjMatrix * SunViewMatrix;
 	//FrameConstants.SunViewProjectionMatrix = MainCamera.ProjectionMatrix * MainCamera.ViewMatrix;
 	Renderer.MapConstants(map_operation::Frame);

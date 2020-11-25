@@ -1,6 +1,7 @@
 #define MAX_INSTANCES 1024
 
 sampler Samp : register(s0);
+SamplerComparisonState ClampSamp : register(s1);
 TextureCube EnvironmentMap : register(t0);
 Texture2DArray LandscapeTextures : register(t1);
 

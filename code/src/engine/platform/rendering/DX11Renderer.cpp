@@ -148,8 +148,8 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	// Shadow mapping
 	// setup tex
 	D3D11_TEXTURE2D_DESC shadowTexDesc = {};
-	shadowTexDesc.Width = 2560;
-	shadowTexDesc.Height = 1440;
+	shadowTexDesc.Width = 2048;
+	shadowTexDesc.Height = 2048;
 	shadowTexDesc.MipLevels = 1;
 	shadowTexDesc.ArraySize = 1;
 	shadowTexDesc.Format = DXGI_FORMAT_R32_TYPELESS;
@@ -186,7 +186,8 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	// Setup a raster description which turns off back face culling.
 	rasterDesc.AntialiasedLineEnable = true;
 	rasterDesc.CullMode = D3D11_CULL_BACK;
-	rasterDesc.DepthBias = 0;
+	rasterDesc.DepthBias = 0.000f;
+	//rasterDesc.SlopeScaledDepthBias = 0.f
 	rasterDesc.DepthBiasClamp = 0.0f;
 	rasterDesc.DepthClipEnable = true;
 	rasterDesc.FillMode = D3D11_FILL_SOLID;
@@ -208,7 +209,7 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 
 	// compile & register default vertex shader / layout
 	{
-		DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
+		DWORD dwShaderFlags = 0;//D3DCOMPILE_ENABLE_STRICTNESS;
 
 		// VERT SHADER
 		ID3DBlob* pBlobError = NULL;
@@ -375,10 +376,20 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	SamplerDesc.BorderColor[3] = 1.0f;
 	SamplerDesc.MinLOD = 0;
 	SamplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+
 	Device->CreateSamplerState(&SamplerDesc, &DefaultSampler);
 	DeviceContext->PSSetSamplers(0, 1, &DefaultSampler);
 	DeviceContext->DSSetSamplers(0, 1, &DefaultSampler);
-	//DeviceContext->VSSetSamplers(0, 1, &DefaultSampler);
+
+	SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	SamplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+	SamplerDesc.ComparisonFunc = D3D11_COMPARISON_LESS;
+
+	Device->CreateSamplerState(&SamplerDesc, &ClampSampler);
+	DeviceContext->PSSetSamplers(1, 1, &ClampSampler);
+	DeviceContext->DSSetSamplers(1, 1, &ClampSampler);
 
 	//
 	// Create blend state
@@ -570,6 +581,7 @@ void dx11_renderer::Cleanup()
 	SAFE_RELEASE(DepthStencilView);
 	SAFE_RELEASE(RenderTargetView);
 	SAFE_RELEASE(DefaultSampler);
+	SAFE_RELEASE(ClampSampler);
 	SAFE_RELEASE(Chain);
 
 #if SPADE_DEBUG
@@ -590,10 +602,12 @@ void dx11_renderer::SetRendererState(render_state State)
 		case render_state::Main:
 		{
 			DeviceContext->OMSetRenderTargets(1, &RenderTargetView, DepthStencilView);
+			SetViewport(1920, 1080);
 		} break;
 		case render_state::ShadowMap:
 		{
 			DeviceContext->OMSetRenderTargets(0, NULL, ShadowMapView);
+			SetViewport(2048, 2048);
 		} break;
 	}
 }
@@ -754,7 +768,7 @@ void dx11_renderer::SetDrawTopology(draw_topology_type TopologyType)
 void dx11_renderer::CompileShaderFromFile(std::string Filename, std::string EntryPoint, shader_type ShaderType, void* ShaderRef)
 {
 	HRESULT hr;
-	DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
+	DWORD dwShaderFlags = 0;// D3DCOMPILE_ENABLE_STRICTNESS;
 
 	ID3DBlob* pBlobError = NULL;
 	ID3DBlob* vsBlob = NULL; // output
@@ -1099,7 +1113,7 @@ matrix4x4 dx11_renderer::GetOrthographicProjectionLH(bool Transpose, camera_info
 	return Result;
 }
 
-matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtVector, v3& OutUpVector, bool OrthoUseMovement)
+matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtVector, v3& OutUpVector, bool OrthoUseMovement, v3 InLookAtVector)
 {
 	DirectX::XMVECTOR defaultForward;
 	DirectX::XMVECTOR camUp;
@@ -1153,7 +1167,8 @@ matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraIn
 			camPosition = DirectX::XMVectorSet(CameraInfo.Transform.Location.x, CameraInfo.Transform.Location.y, CameraInfo.Transform.Location.z, 0.0f);
 		else
 			camPosition = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-		camTarget = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+
+		camTarget = DirectX::XMVectorSet(InLookAtVector.x, InLookAtVector.y, InLookAtVector.z, 0.0f);
 
 		CameraView = DirectX::XMMatrixTranspose(DirectX::XMMatrixLookAtLH(camPosition, camTarget, camUp));
 	}
