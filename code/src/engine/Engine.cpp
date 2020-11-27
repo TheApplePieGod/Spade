@@ -558,6 +558,10 @@ void engine::RenderScene()
 		Renderer.SetPipelineState(PipelineStates.GetComponent(PipelineStateID));
 		Renderer.BindMaterial(MaterialRegistry.GetComponent(MaterialID));
 
+#if SPADE_DEBUG
+		Renderer.Draw(DebugData.FrustumTrianglePoints, 3, draw_topology_type::TriangleList);
+#endif
+
 		// Render loop
 		u32 InstanceCount = 0;
 		bool Draw = false;
@@ -637,19 +641,84 @@ void engine::RenderGeometry()
 	SunCamera.FarPlane = 3000.f;
 	SunCamera.Width = 100;
 	SunCamera.Height = 100;
-
-	f32 IncrementX = 100.f / 2048.f;
-
 	SunCamera.ProjectionType = projection_type::Orthographic;
-	v3 CamLoc = MainCamera.CameraInfo.Transform.Location;
-	v3 ModifiedLocation = v3{ floor(CamLoc.x / IncrementX) * IncrementX, floor(CamLoc.y / IncrementX) * IncrementX, floor(CamLoc.z / IncrementX) * IncrementX };
-	SunCamera.Transform.Location = (LightingConstants.SunDirection * -1000) + ModifiedLocation;
+	//SunCamera.Transform.Location = (LightingConstants.SunDirection * -4000);
 
 	v3 _out;
-	matrix4x4 SunProjMatrix = Renderer.GetOrthographicProjectionLH(true, SunCamera);
-	matrix4x4 SunViewMatrix = Renderer.GenerateViewMatrix(true, SunCamera, _out, _out, true, ModifiedLocation);
-	FrameConstants.SunViewProjectionMatrix = SunProjMatrix * SunViewMatrix;
-	//FrameConstants.SunViewProjectionMatrix = MainCamera.ProjectionMatrix * MainCamera.ViewMatrix;
+	matrix4x4 CamViewInverse = Renderer.InverseMatrix(MainCamera.ViewMatrix, true);
+	matrix4x4 SunViewMatrix = Renderer.GenerateViewMatrix(true, SunCamera, _out, _out, false, -1 * LightingConstants.SunDirection);
+
+	f32 ar = MainCamera.CameraInfo.Height / MainCamera.CameraInfo.Width;
+	f32 tanHalfHFOV = tanf(DegreesToRadians(MainCamera.CameraInfo.FOV * 0.5f));
+	f32 tanHalfVFOV = tanf(DegreesToRadians((MainCamera.CameraInfo.FOV * ar) * 0.5f));
+
+	f32 cascadeEnds[2] = { MainCamera.CameraInfo.NearPlane, 10.f };
+
+	matrix4x4 SunOrthoProjMatrix = {};
+	for (int i = 0; i < 1; i++)
+	{
+		f32 xn = cascadeEnds[i] * tanHalfHFOV;
+		f32 xf = cascadeEnds[i + 1] * tanHalfHFOV;
+		f32 yn = cascadeEnds[i] * tanHalfVFOV;
+		f32 yf = cascadeEnds[i + 1] * tanHalfVFOV;
+
+		v4 frustumCorners[8] = {
+			// near face
+			v4{xn, yn, cascadeEnds[i], 1.0},
+			v4{-xn, yn, cascadeEnds[i], 1.0},
+			v4{xn, -yn, cascadeEnds[i], 1.0},
+			v4{-xn, -yn, cascadeEnds[i], 1.0},
+
+			// far face
+			v4{xf, yf, cascadeEnds[i + 1], 1.0},
+			v4{-xf, yf, cascadeEnds[i + 1], 1.0},
+			v4{xf, -yf, cascadeEnds[i + 1], 1.0},
+			v4{-xf, -yf, cascadeEnds[i + 1], 1.0}
+		};
+
+		v3 frustumCenter = {0.f, 0.f, 0.f};
+		for (int j = 0; j < 8; j++)
+		{
+			// Transform the frustum coordinate from view to world space
+			v4 vW = CamViewInverse * frustumCorners[j];
+
+			frustumCenter = frustumCenter + vW.xyz;
+		}
+		frustumCenter = frustumCenter * (1.f / 8.f);
+
+		//7, 5
+		f32 shadowMapSize = 2048.f;
+		f32 radius = Length((frustumCorners[7]).xyz - (frustumCorners[0]).xyz) * 0.5f;
+		f32 texelsPerUnit = shadowMapSize / (radius * 2.f);
+
+		matrix4x4 scalarMatrix = {};
+		scalarMatrix.m11 = texelsPerUnit;
+		scalarMatrix.m22 = texelsPerUnit;
+		scalarMatrix.m33 = texelsPerUnit;
+		scalarMatrix.m44 = 1.f;
+
+		SunViewMatrix = SunViewMatrix * scalarMatrix;
+		matrix4x4 SunViewMatrixInv = Renderer.InverseMatrix(SunViewMatrix, true);
+
+		frustumCenter = SunViewMatrix * v4{ frustumCenter.x, frustumCenter.y, frustumCenter.z, 1.f };
+		frustumCenter.x = floor(frustumCenter.x);
+		frustumCenter.y = floor(frustumCenter.y);
+		frustumCenter = SunViewMatrixInv * v4{ frustumCenter.x, frustumCenter.y, frustumCenter.z, 1.f };
+
+		v3 eye = frustumCenter - (LightingConstants.SunDirection * radius * 2.f);
+
+		SunCamera.Transform.Location = eye;
+		SunViewMatrix = Renderer.GenerateViewMatrix(true, SunCamera, _out, _out, true, frustumCenter);
+
+		v2 min = { -radius, -radius };
+		v2 max = { radius, radius };
+
+		SunCamera.NearPlane = -radius * 6.f;
+		SunCamera.FarPlane = radius * 5.f;
+		SunOrthoProjMatrix = Renderer.GetOrthographicProjectionOffCenterLH(true, SunCamera, min, max);
+	}
+	
+	FrameConstants.SunViewProjectionMatrix = SunOrthoProjMatrix * SunViewMatrix;
 	Renderer.MapConstants(map_operation::Frame);
 
 	pipeline_state Shadowmapping = pipeline_state();
@@ -729,6 +798,10 @@ void engine::RenderGeometry()
 			Draw = false;
 		}
 	}
+
+	Shadowmapping.RasterizerState = rasterizer_state::DefaultCullFrontface;
+
+	Renderer.SetPipelineState(Shadowmapping);
 
 	v3 PlanetScale = v3{ PlanetRadius, PlanetRadius, PlanetRadius };
 	transform PlanetTransform = transform();

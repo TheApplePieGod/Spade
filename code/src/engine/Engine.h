@@ -23,6 +23,7 @@ struct debug_data
 	bool SpawnCube = false;
 	int IntersectingIndex = -1;
 	int IntersectingTree = -1;
+	vertex FrustumTrianglePoints[3];
 };
 
 class engine

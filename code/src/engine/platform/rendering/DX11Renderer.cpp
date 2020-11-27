@@ -1113,6 +1113,27 @@ matrix4x4 dx11_renderer::GetOrthographicProjectionLH(bool Transpose, camera_info
 	return Result;
 }
 
+matrix4x4 dx11_renderer::GetOrthographicProjectionOffCenterLH(bool Transpose, camera_info CameraInfo, v2 Min, v2 Max)
+{
+	matrix4x4 Result;
+
+	DirectX::XMMATRIX Projection = DirectX::XMMatrixOrthographicOffCenterLH(Min.x, Max.x, Min.y, Max.y, CameraInfo.NearPlane, CameraInfo.FarPlane);
+	if (Transpose)
+	{
+		Projection = DirectX::XMMatrixTranspose(Projection);
+	}
+
+	DirectX::XMFLOAT4X4 Temp;
+	DirectX::XMStoreFloat4x4(&Temp, Projection);
+
+	Result.row1 = v4{ Temp._11, Temp._12, Temp._13, Temp._14 };
+	Result.row2 = v4{ Temp._21, Temp._22, Temp._23, Temp._24 };
+	Result.row3 = v4{ Temp._31, Temp._32, Temp._33, Temp._34 };
+	Result.row4 = v4{ Temp._41, Temp._42, Temp._43, Temp._44 };
+
+	return Result;
+}
+
 matrix4x4 dx11_renderer::GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtVector, v3& OutUpVector, bool OrthoUseMovement, v3 InLookAtVector)
 {
 	DirectX::XMVECTOR defaultForward;

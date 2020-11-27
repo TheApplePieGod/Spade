@@ -148,6 +148,11 @@ matrix4x4 renderer::GetOrthographicProjectionLH(bool Transpose, camera_info Came
 	return PlatformRenderer->GetOrthographicProjectionLH(Transpose, CameraInfo);
 }
 
+matrix4x4 renderer::GetOrthographicProjectionOffCenterLH(bool Transpose, camera_info CameraInfo, v2 Min, v2 Max)
+{
+	return PlatformRenderer->GetOrthographicProjectionOffCenterLH(Transpose, CameraInfo, Min, Max);
+}
+
 matrix4x4 renderer::GenerateViewMatrix(bool Transpose, camera_info CameraInfo, v3& OutLookAtVector, v3& OutUpVector, bool OrthoUseMovement, v3 InLookAtVector)
 {
 	return PlatformRenderer->GenerateViewMatrix(Transpose, CameraInfo, OutLookAtVector, OutUpVector, OrthoUseMovement, InLookAtVector);
