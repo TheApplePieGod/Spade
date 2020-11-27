@@ -55,6 +55,7 @@ public:
 	void RenderPlanet();
 	void RenderScene();
 	void RenderGeometry();
+	void RenderVarianceShadow();
 	void RenderPlanetGeometry();
 	void UpdateComponents();
 	void RenderDebugWidgets();

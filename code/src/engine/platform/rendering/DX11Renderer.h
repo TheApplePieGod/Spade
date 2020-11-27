@@ -82,6 +82,10 @@ public:
 	ID3D11DepthStencilView* ShadowMapView = NULL;
 	ID3D11ShaderResourceView* ShadowMapResource = NULL;
 
+	ID3D11Texture2D* VarianceMapTex = NULL;
+	ID3D11RenderTargetView* VarianceMapView = NULL;
+	ID3D11ShaderResourceView* VarianceMapResource = NULL;
+
 private:
 
 	inline static matrix4x4

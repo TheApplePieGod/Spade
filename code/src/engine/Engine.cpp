@@ -50,6 +50,9 @@ void engine::Tick()
 	Renderer.SetRendererState(render_state::ShadowMap);
 	RenderGeometry();
 
+	Renderer.SetRendererState(render_state::VarianceMap);
+	RenderVarianceShadow();
+
 	Renderer.SetRendererState(render_state::Main);
 	RenderScene();
 	//RenderGeometry();
@@ -800,7 +803,6 @@ void engine::RenderGeometry()
 	}
 
 	Shadowmapping.RasterizerState = rasterizer_state::DefaultCullFrontface;
-
 	Renderer.SetPipelineState(Shadowmapping);
 
 	v3 PlanetScale = v3{ PlanetRadius, PlanetRadius, PlanetRadius };
@@ -812,6 +814,31 @@ void engine::RenderGeometry()
 	Renderer.MapConstants(map_operation::Actor);
 
 	RenderPlanetGeometry();
+}
+
+void engine::RenderVarianceShadow()
+{
+	pipeline_state Variancemapping = pipeline_state();
+	Variancemapping.VertexShaderID = GetShaderIDFromName("variancevs");
+	Variancemapping.PixelShaderID = GetShaderIDFromName("varianceps");
+	Variancemapping.RasterizerState = rasterizer_state::DefaultCullNone;
+	Variancemapping.UniqueIdentifier = "Variance";
+
+	Renderer.SetPipelineState(Variancemapping);
+	Renderer.BindMaterial(MaterialRegistry.GetComponent(0)); // bind default material so shadow map gets bound
+
+	float Scale = 2.f;
+	//0
+	vertex Vert0 = vertex(-0.5f * Scale, 0.5f * Scale, 0.f, 0.f, 0.f);
+	vertex Vert1 = vertex(0.5f * Scale, -0.5f * Scale, 0.f, 1.f, 1.f);
+	vertex Vert2 = vertex(-0.5f * Scale, -0.5f * Scale, 0.f, 0.f, 1.f);
+	//1
+	vertex Vert3 = Vert1;
+	vertex Vert4 = Vert0;
+	vertex Vert5 = vertex(0.5f * Scale, 0.5f * Scale, 0.f, 1.f, 0.f);
+	vertex Vertices[6] = { Vert0, Vert1, Vert2, Vert3, Vert4, Vert5 };
+	Renderer.Draw(Vertices, 6, draw_topology_type::TriangleList);
+	int d = 0;
 }
 
 void engine::UpdateComponents()

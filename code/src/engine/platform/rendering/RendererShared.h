@@ -13,6 +13,7 @@ enum class shader_type
 enum class render_state
 {
 	ShadowMap,
+	VarianceMap,
 	Main,
 };
 

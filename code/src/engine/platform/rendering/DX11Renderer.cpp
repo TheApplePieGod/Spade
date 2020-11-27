@@ -115,6 +115,9 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 
 #endif
 
+
+
+
 	//
 	// Create render target and viewport
 	//
@@ -177,6 +180,39 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	shadowSRVDesc.Texture2D.MipLevels = shadowTexDesc.MipLevels;
 	shadowSRVDesc.Texture2D.MostDetailedMip = 0;
 	hr = Device->CreateShaderResourceView(ShadowMapTex, &shadowSRVDesc, &ShadowMapResource);
+	Assert(!FAILED(hr));
+
+	// variance tex
+	D3D11_TEXTURE2D_DESC varianceTexDesc = {};
+	varianceTexDesc.Width = 2048;
+	varianceTexDesc.Height = 2048;
+	varianceTexDesc.MipLevels = 1;
+	varianceTexDesc.ArraySize = 1;
+	varianceTexDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
+	varianceTexDesc.SampleDesc.Count = 1;
+	varianceTexDesc.SampleDesc.Quality = 0;
+	varianceTexDesc.Usage = D3D11_USAGE_DEFAULT;
+	varianceTexDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	varianceTexDesc.CPUAccessFlags = 0;
+	varianceTexDesc.MiscFlags = 0;
+	hr = Device->CreateTexture2D(&varianceTexDesc, NULL, &VarianceMapTex);
+	Assert(!FAILED(hr));
+
+	// variance render target
+	D3D11_RENDER_TARGET_VIEW_DESC varianceTargetDesc = {};
+	varianceTargetDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
+	varianceTargetDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	varianceTargetDesc.Texture2D.MipSlice = 0;
+	hr = Device->CreateRenderTargetView(VarianceMapTex, &varianceTargetDesc, &VarianceMapView);
+	Assert(!FAILED(hr));
+
+	// variance srv
+	D3D11_SHADER_RESOURCE_VIEW_DESC varianceSRVDesc = {};
+	varianceSRVDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
+	varianceSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	varianceSRVDesc.Texture2D.MipLevels = varianceTexDesc.MipLevels;
+	varianceSRVDesc.Texture2D.MostDetailedMip = 0;
+	hr = Device->CreateShaderResourceView(VarianceMapTex, &varianceSRVDesc, &VarianceMapResource);
 	Assert(!FAILED(hr));
 
 	//
@@ -568,6 +604,9 @@ void dx11_renderer::Cleanup()
 	SAFE_RELEASE(ShadowMapTex);
 	SAFE_RELEASE(ShadowMapResource);
 	SAFE_RELEASE(ShadowMapView);
+	SAFE_RELEASE(VarianceMapTex);
+	SAFE_RELEASE(VarianceMapResource);
+	SAFE_RELEASE(VarianceMapView);
 
 	SAFE_RELEASE(BlendState);
 	SAFE_RELEASE(DefaultCullBackface);
@@ -609,12 +648,17 @@ void dx11_renderer::SetRendererState(render_state State)
 			DeviceContext->OMSetRenderTargets(0, NULL, ShadowMapView);
 			SetViewport(2048, 2048);
 		} break;
+		case render_state::VarianceMap:
+		{
+			DeviceContext->OMSetRenderTargets(1, &VarianceMapView, NULL);
+			SetViewport(2048, 2048);
+		} break;
 	}
 }
 
 void* dx11_renderer::GetShaderResource()
 {
-	return ShadowMapResource;
+	return VarianceMapResource;
 }
 
 void dx11_renderer::FinishFrame()
@@ -866,14 +910,15 @@ void dx11_renderer::BindMaterial(const material& InMaterial)
 
 		ID3D11ShaderResourceView* const Views[3] = { MaterialConstants.TextureDiffuse ? Engine->TextureRegistry[InMaterial.DiffuseTextureID]->ShaderHandle : NULL,
 													 MaterialConstants.TextureNormal ? Engine->TextureRegistry[InMaterial.NormalTextureID]->ShaderHandle : NULL,
-													 ShadowMapResource };
+													 VarianceMapResource };
 
 		DeviceContext->PSSetShaderResources(2, 3, Views);
 	}
-	//else if (CurrentState.UniqueIdentifier == "Skybox")
-	//{
-	//	
-	//}
+	else if (CurrentState.UniqueIdentifier == "Variance")
+	{
+		ID3D11ShaderResourceView* const Views[1] = { ShadowMapResource };
+		DeviceContext->PSSetShaderResources(4, 1, Views);
+	}
 }
 
 void dx11_renderer::MapConstants(map_operation Type)

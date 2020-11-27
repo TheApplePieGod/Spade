@@ -155,10 +155,22 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	if (saturate(shadowTexCoord.x) != shadowTexCoord.x || saturate(shadowTexCoord.y) != shadowTexCoord.y || lightDepthValue <= 0)
 		return float4(0.f, 0.f, 0.f, 1.f);
 
-	//float shadowDepth = ShadowMap.Sample(ClampSamp, shadowTexCoord).r;
-	//float shadowDepth = ShadowMap.SampleCmpLevelZero(ClampSamp, shadowTexCoord, lightDepthValue).r;
+	//float2 shadowDepth = ShadowMap.SampleCmpLevelZero(ClampSamp, shadowTexCoord, lightDepthValue);
+	float2 shadowDepth = ShadowMap.Sample(Samp, shadowTexCoord).rg;
 
-	float shadowCoeff = CalcShadowFactor(ClampSamp, ShadowMap, input.LightPos);
+	//float shadowCoeff = CalcShadowFactor(ClampSamp, ShadowMap, input.LightPos);
+	float shadowCoeff = 0.f;
+
+	if (lightDepthValue <= shadowDepth.r)
+		shadowCoeff = 1.f;
+	else
+	{
+		float variance = (shadowDepth.g) - (shadowDepth.r * shadowDepth.r);
+		variance = min(1.f, max(0.f, variance + 0.00001f));
+		float mean = shadowDepth.r;
+		float d = lightDepthValue - mean;
+		shadowCoeff = variance / (variance + d * d);
+	}
 
 	return float4(Ambient + (shadowCoeff * SampleColor * nDotL), 1.f);
 
