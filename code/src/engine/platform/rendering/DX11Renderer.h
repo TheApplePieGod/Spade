@@ -48,6 +48,7 @@ public:
 	ID3D11RenderTargetView* RenderTargetView = NULL;
 	ID3D11SamplerState* DefaultSampler = NULL;
 	ID3D11SamplerState* ClampSampler = NULL;
+	ID3D11SamplerState* PointSampler = NULL;
 	ID3D11Texture2D* DepthStencilTex = NULL;
 	ID3D11ShaderResourceView* DepthStencilResource = NULL;
 	ID3D11DepthStencilView* DepthStencilView = NULL;
@@ -79,12 +80,15 @@ public:
 
 	// Shadow mapping
 	ID3D11Texture2D* ShadowMapTex = NULL;
-	ID3D11DepthStencilView* ShadowMapView = NULL;
+	ID3D11DepthStencilView* ShadowMapView[NUM_CASCADES];
 	ID3D11ShaderResourceView* ShadowMapResource = NULL;
 
 	ID3D11Texture2D* VarianceMapTex = NULL;
-	ID3D11RenderTargetView* VarianceMapView = NULL;
+	ID3D11RenderTargetView* VarianceMapView[NUM_CASCADES];
 	ID3D11ShaderResourceView* VarianceMapResource = NULL;
+	ID3D11Texture2D* VarianceBufferTex = NULL;
+	ID3D11RenderTargetView* VarianceBufferView = NULL;
+	ID3D11ShaderResourceView* VarianceBufferResource = NULL;
 
 private:
 

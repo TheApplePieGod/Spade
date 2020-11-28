@@ -44,7 +44,9 @@ void renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	RegisterShader("shader/Shadow.hlsl", "shadowvs", shader_type::VertexShader);
 	RegisterShader("shader/Shadow.hlsl", "shadowps", shader_type::PixelShader);
 	RegisterShader("shader/Shadow.hlsl", "variancevs", shader_type::VertexShader);
-	RegisterShader("shader/Shadow.hlsl", "varianceps", shader_type::PixelShader);
+	RegisterShader("shader/Shadow.hlsl", "variancexps", shader_type::PixelShader);
+	RegisterShader("shader/Shadow.hlsl", "varianceyps", shader_type::PixelShader);
+	RegisterShader("shader/Shadow.hlsl", "variancedebugps", shader_type::PixelShader);
 	
 	ImGui::NewFrame();
 }

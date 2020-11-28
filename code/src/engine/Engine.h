@@ -24,6 +24,7 @@ struct debug_data
 	int IntersectingIndex = -1;
 	int IntersectingTree = -1;
 	vertex FrustumTrianglePoints[3];
+	u64 FrameCount = 0;
 };
 
 class engine
@@ -59,6 +60,7 @@ public:
 	void RenderPlanetGeometry();
 	void UpdateComponents();
 	void RenderDebugWidgets();
+	void RenderDebugShadowmap();
 
 	float PlanetRadius = 998.f;
 	s32 AtmosphereRenderingID = -1;

@@ -3,7 +3,7 @@
 
 Texture2D DiffuseTex : register(t2);
 Texture2D NormalTex : register(t3);
-Texture2D ShadowMap : register(t4);
+Texture2DArray ShadowMap : register(t4);
 
 static const float TexcoordScalar = 5000;
 
@@ -21,19 +21,20 @@ struct PSIn
 {
     float4 Position : SV_POSITION;
     float4 WorldPos : POSITION;
-	float4 LightPos : POSITION1; // sun space
+	float4 LightPos[NUM_CASCADES] : POSITION1; // sun space
     float2 TexCoord : TEXCOORD;
     float3 Normal : NORMAL;
-	/*float3 Tangent : TANGENT;
-	float3 Bitangent : BITANGENT;*/
+	float WorldDepth : DEPTH;
 	float3x3 TBN : TBN;
+	//float3 Tangent : TANGENT;
+	//float3 Bitangent: BITANGENT;
 	float3 TerrainInfo : TERRAININFO;
 	float3 CameraPos : TEXCOORD1;
 };
 
 float3 FetchNormalVector(float2 TexCoord)
 {
-	float3 Color = NormalTex.Sample(Samp, TexCoord * TexcoordScalar);
+	float3 Color = NormalTex.Sample(Samp, TexCoord * TexcoordScalar).rgb;
 	Color *= 2.f;
 	return float3(Color.x - 1.f, Color.y - 1.f, Color.z - 1.f);
 }
@@ -44,14 +45,20 @@ PSIn mainvs(VSIn input)
 
 	output.WorldPos = mul(float4(input.Position, 1.f), Instances[input.InstanceID].WorldMatrix); // pass pixel world position as opposed to screen space position for lighitng calculations
 	output.Position = mul(output.WorldPos, CameraViewProjectionMatrix);
+	output.WorldDepth = mul(output.WorldPos, CameraViewMatrix).z;
 	output.TexCoord = input.TexCoord;
 	output.CameraPos = CameraPosition;
 
 	output.Normal = normalize(mul(float4(input.Normal, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Normal, (float3x3)Instances[input.InstanceID].InverseTransposeWorldMatrix));
-	output.LightPos = mul(output.WorldPos + float4(output.Normal.xyz * 0.4f, 0), SunViewProjectionMatrix);
+
+	for (int i = 0; i < NUM_CASCADES; i++)
+	{
+		output.LightPos[i] = mul(output.WorldPos + float4(output.Normal.xyz * 0.4f, 0), SunViewProjectionMatrix[i]);
+	}
+
 	float3 Tangent = normalize(mul(float4(input.Tangent, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Tangent, (float3x3)Instances[input.InstanceID].InverseTransposeWorldMatrix));
 	//output.Bitangent = //normalize(mul(float4(cross(input.Normal, input.Tangent), 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Bitangent, (float3x3)Instances[input.InstanceID].WorldMatrix));
-	//output.Tangent = normalize(output.Tangent - dot(output.Tangent, output.Normal) * output.Normal);
+	//Tangent = normalize(Tangent - dot(Tangent, output.Normal) * output.Normal);
 	float3 Bitangent = normalize(cross(output.Normal, Tangent));
 	//float3 Bitangent = normalize(mul(cross(output.Normal, Tangent), (float3x3)Instances[input.InstanceID].WorldMatrix));
 	//if (dot(cross(output.Normal, Tangent), Bitangent) < 0.0f)
@@ -116,17 +123,11 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 
 	float3 LightVector = -SunDirection;
 	float3 TexNormal = FetchNormalVector(input.TexCoord);
-	float3 WorldNormal = normalize(mul(input.TBN, TexNormal));
-	float nDotL2 = max(0.0, dot(input.Normal, LightVector));
-	float nDotL = max(0.0, dot(WorldNormal, LightVector)) * nDotL2;
+	float3 WorldNormal = mul(input.TBN, TexNormal);
+	//float nDotL2 = max(0.0, dot(input.Normal, LightVector));
+	//float nDotL = max(0.0, dot(WorldNormal, LightVector)) * nDotL2;
+	float nDotL = max(0.f, dot(WorldNormal, LightVector));
 	float4 SampleColor = float4(1.f, 1.f, 1.f, 1.f);
-	//if (TextureDiffuse)
-	//{
-	//	SampleColor = DiffuseTex.Sample(Samp, input.TexCoord * 1000);  // Sample the color from the texture
-	//	SampleColor *= DiffuseColor;
-	//}
-	//else
-	//	SampleColor = DiffuseColor;
 
 	float4 FirstTerrainColor = LandscapeTextures.Sample(Samp, float3(input.TexCoord * TexcoordScalar, round(input.TerrainInfo.x)));
 	SampleColor.xyz = FirstTerrainColor.xyz;
@@ -141,53 +142,83 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 	if (abs(angle) > 3.14159 * 0.2)
 		SampleColor = float4(0.4f, 0.26f, 0.13f, 1.f);
 
+	if (TextureDiffuse)
+	{
+		SampleColor = DiffuseTex.Sample(Samp, input.TexCoord * TexcoordScalar);  // Sample the color from the texture
+		SampleColor *= DiffuseColor;
+	}
+	else
+		SampleColor = DiffuseColor;
+
 	float3 Ambient = SampleColor * AmbientColor;
 
 	// Shadowing
 
-	float bias = 0.001f;
+	int CascadeIndex = NUM_CASCADES - 1;
+	for (int i = NUM_CASCADES - 1; i >= 0; i--)
+	{
+		if (input.WorldDepth > CascadeDepths[i])
+		{
+			CascadeIndex = i;
+			break;
+		}
+	}
+
+	float blendStart = 0.95f;
+	float factor = clamp((input.WorldDepth - CascadeDepths[i]) / (CascadeDepths[i + 1] - CascadeDepths[i]), 0.0f, 1.0f);
+	float alpha = (factor - blendStart) / (1.f - blendStart);
+
+	float bias = 0.000f;
+	float4 LightPos = input.LightPos[CascadeIndex];
 	float2 shadowTexCoord;
-	shadowTexCoord.x = input.LightPos.x / input.LightPos.w / 2.f + 0.5f;
-	shadowTexCoord.y = -input.LightPos.y / input.LightPos.w / 2.f + 0.5f;
+	shadowTexCoord.x = LightPos.x / LightPos.w / 2.f + 0.5f;
+	shadowTexCoord.y = -LightPos.y / LightPos.w / 2.f + 0.5f;
 
-	float lightDepthValue = (input.LightPos.z / input.LightPos.w) - bias;
+	float lightDepthValue = (LightPos.z / LightPos.w) - bias;
 
-	if (saturate(shadowTexCoord.x) != shadowTexCoord.x || saturate(shadowTexCoord.y) != shadowTexCoord.y || lightDepthValue <= 0)
-		return float4(0.f, 0.f, 0.f, 1.f);
+	float2 shadowDepth = ShadowMap.Sample(Samp, float3(shadowTexCoord.xy, CascadeIndex)).rg;
 
-	//float2 shadowDepth = ShadowMap.SampleCmpLevelZero(ClampSamp, shadowTexCoord, lightDepthValue);
-	float2 shadowDepth = ShadowMap.Sample(Samp, shadowTexCoord).rg;
+	if (factor > blendStart)
+	{
+		float4 LightPos2 = input.LightPos[CascadeIndex + 1];
+		float2 shadowTexCoord2;
+		shadowTexCoord2.x = LightPos2.x / LightPos2.w / 2.f + 0.5f;
+		shadowTexCoord2.y = -LightPos2.y / LightPos2.w / 2.f + 0.5f;
+		float lightDepthValue2 = (LightPos2.z / LightPos2.w) - bias;
+		float2 shadowDepth2 = ShadowMap.Sample(Samp, float3(shadowTexCoord2.xy, CascadeIndex + 1)).rg;
+		shadowTexCoord = lerp(shadowTexCoord, shadowTexCoord2, alpha);
+		shadowDepth = lerp(shadowDepth, shadowDepth2, alpha);
+		lightDepthValue = lerp(lightDepthValue, lightDepthValue2, alpha);
+	}
 
-	//float shadowCoeff = CalcShadowFactor(ClampSamp, ShadowMap, input.LightPos);
 	float shadowCoeff = 0.f;
 
-	if (lightDepthValue <= shadowDepth.r)
+	if (saturate(shadowTexCoord.x) != shadowTexCoord.x || saturate(shadowTexCoord.y) != shadowTexCoord.y || lightDepthValue <= 0)
+		shadowCoeff = 1.f;
+	else if (lightDepthValue <= shadowDepth.r)
 		shadowCoeff = 1.f;
 	else
 	{
 		float variance = (shadowDepth.g) - (shadowDepth.r * shadowDepth.r);
-		variance = min(1.f, max(0.f, variance + 0.00001f));
+		variance = min(1.f, max(0.f, variance + 0.0001f));
 		float mean = shadowDepth.r;
 		float d = lightDepthValue - mean;
 		shadowCoeff = variance / (variance + d * d);
+		shadowCoeff = ReduceLightBleeding(shadowCoeff, shadowDepth.r);
 	}
 
-	return float4(Ambient + (shadowCoeff * SampleColor * nDotL), 1.f);
+	// -------------
 
-	//if (lightDepthValue > shadowDepth)
-	//	return float4(Ambient, 1.f);
+	//if (CascadeIndex == 0)
+	//	SampleColor = float4(1.f, 0.f, 0.f, 1.f);
+	//else if (CascadeIndex == 1)
+	//	SampleColor = float4(0.f, 1.f, 0.f, 1.f);
+	//else if (CascadeIndex == 2)
+	//	SampleColor = float4(0.f, 0.f, 1.f, 1.f);
 
-	//otherwise continue with lighting calculation
-
-	//------------
-
-	SampleColor *= nDotL;
-
-	return float4(SampleColor.xyz + Ambient.xyz, 1.f);
-
-	//float3 color = c0 + SampleColor.xyz * c1;
-	//color += Ambient;
-	//return float4(color, 1);
+	float3 color = c0 + SampleColor.xyz * c1;
+	color += Ambient;
+	return float4(Ambient + (shadowCoeff * color * nDotL * 1.5f), 1.f);
 }
 
 float4 SkyFromAtmospherePS(PSIn input) : SV_TARGET
@@ -310,39 +341,11 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 
 	float3 Ambient = SampleColor * AmbientColor;
 
-	// Shadowing
+	// no shadowing outside atmosphere
 
-	float bias = 0.001f;
-	float2 shadowTexCoord;
-	shadowTexCoord.x = input.LightPos.x / input.LightPos.w / 2.f + 0.5f;
-	shadowTexCoord.y = -input.LightPos.y / input.LightPos.w / 2.f + 0.5f;
-
-	float lightDepthValue = (input.LightPos.z / input.LightPos.w) - bias;
-
-	if (saturate(shadowTexCoord.x) != shadowTexCoord.x || saturate(shadowTexCoord.y) != shadowTexCoord.y || lightDepthValue <= 0)
-		return float4(0.f, 0.f, 0.f, 1.f);
-
-	//float shadowDepth = ShadowMap.Sample(ClampSamp, shadowTexCoord).r;
-	float shadowDepth = ShadowMap.SampleCmpLevelZero(ClampSamp, shadowTexCoord, lightDepthValue).r;
-
-	if (lightDepthValue > shadowDepth)
-		return float4(0.f, 0.f, 1.f, 1.f);
-
-	//otherwise continue with lighting calculation
-
-	//------------
-
-	SampleColor *= nDotL;
-	return float4(SampleColor.xyz + Ambient.xyz, 1.f);
-
-	//SampleColor = float4(0.2f,0.6f,1.f,1.f);
-	//float3 color = c0 + SampleColor.xyz * c1;
-	//color += Ambient;
-	//return float4(color, 1);
-	//float3 color = c0 + 0.25 * c1;
-	//color = 1.0 - exp(color * -fHdrExposure);
-	//SampleColor *= color.b;
-	//return float4(SampleColor + color, 1);
+	float3 color = c0 + SampleColor.xyz * c1;
+	color += Ambient;
+	return float4(Ambient + (color * nDotL * 1.5f), 1.f);
 }
 
 float4 SkyFromSpacePS(PSIn input) : SV_TARGET

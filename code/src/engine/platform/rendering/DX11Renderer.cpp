@@ -151,10 +151,10 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	// Shadow mapping
 	// setup tex
 	D3D11_TEXTURE2D_DESC shadowTexDesc = {};
-	shadowTexDesc.Width = 2048;
-	shadowTexDesc.Height = 2048;
-	shadowTexDesc.MipLevels = 1;
-	shadowTexDesc.ArraySize = 1;
+	shadowTexDesc.Width = SHADOWMAP_SIZE;
+	shadowTexDesc.Height = SHADOWMAP_SIZE;
+	shadowTexDesc.MipLevels = 0;
+	shadowTexDesc.ArraySize = NUM_CASCADES;
 	shadowTexDesc.Format = DXGI_FORMAT_R32_TYPELESS;
 	shadowTexDesc.SampleDesc.Count = 1;
 	shadowTexDesc.SampleDesc.Quality = 0;
@@ -168,26 +168,33 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	// create depth stencil
 	D3D11_DEPTH_STENCIL_VIEW_DESC shadowStencilDesc = {};
 	shadowStencilDesc.Format = DXGI_FORMAT_D32_FLOAT;
-	shadowStencilDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-	shadowStencilDesc.Texture2D.MipSlice = 0;
-	hr = Device->CreateDepthStencilView(ShadowMapTex, &shadowStencilDesc, &ShadowMapView);
-	Assert(!FAILED(hr));
+	shadowStencilDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
+	shadowStencilDesc.Texture2DArray.ArraySize = 1;
+	for (int i = 0; i < NUM_CASCADES; i++)
+	{
+		shadowStencilDesc.Texture2DArray.MipSlice = 0;
+		shadowStencilDesc.Texture2DArray.FirstArraySlice = i;
+		hr = Device->CreateDepthStencilView(ShadowMapTex, &shadowStencilDesc, &ShadowMapView[i]);
+		Assert(!FAILED(hr));
+	}
 
 	// create srv
 	D3D11_SHADER_RESOURCE_VIEW_DESC shadowSRVDesc = {};
 	shadowSRVDesc.Format = DXGI_FORMAT_R32_FLOAT;
-	shadowSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-	shadowSRVDesc.Texture2D.MipLevels = shadowTexDesc.MipLevels;
-	shadowSRVDesc.Texture2D.MostDetailedMip = 0;
+	shadowSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+	shadowSRVDesc.Texture2DArray.MipLevels = 1;
+	shadowSRVDesc.Texture2DArray.MostDetailedMip = 0;
+	shadowSRVDesc.Texture2DArray.FirstArraySlice = 0;
+	shadowSRVDesc.Texture2DArray.ArraySize = NUM_CASCADES;
 	hr = Device->CreateShaderResourceView(ShadowMapTex, &shadowSRVDesc, &ShadowMapResource);
 	Assert(!FAILED(hr));
 
 	// variance tex
 	D3D11_TEXTURE2D_DESC varianceTexDesc = {};
-	varianceTexDesc.Width = 2048;
-	varianceTexDesc.Height = 2048;
-	varianceTexDesc.MipLevels = 1;
-	varianceTexDesc.ArraySize = 1;
+	varianceTexDesc.Width = SHADOWMAP_SIZE;
+	varianceTexDesc.Height = SHADOWMAP_SIZE;
+	varianceTexDesc.MipLevels = 0;
+	varianceTexDesc.ArraySize = NUM_CASCADES;
 	varianceTexDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
 	varianceTexDesc.SampleDesc.Count = 1;
 	varianceTexDesc.SampleDesc.Quality = 0;
@@ -201,18 +208,59 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	// variance render target
 	D3D11_RENDER_TARGET_VIEW_DESC varianceTargetDesc = {};
 	varianceTargetDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
-	varianceTargetDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-	varianceTargetDesc.Texture2D.MipSlice = 0;
-	hr = Device->CreateRenderTargetView(VarianceMapTex, &varianceTargetDesc, &VarianceMapView);
-	Assert(!FAILED(hr));
+	varianceTargetDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+	varianceTargetDesc.Texture2DArray.ArraySize = 1;
+	varianceTargetDesc.Texture2DArray.MipSlice = 0;
+	for (int i = 0; i < NUM_CASCADES; i++)
+	{
+		varianceTargetDesc.Texture2DArray.FirstArraySlice = i;
+		hr = Device->CreateRenderTargetView(VarianceMapTex, &varianceTargetDesc, &VarianceMapView[i]);
+		Assert(!FAILED(hr));
+	}
 
 	// variance srv
 	D3D11_SHADER_RESOURCE_VIEW_DESC varianceSRVDesc = {};
 	varianceSRVDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
-	varianceSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-	varianceSRVDesc.Texture2D.MipLevels = varianceTexDesc.MipLevels;
-	varianceSRVDesc.Texture2D.MostDetailedMip = 0;
+	varianceSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+	varianceSRVDesc.Texture2DArray.MipLevels = 1;
+	varianceSRVDesc.Texture2DArray.MostDetailedMip = 0;
+	varianceSRVDesc.Texture2DArray.FirstArraySlice = 0;
+	varianceSRVDesc.Texture2DArray.ArraySize = NUM_CASCADES;
 	hr = Device->CreateShaderResourceView(VarianceMapTex, &varianceSRVDesc, &VarianceMapResource);
+	Assert(!FAILED(hr));
+
+
+	// variance buffer tex
+	varianceTexDesc = {};
+	varianceTexDesc.Width = SHADOWMAP_SIZE;
+	varianceTexDesc.Height = SHADOWMAP_SIZE;
+	varianceTexDesc.MipLevels = 0;
+	varianceTexDesc.ArraySize = 1;
+	varianceTexDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
+	varianceTexDesc.SampleDesc.Count = 1;
+	varianceTexDesc.SampleDesc.Quality = 0;
+	varianceTexDesc.Usage = D3D11_USAGE_DEFAULT;
+	varianceTexDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	varianceTexDesc.CPUAccessFlags = 0;
+	varianceTexDesc.MiscFlags = 0;
+	hr = Device->CreateTexture2D(&varianceTexDesc, NULL, &VarianceBufferTex);
+	Assert(!FAILED(hr));
+
+	// variance buffer render target
+	varianceTargetDesc = {};
+	varianceTargetDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
+	varianceTargetDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	varianceTargetDesc.Texture2D.MipSlice = 0;
+	hr = Device->CreateRenderTargetView(VarianceBufferTex, &varianceTargetDesc, &VarianceBufferView);
+	Assert(!FAILED(hr));
+
+	// variance buffer srv
+	varianceSRVDesc = {};
+	varianceSRVDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
+	varianceSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	varianceSRVDesc.Texture2D.MipLevels = 1;
+	varianceSRVDesc.Texture2D.MostDetailedMip = 0;
+	hr = Device->CreateShaderResourceView(VarianceBufferTex, &varianceSRVDesc, &VarianceBufferResource);
 	Assert(!FAILED(hr));
 
 	//
@@ -427,6 +475,13 @@ void dx11_renderer::Initialize(void* _Window, int WindowWidth, int WindowHeight)
 	DeviceContext->PSSetSamplers(1, 1, &ClampSampler);
 	DeviceContext->DSSetSamplers(1, 1, &ClampSampler);
 
+	SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+	SamplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+
+	Device->CreateSamplerState(&SamplerDesc, &PointSampler);
+	DeviceContext->PSSetSamplers(2, 1, &PointSampler);
+	DeviceContext->DSSetSamplers(2, 1, &PointSampler);
+
 	//
 	// Create blend state
 	//
@@ -603,10 +658,16 @@ void dx11_renderer::Cleanup()
 	// shadow mapping
 	SAFE_RELEASE(ShadowMapTex);
 	SAFE_RELEASE(ShadowMapResource);
-	SAFE_RELEASE(ShadowMapView);
 	SAFE_RELEASE(VarianceMapTex);
 	SAFE_RELEASE(VarianceMapResource);
-	SAFE_RELEASE(VarianceMapView);
+	for (int i = 0; i < NUM_CASCADES; i++)
+	{
+		SAFE_RELEASE(ShadowMapView[i]);
+		SAFE_RELEASE(VarianceMapView[i]);
+	}
+	SAFE_RELEASE(VarianceBufferTex);
+	SAFE_RELEASE(VarianceBufferResource);
+	SAFE_RELEASE(VarianceBufferView);
 
 	SAFE_RELEASE(BlendState);
 	SAFE_RELEASE(DefaultCullBackface);
@@ -621,6 +682,7 @@ void dx11_renderer::Cleanup()
 	SAFE_RELEASE(RenderTargetView);
 	SAFE_RELEASE(DefaultSampler);
 	SAFE_RELEASE(ClampSampler);
+	SAFE_RELEASE(PointSampler);
 	SAFE_RELEASE(Chain);
 
 #if SPADE_DEBUG
@@ -645,13 +707,22 @@ void dx11_renderer::SetRendererState(render_state State)
 		} break;
 		case render_state::ShadowMap:
 		{
-			DeviceContext->OMSetRenderTargets(0, NULL, ShadowMapView);
-			SetViewport(2048, 2048);
+			DeviceContext->ClearDepthStencilView(ShadowMapView[FrameConstants.CurrentCascade], D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+			DeviceContext->OMSetRenderTargets(0, NULL, ShadowMapView[FrameConstants.CurrentCascade]);
+			SetViewport(SHADOWMAP_SIZE, SHADOWMAP_SIZE);
 		} break;
-		case render_state::VarianceMap:
+		case render_state::VarianceMapX:
 		{
-			DeviceContext->OMSetRenderTargets(1, &VarianceMapView, NULL);
-			SetViewport(2048, 2048);
+			ID3D11ShaderResourceView* Views[1] = { NULL };
+			DeviceContext->PSSetShaderResources(4, 1, Views);
+			for (int i = 0; i < NUM_CASCADES; i++)
+			DeviceContext->ClearRenderTargetView(VarianceBufferView, VoidColor);
+			DeviceContext->OMSetRenderTargets(1, &VarianceBufferView, NULL); // viewports should be the correct size at this point
+		} break;
+		case render_state::VarianceMapY:
+		{
+			DeviceContext->ClearRenderTargetView(VarianceMapView[LightingConstants.CurrentCascadePS], VoidColor);
+			DeviceContext->OMSetRenderTargets(1, &VarianceMapView[LightingConstants.CurrentCascadePS], NULL); // viewports should be the correct size at this point
 		} break;
 	}
 }
@@ -675,7 +746,6 @@ void dx11_renderer::FinishFrame()
 
 	DeviceContext->ClearRenderTargetView(RenderTargetView, VoidColor);
 	DeviceContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-	DeviceContext->ClearDepthStencilView(ShadowMapView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 }
 
 /*
@@ -906,19 +976,24 @@ void dx11_renderer::BindMaterial(const material& InMaterial)
 		MaterialConstants.DiffuseColor = InMaterial.DiffuseColor;
 		MaterialConstants.Reflectivity = InMaterial.Reflectivity;
 
-		MapBuffer(MaterialConstantBuffer, MaterialConstants);
-
 		ID3D11ShaderResourceView* const Views[3] = { MaterialConstants.TextureDiffuse ? Engine->TextureRegistry[InMaterial.DiffuseTextureID]->ShaderHandle : NULL,
 													 MaterialConstants.TextureNormal ? Engine->TextureRegistry[InMaterial.NormalTextureID]->ShaderHandle : NULL,
 													 VarianceMapResource };
 
 		DeviceContext->PSSetShaderResources(2, 3, Views);
 	}
-	else if (CurrentState.UniqueIdentifier == "Variance")
+	else if (CurrentState.UniqueIdentifier == "VarianceX")
 	{
 		ID3D11ShaderResourceView* const Views[1] = { ShadowMapResource };
 		DeviceContext->PSSetShaderResources(4, 1, Views);
 	}
+	else if (CurrentState.UniqueIdentifier == "VarianceY")
+	{
+		ID3D11ShaderResourceView* const Views[1] = { VarianceBufferResource };
+		DeviceContext->PSSetShaderResources(4, 1, Views);
+	}
+
+	MapBuffer(MaterialConstantBuffer, MaterialConstants);
 }
 
 void dx11_renderer::MapConstants(map_operation Type)

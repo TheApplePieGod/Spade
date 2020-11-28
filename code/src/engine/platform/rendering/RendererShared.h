@@ -13,7 +13,8 @@ enum class shader_type
 enum class render_state
 {
 	ShadowMap,
-	VarianceMap,
+	VarianceMapX,
+	VarianceMapY,
 	Main,
 };
 
@@ -60,7 +61,7 @@ struct camera_info
 {
 	projection_type ProjectionType = projection_type::NotSet;
 	transform Transform;
-	f32 FOV = 70.f; // field of view (degrees)
+	f32 FOV = 80.f; // field of view (degrees)
 	f32 Width = 0.f;
 	f32 Height = 0.f;
 	f32 NearPlane = 0.01f;
@@ -74,6 +75,8 @@ struct actor_instance
 };
 
 #define MAX_INSTANCES (u64)(65536.f / sizeof(actor_instance))
+#define NUM_CASCADES 4
+#define SHADOWMAP_SIZE 2048.f
 
 struct shader_constants_actor
 {
@@ -84,9 +87,10 @@ struct shader_constants_frame
 {
 	matrix4x4 CameraViewProjectionMatrix;
 	matrix4x4 CameraWorldMatrix;
-	matrix4x4 SunViewProjectionMatrix;
+	matrix4x4 CameraViewMatrix;
+	matrix4x4 SunViewProjectionMatrix[NUM_CASCADES];
 	v3 CameraPosition;
-	f32 padding;
+	u32 CurrentCascade;
 };
 
 struct shader_constants_material
@@ -105,10 +109,10 @@ struct shader_constants_lighting
 	f32 SunIntensity;
 
 	v3 SunColor;
-	f32 padding;
+	u32 NumCascades;
 
 	v3 SunDirection;
-	f32 padding2;
+	u32 CurrentCascadePS;
 };
 
 const float VoidColor[4] = { 0.f, 0.f, 0.f, 1.f };//{ 0.3f, 0.7f, 0.9f, 1.f };

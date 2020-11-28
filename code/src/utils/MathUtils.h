@@ -258,6 +258,44 @@ operator*(matrix4x4 A, v4 B)
 	Result.w = DotProduct(A.row4, B);
 
 	return Result;
+
+
+}
+
+inline v3 Transform(v3 Point, matrix4x4 Matrix)
+{
+	v3 result;
+	v4 temp = { Point.x, Point.y, Point.z, 1.f };
+	v4 temp2;
+
+	temp2.x = temp.x * Matrix.m11 + temp.y * Matrix.m21 + temp.z * Matrix.m31 + temp.w * Matrix.m41;
+	temp2.y = temp.x * Matrix.m12 + temp.y * Matrix.m22 + temp.z * Matrix.m32 + temp.w * Matrix.m42;
+	temp2.z = temp.x * Matrix.m13 + temp.y * Matrix.m23 + temp.z * Matrix.m33 + temp.w * Matrix.m43;
+	temp2.w = temp.x * Matrix.m14 + temp.y * Matrix.m24 + temp.z * Matrix.m34 + temp.w * Matrix.m44;
+
+	result.x = temp2.x / temp2.w;	//view projection matrices make use of the W component
+	result.y = temp2.y / temp2.w;
+	result.z = temp2.z / temp2.w;
+
+	return result;
+}
+
+inline v3 TransformTransposed(v3 Point, matrix4x4 Matrix)
+{
+	v3 result;
+	v4 temp = { Point.x, Point.y, Point.z, 1.f };
+	v4 temp2;
+
+	temp2.x = temp.x * Matrix.m11 + temp.y * Matrix.m12 + temp.z * Matrix.m13 + temp.w * Matrix.m14;
+	temp2.y = temp.x * Matrix.m21 + temp.y * Matrix.m22 + temp.z * Matrix.m23 + temp.w * Matrix.m24;
+	temp2.z = temp.x * Matrix.m31 + temp.y * Matrix.m32 + temp.z * Matrix.m33 + temp.w * Matrix.m34;
+	temp2.w = temp.x * Matrix.m41 + temp.y * Matrix.m42 + temp.z * Matrix.m43 + temp.w * Matrix.m44;
+
+	result.x = temp2.x / temp2.w;	//view projection matrices make use of the W component
+	result.y = temp2.y / temp2.w;
+	result.z = temp2.z / temp2.w;
+
+	return result;
 }
 
 //inline matrix4x4

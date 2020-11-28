@@ -1,7 +1,11 @@
 #define MAX_INSTANCES 1024
+#define NUM_CASCADES 4
+#define SHADOWMAP_SIZE 2048.f
+static const float CascadeDepths[NUM_CASCADES + 1] = { 0.001f, 3.f, 7.f, 15.f, 30.f };
 
 sampler Samp : register(s0);
 SamplerComparisonState ClampSamp : register(s1);
+sampler PointSamp : register(s2);
 TextureCube EnvironmentMap : register(t0);
 Texture2DArray LandscapeTextures : register(t1);
 
@@ -25,10 +29,12 @@ cbuffer FrameConstantBuffer : register(b0) // v0
 
 	matrix CameraWorldMatrix;
 
-	matrix SunViewProjectionMatrix;
+	matrix CameraViewMatrix;
+
+	float4x4 SunViewProjectionMatrix[NUM_CASCADES];
 
 	float3 CameraPosition;
-	float padding3;
+	uint CurrentCascade;
 };
 
 cbuffer MaterialConstantBuffer : register(b0) // p0
