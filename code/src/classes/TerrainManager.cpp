@@ -482,11 +482,45 @@ void UpdateChunkTangents(binary_terrain_chunk& Chunk)
 	Chunk.Vertices[1].Tangent = Normalize(Tangent - (Chunk.Vertices[1].Normal * DotProduct(Chunk.Vertices[1].Normal, Tangent)));
 	Chunk.Vertices[2].Tangent = Normalize(Tangent - (Chunk.Vertices[2].Normal * DotProduct(Chunk.Vertices[2].Normal, Tangent)));
 
-	float theta = 0.00005f;
 	for (int i = 0; i < 3; i++)
 	{
-		v3 vecTangent = Normalize(CrossProduct(Chunk.Vertices[i].Position, v3{ 1.f, 0.0f, 0.0f }) + CrossProduct(Chunk.Vertices[i].Position, v3{ 0.0, 1.0, 0.0 }));
+		//f32 r = Length(Chunk.Vertices[i].Position);
+		//f32 theta = acos(Chunk.Vertices[i].Position.z / r);
+		//f32 phi = atan2(Chunk.Vertices[i].Position.y, Chunk.Vertices[i].Position.x);
+		////then add pi/2 to theta or phi
+		//theta -= Pi32 * 0.5;
+		//v3 vecTangent = { sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta) };
+
+		//v3 vecTangent = Normalize(CrossProduct(Chunk.Vertices[i].Position, v3{ 1.f, 0.0f, 0.0f }) + CrossProduct(Chunk.Vertices[i].Position, v3{ 0.0, 1.0, 0.0 }));
+
+		//v3 vecTangent = {};
+		//f32 absX = abs(Chunk.Vertices[i].Normal.x);
+		//f32 signX = Chunk.Vertices[i].Normal.x < 0 ? -1.f : 1.f;
+		//f32 absY = abs(Chunk.Vertices[i].Normal.y);
+		//f32 absZ = abs(Chunk.Vertices[i].Normal.z);
+		//f32 signZ = Chunk.Vertices[i].Normal.z < 0 ? -1.f : 1.f;
+		//if (absX > absY && absX > absZ)
+		//	vecTangent = signX * Normalize(CrossProduct(Chunk.Vertices[i].Normal, CrossProduct(v3{ 0.f, 0.f, 1.f }, Chunk.Vertices[i].Normal)));
+		//else if (absY > absX && absY > absZ)
+		//	vecTangent = Normalize(CrossProduct(Chunk.Vertices[i].Normal, CrossProduct(v3{ 1.f, 0.f, 0.f }, Chunk.Vertices[i].Normal)));
+		//else
+		//	vecTangent = signZ * Normalize(CrossProduct(Chunk.Vertices[i].Normal, CrossProduct(v3{ -1.f, 0.f, 0.f }, Chunk.Vertices[i].Normal)));
+
+		v3 Pos = Chunk.Vertices[i].Position;
+		v3 vecTangent = { 1.f + Pos.y * Pos.y, -1.f * Pos.x * Pos.y, 1.f * Pos.x };
+		v3 vecBitangent = { -1.f * Pos.x * Pos.y, 1.f + Pos.x * Pos.x, 1.f * Pos.y };
+		f32 angle = 0.f;
+		//if (Pos.z > 0.f)
+		//	angle = -45.f;
+		//else
+			angle = 45.f;
+		matrix4x4 RotationMatrix = Engine->Renderer.GetRotationMatrixAroundAxis(false, Chunk.Vertices[i].Normal, angle * (Pi32 / 180.f));
+		vecTangent = RotationMatrix * v4{ vecTangent.x, vecTangent.y, vecTangent.z, 1.f };
+		vecBitangent = RotationMatrix * v4{ vecBitangent.x, vecBitangent.y, vecBitangent.z, 1.f };
+		vecTangent = Normalize(vecTangent);
+		vecBitangent = Normalize(vecBitangent);
 		Chunk.Vertices[i].Tangent = vecTangent;
+		Chunk.Vertices[i].Bitangent = vecBitangent;
 	}
 	//v3 ptTangentPos = Normalize(p0 + theta * Normalize(vecTangent));
 	//v3 ptTangentSample = ptTangentPos + (GetTerrainInfo(ptTangentPos, &PrimaryTextureIndex, &SecondaryTextureIndex, &Alpha) * ptTangentPos);
@@ -510,9 +544,9 @@ int planet_terrain_manager::SplitNode(int Parent, s8 TreeIndex)
 	f32 Noise = GetTerrainInfo(NewVertex.Position, &PrimaryTextureIndex, &SecondaryTextureIndex, &Alpha);
 	v3 HeightOffset = NewVertex.Position * Noise;//BiomeList[BiomeIndex].GetNoise(NewVertex.Position);
 	NewVertex.Position += HeightOffset;
-	NewVertex.Bitangent.x = PrimaryTextureIndex;
-	NewVertex.Bitangent.y = SecondaryTextureIndex;
-	NewVertex.Bitangent.z = Alpha;
+	//NewVertex.Bitangent.x = PrimaryTextureIndex;
+	//NewVertex.Bitangent.y = SecondaryTextureIndex;
+	//NewVertex.Bitangent.z = Alpha;
 	//NewVertex.Bitangent.y = BiomeList[BiomeIndex].GetNoise(NewVertex.Position);
 
 	// calc vert normal

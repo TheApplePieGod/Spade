@@ -1436,6 +1436,40 @@ matrix4x4 dx11_renderer::InverseMatrix(const matrix4x4& Matrix, bool Transpose)
 	return ToMatrix4x4(Inverse);
 }
 
+matrix4x4 dx11_renderer::GetRotationMatrixAroundAxis(bool Transpose, v3 Axis, f32 Angle)
+{
+	DirectX::XMVECTOR AxisVec;
+	AxisVec = DirectX::XMVectorSet(Axis.x, Axis.y, Axis.z, 1.0f);
+
+	DirectX::XMMATRIX Rotation = DirectX::XMMatrixRotationAxis(AxisVec, Angle);
+
+	if (Transpose)
+		Rotation = DirectX::XMMatrixTranspose(Rotation);
+
+	DirectX::XMFLOAT4X4 View;
+	DirectX::XMStoreFloat4x4(&View, Rotation);
+
+	matrix4x4 Result;
+	Result.m11 = View._11;
+	Result.m12 = View._12;
+	Result.m13 = View._13;
+	Result.m14 = View._14;
+	Result.m21 = View._21;
+	Result.m22 = View._22;
+	Result.m23 = View._23;
+	Result.m24 = View._24;
+	Result.m31 = View._31;
+	Result.m32 = View._32;
+	Result.m33 = View._33;
+	Result.m34 = View._34;
+	Result.m41 = View._41;
+	Result.m42 = View._42;
+	Result.m43 = View._43;
+	Result.m44 = View._44;
+
+	return Result;
+}
+
 v3 dx11_renderer::GetWorldSpaceDirectionFromMouse(v2 MousePos, camera* Camera)
 {
 	float x = (2.0f * MousePos.x) / Engine->ScreenSize.x - 1.0f;

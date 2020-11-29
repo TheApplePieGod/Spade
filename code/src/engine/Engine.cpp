@@ -494,7 +494,7 @@ void engine::RenderPlanet()
 				NormalVertices.push_back(TerrainManager.TerrainVertices[i]);
 
 				NewVert = TerrainManager.TerrainVertices[i];
-				NewVert.Position += Normalize(CrossProduct(NewVert.Normal, NewVert.Tangent)) * Scalar;
+				NewVert.Position += NewVert.Bitangent * Scalar;//Normalize(CrossProduct(NewVert.Normal, NewVert.Tangent)) * Scalar;
 				NormalVertices.push_back(NewVert);
 			}
 		}

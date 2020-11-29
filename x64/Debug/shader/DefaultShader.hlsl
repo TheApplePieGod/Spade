@@ -5,7 +5,7 @@ Texture2D DiffuseTex : register(t2);
 Texture2D NormalTex : register(t3);
 Texture2DArray ShadowMap : register(t4);
 
-static const float TexcoordScalar = 5000;
+static const float TexcoordScalar = 10000;
 
 struct VSIn
 {
@@ -59,13 +59,15 @@ PSIn mainvs(VSIn input)
 	float3 Tangent = normalize(mul(float4(input.Tangent, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Tangent, (float3x3)Instances[input.InstanceID].InverseTransposeWorldMatrix));
 	//output.Bitangent = //normalize(mul(float4(cross(input.Normal, input.Tangent), 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Bitangent, (float3x3)Instances[input.InstanceID].WorldMatrix));
 	//Tangent = normalize(Tangent - dot(Tangent, output.Normal) * output.Normal);
-	float3 Bitangent = normalize(cross(output.Normal, Tangent));
-	//float3 Bitangent = normalize(mul(cross(output.Normal, Tangent), (float3x3)Instances[input.InstanceID].WorldMatrix));
-	//if (dot(cross(output.Normal, Tangent), Bitangent) < 0.0f)
-	//	Tangent *= -1.f;
+	//float3 Bitangent = normalize(cross(output.Normal, Tangent));
+	//float3 Bitangent = float3(-1.f * input.Position.x * input.Position.y, 1 + input.Position.x * input.Position.x, 1.f * input.Position.y);
+	float3 Bitangent = input.Bitangent;
 	output.TerrainInfo = input.Bitangent;
 
-	output.TBN = transpose(float3x3(Tangent, Bitangent, output.Normal));
+	output.TBN = transpose(float3x3(Tangent, Bitangent, input.Normal));
+	//float4x4 TBN = float4x4(float4(Tangent, 0.f), float4(Bitangent, 0.f), float4(input.Normal, 0.f), float4(0.f, 0.f, 0.f, 1.f));
+	//output.TBN = inverse(TBN);
+	//output.TBN = (float3x3)output.TBN;
 
     return output;
 }

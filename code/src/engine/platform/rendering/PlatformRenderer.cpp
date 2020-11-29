@@ -177,6 +177,11 @@ matrix4x4 renderer::InverseMatrix(const matrix4x4& Matrix, bool Transpose)
 	return PlatformRenderer->InverseMatrix(Matrix, Transpose);
 }
 
+matrix4x4 renderer::GetRotationMatrixAroundAxis(bool Transpose, v3 Axis, f32 Angle)
+{
+	return PlatformRenderer->GetRotationMatrixAroundAxis(Transpose, Axis, Angle);
+}
+
 v3 renderer::GetWorldSpaceDirectionFromMouse(v2 MousePos, camera* Camera)
 {
 	return PlatformRenderer->GetWorldSpaceDirectionFromMouse(MousePos, Camera);
