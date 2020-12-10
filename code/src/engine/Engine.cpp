@@ -11,7 +11,7 @@ extern shader_constants_actor ActorConstants;
 extern shader_constants_frame FrameConstants;
 extern shader_constants_lighting LightingConstants;
 
-void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainCamera)
+void UpdateTerrainTree(planet_terrain_manager* TerrainManager, camera* MainCamera)
 {
 	if (!TerrainManager->UpdatingChunkData)
 	{
@@ -40,8 +40,6 @@ void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainC
 				{
 					TerrainManager->Traverse(MainCamera->CameraInfo.Transform.Location, n, 5000.f);
 				}
-				//Renderer.DrawIndexedTerrainChunk(BTVertices.data(), BTIndices.data(), (u32)BTVertices.size(), (u32)BTIndices.size());
-				//Renderer.Draw(BTVertices.data(), (u32)BTVertices.size(), draw_topology_type::TriangleList);
 				int IntersectingIndex = TerrainManager->Trees[n].RayIntersectsTriangle(Engine->UserInputs.MousePosWorldSpace, MainCamera->CameraInfo.Transform.Location, TerrainManager->GetPlanetRadius());
 				if (IntersectingIndex != -1)
 				{
@@ -65,7 +63,6 @@ void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainC
 						BTVertices[VertexIndex] = Data.Vertices[d];
 						VertexIndex++;
 					}
-					//BTVertices.insert(BTVertices.end(), Data.Vertices, Data.Vertices + 3);
 				}
 			}
 		}
@@ -83,51 +80,20 @@ void UpdateVisibleChunksBT(planet_terrain_manager* TerrainManager, camera* MainC
 
 void engine::Tick()
 {
+	// Update phase
 	ProcessUserInput();
 
-	// Update lighting constants
-	f32 Angle = DegreesToRadians(DebugData.SunAngle);
-	LightingConstants.SunDirection = v3{ sin(Angle), 0.f, cos(Angle)};
-	//DebugData.SunAngle += 0.01f * UserInputs.DeltaTime;
-	Renderer.MapConstants(map_operation::Lighting);
+	UpdateState();
 
-	MainCamera.UpdateProjectionType(projection_type::Perspective);
-	v2 MouseDelta = v2{ UserInputs.MouseDeltaX * MainCamera.MouseInputScale, UserInputs.MouseDeltaY * MainCamera.MouseInputScale };
-	if (DebugData.FreeCam)
-		MainCamera.ViewMatrix = renderer::GenerateViewMatrix(true, MainCamera.CameraInfo, MainCamera.LookAtVector, MainCamera.UpVector);
-	else
-		MainCamera.ViewMatrix = renderer::GeneratePlanetaryViewMatrix(true, MainCamera.CameraInfo, MouseDelta, MainCamera.ForwardVector, MainCamera.LookAtVector, MainCamera.UpVector);
-	UserInputs.MousePosWorldSpace = renderer::GetWorldSpaceDirectionFromMouse(v2{ UserInputs.MousePosX, UserInputs.MousePosY }, &MainCamera);
+	UpdateCamera();
 
-	if (DebugData.SpawnCube)
-	{
-		DebugData.SpawnCube = false;
-		actor_component acomp = actor_component(&MainLevel);
-		s32 actorid = ActorComponents.CreateComponent(acomp, true);
-		u32 ScaleMod = 1;
-		rendering_component rcomp = rendering_component(actorid);
+	UpdateTerrain();
+	//-------------------------
 
-		rcomp.SetLocation(MainCamera.CameraInfo.Transform.Location);
-		rcomp.SetScale(v3{ 1.f, 1.f, 1.f });
-		rcomp.RenderResources.MaterialID = 0;
-		rcomp.RenderResources.PipelineStateID = 1;
-		rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("cube_t.fbx");
+	// Render phase
+	RenderDirectionalShadowCascade();
 
-		rcomp.ActorComponentID = actorid;
-		RenderingComponents.CreateComponent(rcomp, false);
-	}
-
-	// update terrain
-	if ((!TerrainManager.UpdatingChunkData) || ChunkUpdateThread.get_id() == std::thread::id())
-	{
-		if (ChunkUpdateThread.joinable())
-			ChunkUpdateThread.join();
-		ChunkUpdateThread = std::thread(UpdateVisibleChunksBT, &TerrainManager, &MainCamera);
-	}
-
-	RenderGeometry();
-
-	RenderVarianceShadow();
+	RenderVarianceShadowMap();
 
 	Renderer.SetRendererState(render_state::Main);
 	RenderScene();
@@ -137,13 +103,67 @@ void engine::Tick()
 	UpdateComponents(); // before scene render?
 
 	RenderDebugWidgets();
+	//------------------------
 
+	FinishFrame();
+}
+
+void engine::UpdateState()
+{
+	// Update lighting constants
+	f32 Angle = DegreesToRadians(DebugData.SunAngle);
+	LightingConstants.SunDirection = v3{ sin(Angle), 0.f, cos(Angle) };
+	//DebugData.SunAngle += 0.01f * UserInputs.DeltaTime;
+	Renderer.MapConstants(map_operation::Lighting);
+
+	//if (DebugData.SpawnCube)
+	//{
+	//	DebugData.SpawnCube = false;
+	//	actor_component acomp = actor_component(&MainLevel);
+	//	s32 actorid = ActorComponents.CreateComponent(acomp, true);
+	//	u32 ScaleMod = 1;
+	//	rendering_component rcomp = rendering_component(actorid);
+
+	//	rcomp.SetLocation(MainCamera.CameraInfo.Transform.Location);
+	//	rcomp.SetScale(v3{ 1.f, 1.f, 1.f });
+	//	rcomp.RenderResources.MaterialID = 0;
+	//	rcomp.RenderResources.PipelineStateID = 1;
+	//	rcomp.RenderResources.MeshAssetID = GetAssetIDFromName("cube_t.fbx");
+
+	//	rcomp.ActorComponentID = actorid;
+	//	RenderingComponents.CreateComponent(rcomp, false);
+	//}
+}
+
+void engine::FinishFrame()
+{
 	Renderer.FinishFrame();
 
 	DebugData.FrameCount++;
 
 	if (DebugData.SlowMode)
 		Sleep(150);
+}
+
+void engine::UpdateTerrain()
+{ 
+	if ((!TerrainManager.UpdatingChunkData) || ChunkUpdateThread.get_id() == std::thread::id())
+	{
+		if (ChunkUpdateThread.joinable())
+			ChunkUpdateThread.join();
+		ChunkUpdateThread = std::thread(UpdateTerrainTree, &TerrainManager, &MainCamera);
+	}
+}
+
+void engine::UpdateCamera()
+{
+	MainCamera.UpdateProjectionType(projection_type::Perspective);
+	v2 MouseDelta = v2{ UserInputs.MouseDeltaX * MainCamera.MouseInputScale, UserInputs.MouseDeltaY * MainCamera.MouseInputScale };
+	if (DebugData.FreeCam)
+		MainCamera.ViewMatrix = renderer::GenerateViewMatrix(true, MainCamera.CameraInfo, MainCamera.LookAtVector, MainCamera.UpVector);
+	else
+		MainCamera.ViewMatrix = renderer::GeneratePlanetaryViewMatrix(true, MainCamera.CameraInfo, MouseDelta, MainCamera.ForwardVector, MainCamera.LookAtVector, MainCamera.UpVector);
+	UserInputs.MousePosWorldSpace = renderer::GetWorldSpaceDirectionFromMouse(v2{ UserInputs.MousePosX, UserInputs.MousePosY }, &MainCamera);
 }
 
 void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
@@ -159,7 +179,6 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 
 	InitializeAssetSystem();
 
-	//TerrainManager.Initialize((cMeshAsset*)AssetRegistry[GetAssetIDFromName("sphere.fbx")], 998.f);
 	TerrainManager.Initialize(PlanetRadius);
 	FoliageManager.Initialize();
 
@@ -210,24 +229,6 @@ void engine::Initialize(void* Window, int WindowWidth, int WindowHeight)
 			  Mat.NormalTextureID = GetTextureIDFromName("snowpath_normal.png");
 			  Mat.Reflectivity = 1.f;
 			  /*Mat.DiffuseColor = colors::Blue;*/ } break;
-
-			//case 1:
-			//{ Mat.DiffuseTextureID = GetTextureIDFromName("snowpath_diffuse.png");
-			//  Mat.NormalTextureID = GetTextureIDFromName("snowpath_normal.png");
-			//  Mat.DiffuseColor = colors::Red;
-			//  Mat.Reflectivity = 5.f; } break;
-
-			//case 2:
-			//{ Mat.DiffuseTextureID = GetTextureIDFromName("eyes.jpg");
-			//  /*Mat.DiffuseColor = colors::Green;*/ } break;
-
-			//case 3:
-			//{ Mat.DiffuseTextureID = GetTextureIDFromName("lmao.jpg");
-			//  /*Mat.DiffuseColor = colors::Orange;*/ } break;
-
-			//case 4:
-			//{ Mat.DiffuseTextureID = GetTextureIDFromName("what.jpg");
-			//  /*Mat.DiffuseColor = colors::White;*/ } break;
 
 			case 5:
 			{ Mat.DiffuseTextureID = GetTextureIDFromName("snowpath_diffuse.png");
@@ -361,9 +362,6 @@ void engine::RenderPlanet()
 	pipeline_state GroundFromSpace = pipeline_state();
 	GroundFromSpace.VertexShaderID = GetShaderIDFromName("mainvs");
 	GroundFromSpace.PixelShaderID = GetShaderIDFromName("GroundFromSpacePS");
-	//GroundFromSpace.DomainShaderID = GetShaderIDFromName("TerrainDomainShader");
-	//GroundFromSpace.HullShaderID = GetShaderIDFromName("TerrainHullShader");
-	//GroundFromSpace.EnableTesselation = true;
 	GroundFromSpace.RasterizerState = (DebugData.EnableWireframe ? rasterizer_state::Wireframe : rasterizer_state::DefaultCullBackface);
 	GroundFromSpace.UniqueIdentifier = "DefaultPBR";
 
@@ -376,9 +374,6 @@ void engine::RenderPlanet()
 	pipeline_state GroundFromAtmosphere = pipeline_state();
 	GroundFromAtmosphere.VertexShaderID = GetShaderIDFromName("mainvs");
 	GroundFromAtmosphere.PixelShaderID = GetShaderIDFromName("GroundFromAtmospherePS");
-	//GroundFromAtmosphere.DomainShaderID = GetShaderIDFromName("TerrainDomainShader");
-	//GroundFromAtmosphere.HullShaderID = GetShaderIDFromName("TerrainHullShader");
-	//GroundFromAtmosphere.EnableTesselation = true;
 	GroundFromAtmosphere.RasterizerState = (DebugData.EnableWireframe ? rasterizer_state::Wireframe : rasterizer_state::DefaultCullBackface);
 	GroundFromAtmosphere.UniqueIdentifier = "DefaultPBR";
 
@@ -445,16 +440,6 @@ void engine::RenderPlanet()
 
 	Renderer.BindMaterial(MaterialRegistry.GetComponent(0));
 
-	//pipeline_state Default = pipeline_state();
-	//Default.VertexShaderID = GetShaderIDFromName("mainvs");
-	//Default.PixelShaderID = GetShaderIDFromName("mainps");
-	//Default.RasterizerState = (DebugData.EnableWireframe ? rasterizer_state::Wireframe : rasterizer_state::DefaultCullBackface);
-	//Default.UniqueIdentifier = "DefaultPBR";
-	//Renderer.SetPipelineState(Default);
-
-	//if (DebugData.VisibleChunkUpdates)
-		//UpdateVisibleChunksBT(&TerrainManager, &MainCamera);
-
 	TerrainManager.TerrainVerticesSwapMutex.lock();
 	if (TerrainManager.TerrainVertices.size() < 200000)
 		Renderer.Draw(TerrainManager.TerrainVertices.data(), (u32)TerrainManager.TerrainVertices.size(), draw_topology_type::TriangleList);
@@ -515,9 +500,6 @@ void engine::RenderPlanetGeometry()
 
 inline bool CompareRenderComponents(rendering_component* Comp1, rendering_component* Comp2)
 {
-	//return ((Comp1.RenderResources.MaterialID == Comp2.RenderResources.MaterialID) && (Comp1.RenderResources.MeshAssetID < Comp2.RenderResources.MeshAssetID)) ||
-	//	(Comp1.RenderResources.MaterialID < Comp2.RenderResources.MaterialID);
-
 	return ((Comp1->RenderResources.PipelineStateID == Comp2->RenderResources.PipelineStateID && Comp1->RenderResources.MaterialID < Comp2->RenderResources.MaterialID) ||
 			(Comp1->RenderResources.PipelineStateID == Comp2->RenderResources.PipelineStateID && Comp1->RenderResources.MaterialID == Comp2->RenderResources.MaterialID && Comp1->RenderResources.MeshAssetID < Comp2->RenderResources.MeshAssetID) ||
 			Comp1->RenderResources.PipelineStateID < Comp2->RenderResources.PipelineStateID);
@@ -633,7 +615,7 @@ void engine::RenderScene()
 	RenderPlanet();
 }
 
-void engine::RenderGeometry()
+void engine::RenderDirectionalShadowCascade()
 {
 	camera_info SunCamera;
 	SunCamera.ProjectionType = projection_type::Orthographic;
@@ -835,7 +817,7 @@ void engine::RenderGeometry()
 	}
 }
 
-void engine::RenderVarianceShadow()
+void engine::RenderVarianceShadowMap()
 {
 	pipeline_state VarianceX = pipeline_state();
 	VarianceX.VertexShaderID = GetShaderIDFromName("variancevs");

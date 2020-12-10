@@ -56,7 +56,7 @@ PSIn mainvs(VSIn input)
 		output.LightPos[i] = mul(output.WorldPos + float4(output.Normal.xyz * 0.4f, 0), SunViewProjectionMatrix[i]);
 	}
 
-	float3 Tangent = normalize(mul(float4(input.Tangent, 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Tangent, (float3x3)Instances[input.InstanceID].InverseTransposeWorldMatrix));
+	float3 Tangent = input.Tangent;//mul(float4(input.Tangent, 0.0), Instances[input.InstanceID].WorldMatrix).xyz;//normalize(mul(input.Tangent, (float3x3)Instances[input.InstanceID].InverseTransposeWorldMatrix));
 	//output.Bitangent = //normalize(mul(float4(cross(input.Normal, input.Tangent), 0.0), Instances[input.InstanceID].WorldMatrix).xyz);//normalize(mul(input.Bitangent, (float3x3)Instances[input.InstanceID].WorldMatrix));
 	//Tangent = normalize(Tangent - dot(Tangent, output.Normal) * output.Normal);
 	//float3 Bitangent = normalize(cross(output.Normal, Tangent));
@@ -64,10 +64,10 @@ PSIn mainvs(VSIn input)
 	float3 Bitangent = input.Bitangent;
 	output.TerrainInfo = input.Bitangent;
 
-	output.TBN = transpose(float3x3(Tangent, Bitangent, input.Normal));
-	//float4x4 TBN = float4x4(float4(Tangent, 0.f), float4(Bitangent, 0.f), float4(input.Normal, 0.f), float4(0.f, 0.f, 0.f, 1.f));
-	//output.TBN = inverse(TBN);
-	//output.TBN = (float3x3)output.TBN;
+	//output.TBN = transpose(float3x3(Tangent, Bitangent, input.Normal));
+	float4x4 TBN = float4x4(float4(Tangent, 1.f), float4(Bitangent, 1.f), float4(input.Normal, 1.f), float4(0.f, 0.f, 0.f, 1.f));
+	TBN = inverse(TBN);
+	output.TBN = (float3x3)TBN;
 
     return output;
 }
@@ -220,7 +220,7 @@ float4 GroundFromAtmospherePS(PSIn input) : SV_TARGET
 
 	float3 color = c0 + SampleColor.xyz * c1;
 	color += Ambient;
-	return float4(Ambient + (shadowCoeff * color * nDotL * 1.5f), 1.f);
+	return float4(Ambient + (shadowCoeff * color * nDotL), 1.f);
 }
 
 float4 SkyFromAtmospherePS(PSIn input) : SV_TARGET
@@ -317,8 +317,8 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 	float3 LightVector = -SunDirection;
 	float3 TexNormal = FetchNormalVector(input.TexCoord);
 	float3 WorldNormal = normalize(mul(input.TBN, TexNormal));
-	float nDotL2 = max(0.0, dot(input.Normal, LightVector));
-	float nDotL = max(0.0, dot(WorldNormal, LightVector)) * nDotL2;
+	float nDotL = max(0.0, dot(input.Normal, LightVector));
+	//float nDotL = max(0.0, dot(WorldNormal, LightVector)) * nDotL2;
 	float4 SampleColor = float4(1.f, 1.f, 1.f, 1.f);
 	//float angle = acos(dot(normalize(input.WorldPos.xyz), input.Normal) / (length(normalize(input.WorldPos.xyz)) * length(input.Normal)));
 	//if (abs(angle) > 30)
@@ -347,7 +347,7 @@ float4 GroundFromSpacePS(PSIn input) : SV_TARGET
 
 	float3 color = c0 + SampleColor.xyz * c1;
 	color += Ambient;
-	return float4(Ambient + (color * nDotL * 1.5f), 1.f);
+	return float4(Ambient + (color * nDotL), 1.f);
 }
 
 float4 SkyFromSpacePS(PSIn input) : SV_TARGET

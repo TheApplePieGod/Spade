@@ -171,11 +171,13 @@ void ProcessPendingMessages()
 
 	POINT p;
 	if (GetCursorPos(&p))
+	{
 		if (ScreenToClient(Window, &p))
 		{
 			Engine->UserInputs.MousePosX = (f32)p.x;
 			Engine->UserInputs.MousePosY = (f32)p.y;
 		}
+	}
 }
 
 int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLine, int ShowFlag) // entrypoint
@@ -183,8 +185,6 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLin
 	// TODO: Need to allow the user to choose their resolution.
 	u32 InitialResX = 1920;
 	u32 InitialResY = 1080;
-	//UserScreenSizeX = InitialResX;
-	//UserScreenSizeY = InitialResY;
 
 	// Calculate the required size of the window rectangle based on the desired client-rectangle size
 	RECT rc = { 0, 0, (LONG)InitialResX, (LONG)InitialResY };
@@ -248,7 +248,6 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CommandLin
 		//DropManager dm;
 		//RegisterDragDrop(Window, &dm);
 
-		//QueryPerformanceFrequency(&DebugData.frequency);
 		while (Engine->IsRunning) // game loop
 		{
 			auto start = std::chrono::high_resolution_clock::now();

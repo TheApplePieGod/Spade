@@ -177,7 +177,7 @@ f32 planet_terrain_manager::GetTerrainInfo(v3 Location, f32* OutPrimaryTextureIn
 			*OutSecondaryTextureIndex = 1.f;
 		}
 	}
-	return y;
+	return 0;
 
 	//f32 BiomeIndex = 0;
 	//f32 BlendRange = 0.5f * 0.5f + 0.00001f;
@@ -269,10 +269,10 @@ void planet_terrain_manager::Initialize(f32 _PlanetRadius)
 	vertex Verts10[3] = { Vert30, Vert31, Vert32 };
 	vertex Verts11[3] = { Vert33, Vert34, Vert35 };
 
-	//binary_tree Tree0 = binary_tree(Verts0, -1, -1, -1);
+	//binary_tree Tree0 = binary_tree(Verts6, -1, -1, -1);
 
-	//binary_tree Tree0 = binary_tree(Verts0, -1, -1, 1);
-	//binary_tree Tree1 = binary_tree(Verts1, -1, -1, 0);
+	binary_tree Tree0 = binary_tree(Verts0, -1, -1, 1);
+	binary_tree Tree1 = binary_tree(Verts1, -1, -1, 0);
 
 	//binary_tree Tree0 = binary_tree(Verts0, -1, -1, 1);
 	//binary_tree Tree1 = binary_tree(Verts1, 2, 4, 0);
@@ -281,31 +281,31 @@ void planet_terrain_manager::Initialize(f32 _PlanetRadius)
 	//binary_tree Tree4 = binary_tree(Verts4, -1, 1, 5);
 	//binary_tree Tree5 = binary_tree(Verts5, 3, -1, 4);
 
-	binary_tree Tree0 = binary_tree(Verts0, 7, 9, 1);
-	binary_tree Tree1 = binary_tree(Verts1, 2, 4, 0);
-	binary_tree Tree2 = binary_tree(Verts2, 1, 9, 3);
-	binary_tree Tree3 = binary_tree(Verts3, 11, 5, 2);
-	binary_tree Tree4 = binary_tree(Verts4, 7, 1, 5);
-	binary_tree Tree5 = binary_tree(Verts5, 3, 10, 4);
-	binary_tree Tree6 = binary_tree(Verts6, 10, 8, 7);
-	binary_tree Tree7 = binary_tree(Verts7, 0, 4, 6);
-	binary_tree Tree8 = binary_tree(Verts8, 6, 11, 9);
-	binary_tree Tree9 = binary_tree(Verts9, 2, 0, 8);
-	binary_tree Tree10 = binary_tree(Verts10, 6, 5, 11);
-	binary_tree Tree11 = binary_tree(Verts11, 3, 8, 10);
+	//binary_tree Tree0 = binary_tree(Verts0, 7, 9, 1);
+	//binary_tree Tree1 = binary_tree(Verts1, 2, 4, 0);
+	//binary_tree Tree2 = binary_tree(Verts2, 1, 9, 3);
+	//binary_tree Tree3 = binary_tree(Verts3, 11, 5, 2);
+	//binary_tree Tree4 = binary_tree(Verts4, 7, 1, 5);
+	//binary_tree Tree5 = binary_tree(Verts5, 3, 10, 4);
+	//binary_tree Tree6 = binary_tree(Verts6, 10, 8, 7);
+	//binary_tree Tree7 = binary_tree(Verts7, 0, 4, 6);
+	//binary_tree Tree8 = binary_tree(Verts8, 6, 11, 9);
+	//binary_tree Tree9 = binary_tree(Verts9, 2, 0, 8);
+	//binary_tree Tree10 = binary_tree(Verts10, 6, 5, 11);
+	//binary_tree Tree11 = binary_tree(Verts11, 3, 8, 10);
 
 	Trees.push_back(Tree0);
 	Trees.push_back(Tree1);
-	Trees.push_back(Tree2);
-	Trees.push_back(Tree3);
-	Trees.push_back(Tree4);
-	Trees.push_back(Tree5);
-	Trees.push_back(Tree6);
-	Trees.push_back(Tree7);
-	Trees.push_back(Tree8);
-	Trees.push_back(Tree9);
-	Trees.push_back(Tree10);
-	Trees.push_back(Tree11);
+	//Trees.push_back(Tree2);
+	//Trees.push_back(Tree3);
+	//Trees.push_back(Tree4);
+	//Trees.push_back(Tree5);
+	//Trees.push_back(Tree6);
+	//Trees.push_back(Tree7);
+	//Trees.push_back(Tree8);
+	//Trees.push_back(Tree9);
+	//Trees.push_back(Tree10);
+	//Trees.push_back(Tree11);
 }
 
 void planet_terrain_manager::InitializeBiomes()
@@ -456,7 +456,8 @@ v3 planet_terrain_manager::GetVertexNormal(v3 Location)
 	v3 ptTangentSample = ptTangentPos + (GetTerrainInfo(ptTangentPos, &PrimaryTextureIndex, &SecondaryTextureIndex, &Alpha) * ptTangentPos);
 	v3 ptBitangentSample = ptBitangentPos + (GetTerrainInfo(ptBitangentPos, &PrimaryTextureIndex, &SecondaryTextureIndex, &Alpha) * ptBitangentPos);
 
-	return -1.f * Normalize(CrossProduct(ptTangentSample - Location, ptBitangentSample - Location));
+	v3 out = -1.f * Normalize(CrossProduct(ptTangentSample - Location, ptBitangentSample - Location));
+	return out;
 }
 
 void UpdateChunkTangents(binary_terrain_chunk& Chunk)
@@ -469,18 +470,43 @@ void UpdateChunkTangents(binary_terrain_chunk& Chunk)
 	v2& uv1 = Chunk.Vertices[1].UV;
 	v2& uv2 = Chunk.Vertices[2].UV;
 
-	v3 deltaPos1 = p1 - p0;
-	v3 deltaPos2 = p2 - p0;
+	//v3 deltaPos1 = p1 - p0;
+	//v3 deltaPos2 = p2 - p0;
 
-	v2 deltaUV1 = uv1 - uv0;
-	v2 deltaUV2 = uv2 - uv0;
+	//v2 deltaUV1 = uv1 - uv0;
+	//v2 deltaUV2 = uv2 - uv0;
 
-	f32 r = 1.f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
-	v3 Tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r;
+	//f32 r = 1.f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+	//v3 Tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r;
 
-	Chunk.Vertices[0].Tangent = Normalize(Tangent - (Chunk.Vertices[0].Normal * DotProduct(Chunk.Vertices[0].Normal, Tangent)));
-	Chunk.Vertices[1].Tangent = Normalize(Tangent - (Chunk.Vertices[1].Normal * DotProduct(Chunk.Vertices[1].Normal, Tangent)));
-	Chunk.Vertices[2].Tangent = Normalize(Tangent - (Chunk.Vertices[2].Normal * DotProduct(Chunk.Vertices[2].Normal, Tangent)));
+	float x1 = p1.x - p0.x;
+	float x2 = p2.x - p0.x;
+	float y1 = p1.y - p0.y;
+	float y2 = p2.y - p0.y;
+	float z1 = p1.z - p0.z;
+	float z2 = p2.z - p0.z;
+
+	float s1 = uv1.x - uv0.x;
+	float s2 = uv2.x - uv0.x;
+	float t1 = uv1.y - uv0.y;
+	float t2 = uv2.y - uv0.y;
+
+	float r = 1.0F / (s1 * t2 - s2 * t1);
+	v3 Tangent{ (t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r,
+		(t2 * z1 - t1 * z2) * r };
+	v3 Bitangent{ (s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r,
+		(s1 * z2 - s2 * z1) * r };
+
+	Chunk.Vertices[0].Tangent = Normalize(Tangent);
+	Chunk.Vertices[1].Tangent = Normalize(Tangent);
+	Chunk.Vertices[2].Tangent = Normalize(Tangent);
+	Chunk.Vertices[0].Bitangent = Normalize(Bitangent);
+	Chunk.Vertices[1].Bitangent = Normalize(Bitangent);
+	Chunk.Vertices[2].Bitangent = Normalize(Bitangent);
+
+	//Chunk.Vertices[0].Tangent = Normalize(Tangent - (Chunk.Vertices[0].Normal * DotProduct(Chunk.Vertices[0].Normal, Tangent)));
+	//Chunk.Vertices[1].Tangent = Normalize(Tangent - (Chunk.Vertices[1].Normal * DotProduct(Chunk.Vertices[1].Normal, Tangent)));
+	//Chunk.Vertices[2].Tangent = Normalize(Tangent - (Chunk.Vertices[2].Normal * DotProduct(Chunk.Vertices[2].Normal, Tangent)));
 
 	for (int i = 0; i < 3; i++)
 	{
@@ -506,19 +532,36 @@ void UpdateChunkTangents(binary_terrain_chunk& Chunk)
 		//else
 		//	vecTangent = signZ * Normalize(CrossProduct(Chunk.Vertices[i].Normal, CrossProduct(v3{ -1.f, 0.f, 0.f }, Chunk.Vertices[i].Normal)));
 
-		v3 Pos = Chunk.Vertices[i].Position;
-		v3 vecTangent = { 1.f + Pos.y * Pos.y, -1.f * Pos.x * Pos.y, 1.f * Pos.x };
-		v3 vecBitangent = { -1.f * Pos.x * Pos.y, 1.f + Pos.x * Pos.x, 1.f * Pos.y };
-		f32 angle = 0.f;
-		//if (Pos.z > 0.f)
-		//	angle = -45.f;
-		//else
-			angle = 45.f;
-		matrix4x4 RotationMatrix = Engine->Renderer.GetRotationMatrixAroundAxis(false, Chunk.Vertices[i].Normal, angle * (Pi32 / 180.f));
-		vecTangent = RotationMatrix * v4{ vecTangent.x, vecTangent.y, vecTangent.z, 1.f };
-		vecBitangent = RotationMatrix * v4{ vecBitangent.x, vecBitangent.y, vecBitangent.z, 1.f };
-		vecTangent = Normalize(vecTangent);
-		vecBitangent = Normalize(vecBitangent);
+		v2 normalizedUV = Chunk.Vertices[i].UV;
+		v3 tempPos = v3{ 1.f - 2.f * normalizedUV.x, 2.f * normalizedUV.y - 1.f, 1.f };
+		f32 k = sqrt(tempPos.x * tempPos.x + tempPos.y * tempPos.y + 1.f);
+		v3 Pos = (1.f / k) * tempPos;
+		//v3 Pos = Chunk.Vertices[i].Normal;
+		v3 vecTangent = { 1.f + Pos.y * Pos.y, -1.f * Pos.x * Pos.y, -1.f * Pos.x };
+		vecTangent = (1.f / (k * sqrt(k))) * vecTangent;
+		v3 vecBitangent = { -1.f * Pos.x * Pos.y, 1.f + Pos.x * Pos.x, -1.f * Pos.y };
+		vecBitangent = (1.f / (k * sqrt(k))) * vecBitangent;
+
+		v3 originalNormal = v3{ 0.f, 0.f, -1.f };
+		v3 originalTangent = v3{ 0.f, 1.f, 0.f };
+		v3 originalBitangent = v3{ -1.f, 0.f, 0.f };
+		f32 angle = acosf(DotProduct(originalNormal, Chunk.Vertices[i].Normal));
+		matrix4x4 RotationMatrix = Engine->Renderer.GetRotationMatrixAroundAxis(false, Normalize(CrossProduct(originalTangent, Chunk.Vertices[i].Normal)), angle);
+		matrix4x4 RotationMatrix2 = Engine->Renderer.GetRotationMatrixAroundAxis(false, Normalize(CrossProduct(originalBitangent, Chunk.Vertices[i].Normal)), angle);
+		vecTangent = RotationMatrix * v4{ originalTangent.x, originalTangent.y, originalTangent.z, 1.f };
+		vecBitangent = RotationMatrix2 * v4{ originalBitangent.x, originalBitangent.y, originalBitangent.z, 1.f };
+
+		//v3 vecTangent = { 1.f + Pos.y * Pos.y, -1.f * Pos.x, -1.f * Pos.x * Pos.y };
+		//v3 vecBitangent = { -1.f * Pos.x * Pos.y, -1.f * Pos.y, 1.f + Pos.x * Pos.x };
+		//matrix4x4 RotationMatrix = Engine->Renderer.GetRotationMatrixAroundAxis(false, Chunk.Vertices[i].Normal, 45.f * (Pi32 / 180.f));
+		//vecTangent = RotationMatrix * v4{ vecTangent.x, vecTangent.y, vecTangent.z, 1.f };
+		//vecBitangent = RotationMatrix * v4{ vecBitangent.x, vecBitangent.y, vecBitangent.z, 1.f };
+		//vecTangent = vecTangent;
+		//vecBitangent = vecBitangent;
+
+		//v3 vecTangent = CrossProduct(v3{0.f,1.f,0.f}, Chunk.Vertices[i].Normal);
+		//vecTangent = Normalize(vecTangent);
+
 		Chunk.Vertices[i].Tangent = vecTangent;
 		Chunk.Vertices[i].Bitangent = vecBitangent;
 	}

@@ -51,12 +51,16 @@ public:
 	void Initialize(void* Window, int WindowWidth, int WindowHeight);
 	void Cleanup();
 
+	void FinishFrame();
+	void UpdateState();
 	void InitializeAssetSystem();
 	void ProcessUserInput();
+	void UpdateCamera();
+	void UpdateTerrain();
 	void RenderPlanet();
 	void RenderScene();
-	void RenderGeometry();
-	void RenderVarianceShadow();
+	void RenderDirectionalShadowCascade();
+	void RenderVarianceShadowMap();
 	void RenderPlanetGeometry();
 	void UpdateComponents();
 	void RenderDebugWidgets();
