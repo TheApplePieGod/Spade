@@ -26,7 +26,6 @@
 *.lib
 *.recipe
 misc
-code/3rdparty
 spade_legacy
 
 # Executables
